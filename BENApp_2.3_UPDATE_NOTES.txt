@@ -1,0 +1,11 @@
+BENApp 2.3.0 - UI/Brand Alignment Update
+
+- Final BEN visual language applied to empty home.
+- Added a dark night/lake background for the empty home state.
+- Empty home now has the glossy BEN pin, Turkish copy and circular yellow + action.
+- Removed the settings icon from the main header; notification remains.
+- Header uses BEN wordmark + glossy pin.
+- Bottom navigation no longer uses the selected pill background.
+- FAB is circular yellow and only shown when memories exist; empty home uses its central +.
+- Splash now presents the pin + BEN together, without a square image or separated dot.
+- Existing map/markers and comment route are preserved.

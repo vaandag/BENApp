@@ -1,0 +1,11 @@
+BENApp v2.2 – UI STYLE UPDATE
+
+- Uygulama genelinde BEN görsel dili, gönderilen final tasarım panosuna göre sıkılaştırıldı.
+- Ana üst çubuk BEN + parlak sarı pin düzenine getirildi.
+- Koyu tema arka planları daha derin lacivert/siyah, kartlar daha koyu mavi tonlara ayarlandı.
+- Sarı vurgu rengi #FFD200 korunarak ana aksiyonlar ve seçili navigasyonla eşleştirildi.
+- Alt navigasyon ve merkez + butonu mevcut özellikleri bozmadan final tasarım diline yaklaştırıldı.
+- Açık tema desteği korunmuştur.
+- Final kare olmayan splash yaklaşımı korunmuştur; kare logo görseli splash olarak kullanılmamaktadır.
+- Yorum ekranı normal route olarak korunarak eski Android debug çökmesi önlenmiştir.
+- Harita/marker, beğeni, yorum ve sabitleme özellikleri korunmuştur.

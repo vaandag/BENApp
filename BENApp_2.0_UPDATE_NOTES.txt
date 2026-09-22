@@ -1,0 +1,25 @@
+BENApp 2.0.0+12 — Android kaynak güncellemesi
+
+Bu sürümde:
+- Splash/native launch ekranı tam ekran kare görsel yerine düz BEN koyu arka plan + şeffaf pin kullanacak şekilde düzenlendi.
+- BEN splash animasyonu korunup pinin doğal şekilde ekrana gelmesi hedeflendi.
+- Yorum bottom-sheet akışı yeniden düzenlendi. Yorum gönderirken Overlay/InheritedElement kaynaklı
+  `_dependents.isEmpty` assertion riskini azaltmak için sheet sonucu önce Navigator ile döndürülüyor,
+  ardından ana ekran state'i güncelleniyor.
+- Home ve Anı detay ekranındaki yorum akışı aynı güvenli modele geçirildi.
+- Tema seçimi (Açık / Koyu / Sistem) korunuyor.
+- Beğeni / yorum / sabitle ve harita + marker özelliklerine dokunulmadı.
+- Uygulama sürümü 2.0.0+12 yapıldı.
+
+ÖNEMLİ:
+Bu paket kaynak kod paketidir. APK burada derlenmedi. Windows bilgisayarda:
+  cd /d D:\BENApp\mobile
+  flutter clean
+  flutter pub get
+  flutter analyze
+  flutter build apk --debug
+
+APK:
+  build\app\outputs\flutter-apk\app-debug.apk
+
+Son `flutter analyze` çıktısında error olmamalı; yalnızca info satırları kalabilir.

@@ -1,0 +1,397 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+
+class BENParticleSplashScreen extends StatefulWidget {
+  const BENParticleSplashScreen({super.key, required this.onFinished});
+  final VoidCallback onFinished;
+
+  @override
+  State<BENParticleSplashScreen> createState() => _BENParticleSplashScreenState();
+}
+
+class _BENParticleSplashScreenState extends State<BENParticleSplashScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 5200),
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed && !_done) {
+          _done = true;
+          widget.onFinished();
+        }
+      })..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF05070A),
+      body: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) => CustomPaint(
+            painter: _BENParticlePainter(_controller.value),
+            size: Size.infinite,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Particle {
+  const _Particle({
+    required this.tx,
+    required this.ty,
+    required this.sx,
+    required this.sy,
+    required this.size,
+    required this.phase,
+    required this.seed,
+  });
+  final double tx, ty, sx, sy, size, phase, seed;
+}
+
+class _BENParticlePainter extends CustomPainter {
+  _BENParticlePainter(this.progress);
+  final double progress;
+
+  static const bg = Color(0xFF05070A);
+  static const gold = Color(0xFFFFD21A);
+  static const goldHot = Color(0xFFFFF4A3);
+  static const goldDeep = Color(0xFFFFB900);
+
+  List<_Particle>? _cache;
+  Size? _cacheSize;
+
+  Offset _center(Size size) => Offset(size.width / 2, size.height * .37);
+
+  List<Offset> _logoPoints(Size size) {
+    final c = _center(size);
+    final r = math.min(size.width * .155, 116.0);
+    final points = <Offset>[];
+
+    // Outer pin contour: almost a circle at the top, tapering to a clean tip.
+    for (var i = 0; i < 520; i++) {
+      final t = i / 519.0;
+      final a = math.pi * (1.08 + 1.84 * t);
+      points.add(Offset(c.dx + r * math.cos(a), c.dy + r * math.sin(a)));
+    }
+    for (var i = 0; i < 210; i++) {
+      final t = i / 209.0;
+      final left = Offset(c.dx - r * (1.0 - t), c.dy + r * (.30 + 1.90 * t));
+      final right = Offset(c.dx + r * (1.0 - t), c.dy + r * (.30 + 1.90 * t));
+      points.add(left);
+      points.add(right);
+    }
+
+    // Inner circular opening.
+    final inner = r * .58;
+    for (var i = 0; i < 420; i++) {
+      final a = 2 * math.pi * i / 420.0;
+      points.add(Offset(c.dx + inner * math.cos(a), c.dy + inner * math.sin(a)));
+    }
+
+    // Secondary particles inside the body, but never over the dark inner face.
+    final rng = math.Random(29071993);
+    final tip = c.dy + r * 2.20;
+    for (var y = c.dy + r * .20; y < tip; y += 4.8) {
+      final t = ((y - c.dy) / (tip - c.dy)).clamp(0.0, 1.0);
+      final half = r * (1.0 - t);
+      for (var x = c.dx - half; x <= c.dx + half; x += 4.8) {
+        final dx = x - c.dx;
+        final dy = y - c.dy;
+        if (dx * dx + dy * dy > inner * inner && rng.nextDouble() < .36) {
+          points.add(Offset(x, y));
+        }
+      }
+    }
+    return points;
+  }
+
+  List<_Particle> _particles(Size size) {
+    if (_cache != null && _cacheSize == size) return _cache!;
+    final rng = math.Random(19930729);
+    final c = _center(size);
+    final targets = _logoPoints(size);
+    targets.shuffle(rng);
+    final count = math.min(1650, targets.length);
+    final result = <_Particle>[];
+    final cloud = math.min(size.width, size.height) * .42;
+
+    for (var i = 0; i < count; i++) {
+      final target = targets[i];
+      final a = rng.nextDouble() * math.pi * 2;
+      final radius = 55 + rng.nextDouble() * cloud;
+      final sx = c.dx + math.cos(a) * radius * (0.72 + rng.nextDouble() * .7);
+      final sy = c.dy + math.sin(a) * radius * (0.62 + rng.nextDouble() * .8);
+      result.add(_Particle(
+        tx: target.dx,
+        ty: target.dy,
+        sx: sx,
+        sy: sy,
+        size: .55 + rng.nextDouble() * 2.25,
+        phase: rng.nextDouble() * math.pi * 2,
+        seed: rng.nextDouble(),
+      ));
+    }
+    _cache = result;
+    _cacheSize = size;
+    return result;
+  }
+
+  double _ease(double x) {
+    x = x.clamp(0.0, 1.0);
+    return x * x * (3.0 - 2.0 * x);
+  }
+
+  double _easeOut(double x) => 1 - math.pow(1 - x.clamp(0.0, 1.0), 3).toDouble();
+  double _lerp(double a, double b, double t) => a + (b - a) * t;
+
+  void _glowDot(Canvas canvas, Offset p, double radius, double opacity) {
+    final glow = Paint()
+      ..color = gold.withValues(alpha: opacity * .25)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 3.2);
+    canvas.drawCircle(p, radius * 1.6, glow);
+    final dot = Paint()..color = goldHot.withValues(alpha: opacity);
+    canvas.drawCircle(p, radius, dot);
+  }
+
+  Path _pinPath(Size size) {
+    final c = _center(size);
+    final r = math.min(size.width * .155, 116.0);
+    final path = Path();
+    final center = Offset(c.dx, c.dy);
+    path.moveTo(c.dx, c.dy + r * 2.2);
+    path.cubicTo(c.dx - r * .32, c.dy + r * 1.62, c.dx - r * 1.02, c.dy + r * .88,
+        c.dx - r, c.dy);
+    path.arcTo(Rect.fromCircle(center: center, radius: r), math.pi, math.pi, false);
+    path.cubicTo(c.dx + r * 1.02, c.dy + r * .88, c.dx + r * .32, c.dy + r * 1.62,
+        c.dx, c.dy + r * 2.2);
+    path.close();
+    return path;
+  }
+
+  void _drawFinishedLogo(Canvas canvas, Size size, double opacity, Offset offset, double rotation) {
+    final c = _center(size) + offset;
+    final r = math.min(size.width * .155, 116.0);
+    canvas.save();
+    canvas.translate(c.dx, c.dy);
+    canvas.rotate(rotation);
+    canvas.translate(-c.dx, -c.dy);
+
+    final outer = _pinPath(size).shift(offset);
+    final fill = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(c.dx - r, c.dy - r),
+        Offset(c.dx + r, c.dy + r * 2.2),
+        [goldHot, gold, goldDeep],
+      )
+      ..style = PaintingStyle.fill
+      ..color = gold.withValues(alpha: opacity);
+    canvas.drawPath(outer, fill);
+
+    final edge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.2
+      ..color = goldHot.withValues(alpha: opacity * .95)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    canvas.drawPath(outer, edge);
+
+    final inner = Paint()
+      ..style = PaintingStyle.fill
+      ..shader = ui.Gradient.radial(c, r * .58, [const Color(0xFF17202A), const Color(0xFF020407)]);
+    canvas.drawCircle(c, r * .58, inner);
+
+    final innerEdge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.3
+      ..color = goldHot.withValues(alpha: opacity * .85);
+    canvas.drawCircle(c, r * .58, innerEdge);
+
+    final highlight = Paint()
+      ..color = Colors.white.withValues(alpha: opacity * .78)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+    canvas.drawOval(Rect.fromCenter(
+      center: Offset(c.dx + r * .20, c.dy - r * .24),
+      width: r * .32,
+      height: r * .19,
+    ), highlight);
+    canvas.restore();
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawColor(bg, BlendMode.srcOver);
+    if (size.width <= 0 || size.height <= 0) return;
+
+    final parts = _particles(size);
+    final c = _center(size);
+
+    // 0.00–0.75: a living cloud of light appears before the logo exists.
+    final pre = _ease((progress / .28).clamp(0.0, 1.0));
+    final formation = _ease(((progress - .18) / .48).clamp(0.0, 1.0));
+
+    // Long orbital light ribbons, inspired by the reference storyboard.
+    final ribbonOpacity = math.sin(math.min(1.0, progress / .78) * math.pi) * .78;
+    if (progress > .08 && progress < .92) {
+      for (var band = 0; band < 3; band++) {
+        final path = Path();
+        for (var i = 0; i <= 90; i++) {
+          final t = i / 90.0;
+          final y = c.dy - size.height * .32 + t * size.height * .74;
+          final x = c.dx + math.sin(t * math.pi * 4.1 + band * 2.1 + progress * 15) *
+              (size.width * (.16 + .055 * math.sin(t * math.pi)));
+          if (i == 0) {
+            path.moveTo(x, y);
+          } else {
+            path.lineTo(x, y);
+          }
+        }
+        final p = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.3 + band * .35
+          ..color = gold.withValues(alpha: ribbonOpacity * (.20 - band * .035))
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+        canvas.drawPath(path, p);
+      }
+    }
+
+    // Swirling ambient cloud. These particles never form a readable logo yet.
+    for (var i = 0; i < parts.length; i += 2) {
+      final p = parts[i];
+      final swirl = (1.0 - formation) * (1.0 - p.seed * .22);
+      final angle = progress * (7.0 + p.seed * 4.0) + p.phase;
+      final dx = p.sx - c.dx;
+      final dy = p.sy - c.dy;
+      final rx = dx * math.cos(angle * .12) - dy * math.sin(angle * .12);
+      final ry = dx * math.sin(angle * .12) + dy * math.cos(angle * .12);
+      final x = _lerp(p.sx, c.dx + rx, swirl);
+      final y = _lerp(p.sy, c.dy + ry, swirl);
+      final a = pre * (.18 + .55 * (1 - p.seed));
+      final pulse = .65 + .35 * math.sin(progress * 30 + p.phase);
+      _glowDot(canvas, Offset(x, y), p.size * pulse, a);
+    }
+
+    // 0.18–0.66: particles rush inward along curved/tangential paths and become the pin.
+    final formationEnd = .66;
+    final spinStart = .61;
+    final spin = _ease(((progress - spinStart) / .19).clamp(0.0, 1.0));
+    final land = _easeOut(((progress - .79) / .16).clamp(0.0, 1.0));
+    final targetC = Offset(c.dx, size.height * .61);
+    final moveDown = progress < .79 ? 0.0 : land;
+    final rotation = progress < spinStart ? 0.0 : spin * math.pi * 2.15;
+
+    for (final p in parts) {
+      var x = _lerp(p.sx, p.tx, formation);
+      var y = _lerp(p.sy, p.ty, formation);
+
+      // While forming, give each particle a curved orbit rather than a straight lerp.
+      if (progress < formationEnd) {
+        final q = formation;
+        final dx = p.sx - c.dx;
+        final dy = p.sy - c.dy;
+        final tangential = math.sin(q * math.pi) * (42 + p.seed * 70);
+        final nx = -dy / (math.sqrt(dx * dx + dy * dy) + 1);
+        final ny = dx / (math.sqrt(dx * dx + dy * dy) + 1);
+        x += nx * tangential;
+        y += ny * tangential;
+      }
+
+      if (progress >= spinStart) {
+        final dx = x - c.dx;
+        final dy = y - c.dy;
+        final rx = dx * math.cos(rotation) - dy * math.sin(rotation);
+        final ry = dx * math.sin(rotation) + dy * math.cos(rotation);
+        x = c.dx + rx;
+        y = c.dy + ry;
+      }
+
+      if (moveDown > 0) {
+        x = _lerp(x, targetC.dx + (x - c.dx) * .90, moveDown);
+        y = _lerp(y, targetC.dy + (y - c.dy) * .90, moveDown);
+      }
+
+      final alpha = progress < .18
+          ? (progress / .18)
+          : progress < .70
+              ? 1.0
+              : (1.0 - math.max(0.0, (progress - .94) / .06));
+      final shimmer = .72 + .28 * math.sin(progress * 34 + p.phase);
+      _glowDot(canvas, Offset(x, y), p.size * (0.85 + shimmer * .28), alpha);
+    }
+
+    // A brief, non-PNG vector logo resolves out of the particles after formation.
+    if (progress > .64) {
+      final q = _ease(((progress - .64) / .15).clamp(0.0, 1.0));
+      final logoOffset = progress < .79
+          ? Offset.zero
+          : Offset(0, (targetC.dy - c.dy) * land);
+      _drawFinishedLogo(canvas, size, q * .94, logoOffset, rotation);
+    }
+
+    // Target appears beneath the descending logo.
+    if (progress > .67) {
+      final q = _ease(((progress - .67) / .27).clamp(0.0, 1.0));
+      final ringCenter = Offset(targetC.dx, targetC.dy + 112);
+      final pulse = 1 + .12 * math.sin(progress * 38);
+      final outer = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..color = gold.withValues(alpha: .78 * q)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+      canvas.drawOval(Rect.fromCenter(center: ringCenter, width: 146 * pulse, height: 38 * pulse), outer);
+      final inner = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = goldHot.withValues(alpha: .44 * q);
+      canvas.drawOval(Rect.fromCenter(center: ringCenter, width: 88 * pulse, height: 23 * pulse), inner);
+
+      // vertical energy beam under the pin
+      final beam = Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(targetC.dx, targetC.dy + 20),
+          Offset(targetC.dx, ringCenter.dy),
+          [gold.withValues(alpha: .0), gold.withValues(alpha: .42 * q), gold.withValues(alpha: .0)],
+        )
+        ..strokeWidth = 2.0;
+      canvas.drawLine(Offset(targetC.dx, targetC.dy + 28), ringCenter, beam);
+    }
+
+    // Impact shockwave when the logo lands.
+    if (progress > .90) {
+      final q = ((progress - .90) / .10).clamp(0.0, 1.0);
+      final ringCenter = Offset(targetC.dx, targetC.dy + 112);
+      final shock = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.8 * (1 - q)
+        ..color = goldHot.withValues(alpha: (1 - q) * .72)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+      canvas.drawOval(Rect.fromCenter(
+        center: ringCenter,
+        width: 90 + q * 220,
+        height: 24 + q * 62,
+      ), shock);
+      final flash = Paint()
+        ..color = goldHot.withValues(alpha: (1 - q) * .11)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 28);
+      canvas.drawCircle(ringCenter, 48 + q * 28, flash);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BENParticlePainter oldDelegate) => oldDelegate.progress != progress;
+}

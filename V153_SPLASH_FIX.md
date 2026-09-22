@@ -1,0 +1,1 @@
+V153: Flutter splash is the only visible splash. MainActivity is the launcher. ben_master_logo.png rotates one full turn over 1.8s and remains fixed before entering the app. Android launch background contains only the dark background to avoid competing static splash artwork.

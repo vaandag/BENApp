@@ -1,0 +1,18 @@
+BENApp V107 - BUGFIX / UI CLEANUP
+
+Base: V106 NETWORK FIX
+
+Fixed:
+- Üye Ol / Giriş Yap bottom-sheet flow no longer calls authentication callback while the sheet is being popped. The user is returned from the sheet first, then the parent app switches to MainScreen.
+- Profile screen no longer renders a second BEN brand header while MainScreen already supplies the page header.
+- Removed the duplicate upper Messages shortcut from MainScreen; Mesajlar remains in the bottom navigation and the Messages screen itself keeps its own compose button.
+- Removed the Hero tag from BENBrandHeader to prevent duplicate hero-tag ownership when multiple page widgets are mounted inside PageView.
+- Bio editor moved into its own StatefulWidget with its own controller/state lifecycle, avoiding nested StatefulBuilder/controller disposal issues during bottom-sheet transitions.
+- Removed unused legacy account_edit_screen.dart.
+
+Version: 5.1.5+107
+
+Map screen was intentionally left intact. Next phase is the real map implementation after this bugfix is verified on the Redmi device.
+
+Important build for Redmi (manual install):
+flutter build apk --debug --dart-define=BEN_API_URL=http://192.168.1.24:8080/api

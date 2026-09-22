@@ -1,0 +1,8 @@
+BENApp v2.1 — logo + stability update
+
+- Final glossy BEN pin used without a square image background on the Flutter splash.
+- Removed the extra artificial ring that could make the splash look duplicated.
+- Added dedicated comments route for feed/detail comment actions. This avoids the Android debug _dependents assertion seen when opening the old bottom-sheet composer.
+- Like / comment / pin actions remain available.
+- Existing map/markers and theme choices are preserved.
+- Build output folders are intentionally excluded from this source ZIP.

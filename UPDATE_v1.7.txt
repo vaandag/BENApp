@@ -1,0 +1,20 @@
+BENApp v1.7 — Visual Foundation
+
+Bu paket:
+- Tek Flutter açılış ekranı: koyu BEN ekranı + yazısız parlak pin + BEN wordmark + sarı loading bar.
+- Android native splash aynı koyu zemin ve aynı pin diliyle hizalandı; eski beyaz splash kaldırıldı.
+- Android launcher ikonları yeni BEN pin ikonuyla yenilendi.
+- Açık/Koyu/Sistem tema seçimi eklendi ve Ayarlar butonu çalışır hale getirildi.
+- Ana ekran boş durumundaki eski yıldız kutusu kaldırılıp BEN pin görseli kondu.
+- Alt navigasyon ve FAB tema moduna göre uyarlanıyor.
+- Sürüm 1.7.0+7.
+
+PC'de:
+flutter clean
+flutter pub get
+flutter pub run flutter_native_splash:create
+flutter pub run flutter_launcher_icons
+flutter analyze
+flutter build apk --debug
+
+Not: Android sistem splash'ı işletim sistemi tarafından çok kısa süre gösterilebilir. Hedef, eski çift/ayrı beyaz açılışı kaldırıp tek BEN tasarım diline geçmektir.
