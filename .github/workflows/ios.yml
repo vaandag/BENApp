@@ -27,7 +27,7 @@ jobs:
         run: flutter analyze
 
       - name: Build iOS
-        run: flutter build ios --release --no-codesign
+        run: flutter build ios --release --no-codesign --dart-define=BEN_API_URL=http://192.168.1.24:8080/api
 
       - name: Create unsigned IPA
         run: |
