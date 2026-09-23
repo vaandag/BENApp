@@ -14,10 +14,7 @@ import '../models/memory.dart';
 import 'memory_map_detail_screen.dart';
 import 'memory_fullscreen_viewer.dart';
 
-/// BEN'in canlı demo akışı.
-/// Gerçek API boş olduğunda bile uygulamanın "yaşıyor" görünmesi için
-/// yalnızca geliştirme/demo verileri üretir. Gerçek anılar geldiğinde onları
-/// akışın başına ekler.
+/// BEN ana akışı. Gerçek backend anıları kaynak veridir; demo/bot içerik eklenmez.
 class HomeScreen extends StatefulWidget {
   final List<Memory> memories;
   final List<Memory> connectionMemories;
@@ -53,33 +50,8 @@ class _HomeScreenState extends State<HomeScreen>
   final Set<String> _saved = <String>{};
   final ApiClient _api = ApiClient();
 
-  final List<_DemoPerson> _demoPeople = const [
-    _DemoPerson('Ece', 'Bugün', Icons.wb_sunny_rounded, [
-      _DemoStory('Şehrin sesi bugün biraz daha yakın.', 'Kadıköy Sahil', Icons.waves_rounded),
-      _DemoStory('Güneş tam zamanında çıktı.', 'Moda', Icons.wb_sunny_rounded),
-      _DemoStory('Bir an daha BEN.', 'İstanbul', Icons.auto_awesome_rounded),
-    ]),
-    _DemoPerson('Mert', '12 dk', Icons.directions_walk_rounded, [
-      _DemoStory('Yürürken karşıma çıkan küçük bir an.', 'Kadıköy', Icons.directions_walk_rounded),
-      _DemoStory('Şehir akıyor.', 'Bağdat Caddesi', Icons.location_city_rounded),
-    ]),
-    _DemoPerson('Lina', '28 dk', Icons.local_cafe_rounded, [
-      _DemoStory('Bir kahve, biraz deniz, biraz BEN.', 'Moda', Icons.local_cafe_rounded),
-      _DemoStory('Burada zaman biraz yavaşlıyor.', 'Karaköy', Icons.coffee_rounded),
-    ]),
-    _DemoPerson('Arda', '1 sa', Icons.music_note_rounded, [
-      _DemoStory('Gece akıyor. Ben de içindeyim.', 'Beşiktaş', Icons.music_note_rounded),
-      _DemoStory('Kulaklık takılı. Şehir akıyor.', 'Ortaköy', Icons.graphic_eq_rounded),
-    ]),
-    _DemoPerson('Nehir', '3 sa', Icons.camera_alt_rounded, [
-      _DemoStory('Sokakta karşıma çıkan küçük bir an.', 'Beyoğlu', Icons.camera_alt_rounded),
-      _DemoStory('Bugün burada güzel bir iz bıraktım.', 'Bebek', Icons.location_on_rounded),
-    ]),
-  ];
-
   List<_DemoPerson> get _people {
-    // Gerçek kullanıcıyla giriş yapıldıysa demo botları göstermiyoruz.
-    if (widget.currentUser == null) return _demoPeople;
+    if (widget.currentUser == null) return const <_DemoPerson>[];
     final ownMemories = widget.memories.where((memory) => memory.isStory && !memory.isExpired).take(6).toList();
     if (ownMemories.isEmpty) return const [];
     final stories = ownMemories.map((memory) => _DemoStory(
@@ -129,8 +101,7 @@ class _HomeScreenState extends State<HomeScreen>
     // sağlayabilir; UI yine tek ve tutarlı bir akış deneyimi sunar.
     final source = _activeFilter == 1 ? widget.connectionMemories : widget.memories;
     final real = source.map(_FeedMemory.fromReal).toList();
-    final demo = widget.currentUser == null ? _demoFeed() : const <_FeedMemory>[];
-    return <_FeedMemory>[...real, ...demo];
+    return real;
   }
 
   @override
@@ -210,7 +181,6 @@ class _HomeScreenState extends State<HomeScreen>
                             ),
                     ),
                   ),
-                  SliverToBoxAdapter(child: _activityStrip(context)),
                   const SliverToBoxAdapter(child: SizedBox(height: 130)),
                 ],
               ),
@@ -371,68 +341,13 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _activityStrip(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
-      child: GestureDetector(
-        onTap: () => _showActivity(context),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface.withValues(alpha: .86), borderRadius: BorderRadius.circular(22), border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: .3))),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 70,
-                height: 36,
-                child: Stack(
-                  children: [
-                    for (int i = 0; i < 3; i++)
-                      Positioned(
-                        left: i * 18,
-                        top: 1,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: i == 0
-                                ? BenTokens.gold
-                                : const Color(0xFF26314A),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.surface,
-                              width: 2,
-                            ),
-                          ),
-                          child: Icon(
-                            i == 0 ? Icons.person : Icons.face_rounded,
-                            size: 15,
-                            color: i == 0 ? BenTokens.ink : Colors.white,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 6),
-              const Expanded(child: Text('Mert, Lina ve 8 kişi daha burada bir şey bıraktı.', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, height: 1.25))),
-              const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _emptyState(BuildContext context) {
     return Center(child: Padding(padding: const EdgeInsets.all(28), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.auto_awesome_rounded, color: BenTokens.gold, size: 42), const SizedBox(height: 12), const Text('Akış sessiz.', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)), const SizedBox(height: 6), const Text('İlk anını bırak ve BEN dünyasını başlat.', textAlign: TextAlign.center), const SizedBox(height: 18), FilledButton.icon(onPressed: widget.onCreate, icon: const Icon(Icons.auto_awesome_rounded), label: const Text('İlk anını bırak'))])));
   }
 
   void _openMemory(BuildContext context, _FeedMemory item) {
     final memory = item.memory;
-    if (memory == null) {
-      _showDemoDetail(context, item);
-      return;
-    }
+    if (memory == null) return;
     Navigator.push(context, MaterialPageRoute(builder: (_) => MemoryFullscreenViewer(memory: memory, memories: widget.memories)));
   }
 
@@ -497,14 +412,6 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void _showDemoDetail(BuildContext context, _FeedMemory item) {
-    showModalBottomSheet<void>(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) => _DemoDetailSheet(item: item));
-  }
-
-  void _showActivity(BuildContext context) {
-    showModalBottomSheet<void>(context: context, backgroundColor: Colors.transparent, builder: (_) => const _ActivitySheet());
-  }
-
   void _showStoryViewer(BuildContext context, int initialIndex) {
     showGeneralDialog<void>(
       context: context,
@@ -519,12 +426,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
 
-  List<_FeedMemory> _demoFeed() => [
-        _FeedMemory.demo('demo-1', 'Mert Kaya', 'Kadıköy sahilinde 18:42', 'Akşamın rengi bugün başka.', MemoryType.photo, Icons.waves_rounded, const Color(0xFF254B68), 128, 14, 3, '12 dk önce'),
-        _FeedMemory.demo('demo-2', 'Lina Demir', 'Moda / küçük bir kahve molası', 'Burada zaman biraz yavaşlıyor.', MemoryType.text, Icons.local_cafe_rounded, const Color(0xFF6C493D), 86, 9, 5, '28 dk önce'),
-        _FeedMemory.demo('demo-3', 'Arda Yılmaz', 'Beşiktaş • gece', 'Kulaklık takılı. Şehir akıyor.', MemoryType.video, Icons.graphic_eq_rounded, const Color(0xFF30245E), 211, 22, 7, '1 sa önce'),
-        _FeedMemory.demo('demo-4', 'Nehir Acar', 'Beyoğlu / İstiklal', 'Bir sokak, üç hikâye.', MemoryType.location, Icons.location_on_rounded, const Color(0xFF3E5542), 64, 6, 2, '3 sa önce'),
-      ];
+
 }
 
 
@@ -740,25 +642,6 @@ class _StoryViewerState extends State<_StoryViewer> {
   }
 }
 
-class _DemoDetailSheet extends StatelessWidget {
-  final _FeedMemory item;
-  const _DemoDetailSheet({required this.item});
-  @override
-  Widget build(BuildContext context) => _SheetShell(
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(height: 210, decoration: BoxDecoration(borderRadius: BorderRadius.circular(26), color: item.visualColor), child: CustomPaint(painter: _MemoryVisualPainter(base: item.visualColor, icon: item.visualIcon), child: const SizedBox.expand())),
-      const SizedBox(height: 18),
-      Text(item.user, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-      const SizedBox(height: 5),
-      Text(item.place, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w700)),
-      const SizedBox(height: 14),
-      Text(item.text, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, height: 1.3)),
-      const SizedBox(height: 18),
-      Row(children: [const BENDartIcon(), const SizedBox(width: 6), Text('${item.likes} beğeni'), const SizedBox(width: 18), const BENFeatherIcon(), const SizedBox(width: 6), Text('${item.comments} yorum')]),
-    ]),
-  );
-}
-
 class _FeedMemory {
   final String id;
   final String user;
@@ -775,8 +658,6 @@ class _FeedMemory {
   final Memory? memory;
 
   const _FeedMemory({required this.id, required this.user, required this.avatarUrl, required this.place, required this.text, required this.kind, required this.visualIcon, required this.visualColor, required this.likes, required this.comments, required this.saves, required this.time, this.memory});
-
-  factory _FeedMemory.demo(String id, String user, String place, String text, MemoryType kind, IconData icon, Color color, int likes, int comments, int saves, String time) => _FeedMemory(id: id, user: user, avatarUrl: '', place: place, text: text, kind: kind, visualIcon: icon, visualColor: color, likes: likes, comments: comments, saves: saves, time: time);
 
   factory _FeedMemory.fromReal(Memory memory) => _FeedMemory(id: memory.id, user: memory.ownerUsername ?? AuthService.currentUser?.username ?? 'BEN', avatarUrl: memory.ownerAvatarUrl ?? AuthService.currentUser?.avatarUrl ?? '', place: memory.hasLocation ? 'Konumlu anı' : 'BEN', text: memory.hasText ? memory.text! : 'Yeni bir an bıraktım.', kind: memory.type, visualIcon: switch (memory.type) { MemoryType.photo => Icons.photo_rounded, MemoryType.video => Icons.play_circle_fill_rounded, MemoryType.music => Icons.music_note_rounded, MemoryType.location => Icons.location_on_rounded, MemoryType.text => Icons.notes_rounded }, visualColor: const Color(0xFF27344D), likes: memory.isFavorite ? 1 : 0, comments: 0, saves: memory.isPinned ? 1 : 0, time: _relative(memory.createdAt), memory: memory);
 
@@ -1266,59 +1147,4 @@ class _ActionButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ActivitySheet extends StatelessWidget {
-  const _ActivitySheet();
-  @override
-  Widget build(BuildContext context) => _SheetShell(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Bugün BEN', style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900)), const SizedBox(height: 18), const _ActivityRow('Mert Kaya', 'Kadıköy anını beğendi.', 'dart'), const _ActivityRow('Lina Demir', 'Anına yorum yaptı.', 'feather'), const _ActivityRow('Nehir Acar', 'Seni yeni bir konumda gördü.', Icons.location_on_rounded), const _ActivityRow('Arda Yılmaz', 'Yeni bir video bıraktı.', Icons.play_circle_fill_rounded)]));
-}
-
-class _ActivityRow extends StatelessWidget {
-  final String name;
-  final String text;
-  final Object icon;
-  const _ActivityRow(this.name, this.text, this.icon);
-
-  @override
-  Widget build(BuildContext context) {
-    final Widget leading;
-    if (icon == 'dart') {
-      leading = const BENDartIcon();
-    } else if (icon == 'feather') {
-      leading = const BENFeatherIcon();
-    } else {
-      leading = Icon(icon as IconData, color: BenTokens.ink, size: 20);
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 15),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: const BoxDecoration(color: BenTokens.gold, shape: BoxShape.circle),
-            child: Center(child: leading),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.w900)),
-                Text(text, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SheetShell extends StatelessWidget {
-  final Widget child;
-  const _SheetShell({required this.child});
-  @override
-  Widget build(BuildContext context) => SafeArea(child: Container(padding: const EdgeInsets.fromLTRB(20, 12, 20, 25), decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(32))), child: SingleChildScrollView(child: child)));
 }

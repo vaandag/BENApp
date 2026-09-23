@@ -1,9 +1,18 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+/// BEN branded entrance animation.
+///
+/// The particles are generated from the real BEN master-logo alpha mask, so the
+/// logo is not approximated by a location pin or a generic shape. The sequence
+/// is: dark field -> loose particle cloud -> BEN logo formation -> glow/flash ->
+/// logo locks in -> app.
 class BENParticleSplashScreen extends StatefulWidget {
   const BENParticleSplashScreen({super.key, required this.onFinished});
+
   final VoidCallback onFinished;
 
   @override
@@ -12,21 +21,84 @@ class BENParticleSplashScreen extends StatefulWidget {
 
 class _BENParticleSplashScreenState extends State<BENParticleSplashScreen>
     with SingleTickerProviderStateMixin {
+  static const _duration = Duration(milliseconds: 2450);
+
   late final AnimationController _controller;
-  bool _done = false;
+  List<Offset> _maskPoints = const <Offset>[];
+  bool _ready = false;
+  bool _finished = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 5200),
-    )..addStatusListener((status) {
-        if (status == AnimationStatus.completed && !_done) {
-          _done = true;
+    _controller = AnimationController(vsync: this, duration: _duration)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed && !_finished) {
+          _finished = true;
           widget.onFinished();
         }
-      })..forward();
+      });
+    _loadLogoMask();
+  }
+
+  Future<void> _loadLogoMask() async {
+    try {
+      final data = await rootBundle.load('assets/branding/ben_master_logo.png');
+      final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (byteData == null || !mounted) return;
+
+      final points = _sampleMask(
+        byteData.buffer.asUint8List(),
+        image.width,
+        image.height,
+      );
+      image.dispose();
+      if (!mounted) return;
+
+      setState(() {
+        _maskPoints = points;
+        _ready = true;
+      });
+      _controller.forward();
+    } catch (_) {
+      // If the asset cannot be decoded, still show a short branded fallback.
+      if (!mounted) return;
+      setState(() => _ready = true);
+      _controller.forward();
+    }
+  }
+
+  List<Offset> _sampleMask(Uint8List rgba, int width, int height) {
+    final raw = <Offset>[];
+    const stride = 7;
+    for (var y = 0; y < height; y += stride) {
+      for (var x = 0; x < width; x += stride) {
+        final i = (y * width + x) * 4;
+        final alpha = rgba[i + 3];
+        if (alpha < 80) continue;
+        // Keep the real opaque logo silhouette, including glossy transparent
+        // edges, while avoiding huge numbers of almost-transparent pixels.
+        final luminance =
+            (rgba[i] * .299 + rgba[i + 1] * .587 + rgba[i + 2] * .114);
+        if (alpha > 150 || luminance > 115) {
+          raw.add(Offset(x / width, y / height));
+        }
+      }
+    }
+
+    // Deterministic down-sampling keeps animation cost stable on Redmi 8 and
+    // still gives enough particles for a recognisable BEN logo.
+    const maxParticles = 1150;
+    if (raw.length <= maxParticles) return raw;
+    final result = <Offset>[];
+    final step = raw.length / maxParticles;
+    for (var i = 0; i < maxParticles; i++) {
+      result.add(raw[(i * step).floor()]);
+    }
+    return result;
   }
 
   @override
@@ -37,41 +109,55 @@ class _BENParticleSplashScreenState extends State<BENParticleSplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (!_ready) {
+      return const Scaffold(backgroundColor: Color(0xFF05070A));
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF05070A),
       body: RepaintBoundary(
         child: AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
+            final size = MediaQuery.sizeOf(context);
             final t = _controller.value;
-            final logoT = Curves.easeOutBack.transform(((t - .68) / .18).clamp(0.0, 1.0));
-            final logoOpacity = Curves.easeOut.transform(((t - .72) / .12).clamp(0.0, 1.0));
-            final logoScale = .72 + .28 * logoT;
-            final logoRotation = (1 - logoT) * .10;
+            final settle = Curves.easeOutBack.transform(
+              ((t - .58) / .18).clamp(0.0, 1.0),
+            );
+            final flash = Curves.easeOut.transform(
+              ((t - .70) / .10).clamp(0.0, 1.0),
+            );
+            final logoOpacity = Curves.easeOutCubic.transform(
+              ((t - .74) / .16).clamp(0.0, 1.0),
+            );
+            final logoScale = .92 + .08 * settle;
+
             return Stack(
               fit: StackFit.expand,
               children: [
                 CustomPaint(
-                  painter: _BENParticlePainter(t),
+                  painter: _BENLogoParticlePainter(
+                    progress: t,
+                    maskPoints: _maskPoints,
+                  ),
                   size: Size.infinite,
                 ),
+                if (flash > 0 && flash < 1)
+                  IgnorePointer(
+                    child: ColoredBox(
+                      color: Colors.white.withValues(alpha: .11 * (1 - flash)),
+                    ),
+                  ),
                 if (logoOpacity > 0)
                   Center(
-                    child: Transform.translate(
-                      offset: Offset(0, MediaQuery.of(context).size.height * .115 * (1 - logoT)),
+                    child: Transform.scale(
+                      scale: logoScale,
                       child: Opacity(
                         opacity: logoOpacity,
-                        child: Transform.rotate(
-                          angle: logoRotation,
-                          child: Transform.scale(
-                            scale: logoScale,
-                            child: Image.asset(
-                              'assets/branding/ben_master_logo.png',
-                              width: math.min(MediaQuery.of(context).size.width * .32, 190),
-                              height: math.min(MediaQuery.of(context).size.width * .32, 190),
-                              fit: BoxFit.contain,
-                            ),
-                          ),
+                        child: Image.asset(
+                          'assets/branding/ben_master_logo.png',
+                          width: math.min(size.width * .42, 250),
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ),
@@ -85,290 +171,123 @@ class _BENParticleSplashScreenState extends State<BENParticleSplashScreen>
   }
 }
 
-class _Particle {
-  const _Particle({
-    required this.tx,
-    required this.ty,
-    required this.sx,
-    required this.sy,
-    required this.size,
-    required this.phase,
-    required this.delay,
+class _BENLogoParticlePainter extends CustomPainter {
+  _BENLogoParticlePainter({
+    required this.progress,
+    required this.maskPoints,
   });
-  final double tx, ty, sx, sy, size, phase, delay;
-}
 
-class _BENParticlePainter extends CustomPainter {
-  _BENParticlePainter(this.progress);
   final double progress;
+  final List<Offset> maskPoints;
 
-  static const bg = Color(0xFF05070A);
-  static const gold = Color(0xFFFFD21A);
-  static const goldHot = Color(0xFFFFF7B0);
+  static const _bg = Color(0xFF05070A);
+  static const _gold = Color(0xFFFFD21A);
+  static const _hot = Color(0xFFFFF3A0);
 
-  List<_Particle>? _cache;
-  Size? _cacheSize;
-  Path? _outerCache;
-  Path? _innerCache;
+  List<Offset>? _starts;
+  Size? _startsSize;
 
-  Offset _center(Size size) => Offset(size.width / 2, size.height * .34);
-  double _ease(double x) {
-    x = x.clamp(0.0, 1.0);
-    return x * x * (3.0 - 2.0 * x);
-  }
-  double _easeOut(double x) => 1 - math.pow(1 - x.clamp(0.0, 1.0), 3).toDouble();
-  double _lerp(double a, double b, double t) => a + (b - a) * t;
-
-  Path _outerPath(Size size) {
-    if (_outerCache != null && _cacheSize == size) return _outerCache!;
-    final c = _center(size);
-    final r = math.min(size.width * .155, 116.0);
-    final p = Path();
-    p.moveTo(c.dx, c.dy + r * 2.18);
-    p.cubicTo(c.dx - r * .30, c.dy + r * 1.66, c.dx - r * 1.02, c.dy + r * .86,
-        c.dx - r, c.dy);
-    p.arcTo(Rect.fromCircle(center: c, radius: r), math.pi, math.pi, false);
-    p.cubicTo(c.dx + r * 1.02, c.dy + r * .86, c.dx + r * .30, c.dy + r * 1.66,
-        c.dx, c.dy + r * 2.18);
-    p.close();
-    _outerCache = p;
-    return p;
-  }
-
-  Path _innerPath(Size size) {
-    if (_innerCache != null && _cacheSize == size) return _innerCache!;
-    final c = _center(size);
-    final r = math.min(size.width * .155, 116.0) * .58;
-    final p = Path()..addOval(Rect.fromCircle(center: c, radius: r));
-    _innerCache = p;
-    return p;
-  }
-
-  List<Offset> _targetPoints(Size size) {
-    final c = _center(size);
-    final r = math.min(size.width * .155, 116.0);
-    final pts = <Offset>[];
-    // Dense outer contour.
-    for (var i = 0; i < 760; i++) {
-      final t = i / 759.0;
-      final a = math.pi + math.pi * t;
-      pts.add(Offset(c.dx + r * math.cos(a), c.dy + r * math.sin(a)));
-    }
-    for (var i = 0; i < 420; i++) {
-      final t = i / 419.0;
-      final y = c.dy + r * (0.02 + 2.16 * t);
-      final half = r * (1.0 - t);
-      pts.add(Offset(c.dx - half, y));
-      pts.add(Offset(c.dx + half, y));
-    }
-    // Inner circular contour.
-    final ir = r * .58;
-    for (var i = 0; i < 420; i++) {
-      final a = 2 * math.pi * i / 420.0;
-      pts.add(Offset(c.dx + ir * math.cos(a), c.dy + ir * math.sin(a)));
-    }
-    return pts;
-  }
-
-  List<_Particle> _particles(Size size) {
-    if (_cache != null && _cacheSize == size) return _cache!;
+  List<Offset> _startPoints(Size size) {
+    if (_starts != null && _startsSize == size) return _starts!;
     final rng = math.Random(29071993);
-    final c = _center(size);
-    final targets = _targetPoints(size)..shuffle(rng);
-    final count = math.min(1500, targets.length);
-    final result = <_Particle>[];
-    for (var i = 0; i < count; i++) {
-      final target = targets[i];
-      final a = rng.nextDouble() * math.pi * 2;
-      final radius = size.width * (.25 + rng.nextDouble() * .43);
-      result.add(_Particle(
-        tx: target.dx,
-        ty: target.dy,
-        sx: c.dx + math.cos(a) * radius * (0.65 + rng.nextDouble() * .7),
-        sy: c.dy + math.sin(a) * radius * (0.75 + rng.nextDouble() * .9),
-        size: .7 + rng.nextDouble() * 2.0,
-        phase: rng.nextDouble() * math.pi * 2,
-        delay: rng.nextDouble() * .18,
+    final points = <Offset>[];
+    for (var i = 0; i < maskPoints.length; i++) {
+      final angle = rng.nextDouble() * math.pi * 2;
+      final radius = size.shortestSide * (.30 + rng.nextDouble() * .46);
+      points.add(Offset(
+        size.width / 2 + math.cos(angle) * radius,
+        size.height * .43 + math.sin(angle) * radius,
       ));
     }
-    _cache = result;
-    _cacheSize = size;
-    return result;
+    _starts = points;
+    _startsSize = size;
+    return points;
   }
 
-  void _dot(Canvas canvas, Offset p, double radius, double alpha, {bool hot = false}) {
-    if (alpha <= 0) return;
-    final glow = Paint()
-      ..color = gold.withValues(alpha: alpha * .24)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 4.5);
-    canvas.drawCircle(p, radius * 1.7, glow);
-    final dot = Paint()..color = (hot ? goldHot : gold).withValues(alpha: alpha);
-    canvas.drawCircle(p, radius, dot);
+  Offset _logoTopLeft(Size size) {
+    final width = math.min(size.width * .42, 250.0);
+    final height = width * (1262 / 1139);
+    return Offset((size.width - width) / 2, (size.height - height) / 2 - size.height * .035);
   }
 
-  void _drawPartialPath(Canvas canvas, Path path, double amount, Paint paint) {
-    if (amount <= 0) return;
-    final metrics = path.computeMetrics().toList(growable: false);
-    final total = metrics.fold<double>(0, (sum, m) => sum + m.length);
-    var left = total * amount.clamp(0.0, 1.0);
-    final partial = Path();
-    for (final metric in metrics) {
-      if (left <= 0) break;
-      final take = math.min(left, metric.length);
-      partial.addPath(metric.extractPath(0, take), Offset.zero);
-      left -= take;
-    }
-    canvas.drawPath(partial, paint);
-  }
-
-  void _drawTarget(Canvas canvas, Offset center, double amount, double pulse) {
-    final outer = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.8
-      ..color = gold.withValues(alpha: .78 * amount)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
-    final inner = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..color = goldHot.withValues(alpha: .55 * amount);
-    final scale = 1 + pulse;
-    canvas.drawOval(Rect.fromCenter(center: center, width: 150 * scale, height: 40 * scale), outer);
-    canvas.drawOval(Rect.fromCenter(center: center, width: 88 * scale, height: 24 * scale), inner);
+  Offset _target(Size size, Offset normalized) {
+    final topLeft = _logoTopLeft(size);
+    final width = math.min(size.width * .42, 250.0);
+    final height = width * (1262 / 1139);
+    return Offset(
+      topLeft.dx + normalized.dx * width,
+      topLeft.dy + normalized.dy * height,
+    );
   }
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawColor(bg, BlendMode.srcOver);
-    if (size.width <= 0 || size.height <= 0) return;
+    canvas.drawColor(_bg, BlendMode.srcOver);
+    if (maskPoints.isEmpty || size.width <= 0 || size.height <= 0) return;
 
-    final c = _center(size);
-    final parts = _particles(size);
-    final outer = _outerPath(size);
-    final inner = _innerPath(size);
+    final starts = _startPoints(size);
+    final formation = Curves.easeOutCubic.transform(
+      ((progress - .08) / .58).clamp(0.0, 1.0),
+    );
+    final settle = Curves.easeOutBack.transform(
+      ((progress - .58) / .18).clamp(0.0, 1.0),
+    );
+    final visibility = Curves.easeIn.transform(
+      ((progress - .02) / .16).clamp(0.0, 1.0),
+    );
+    final locked = ((progress - .74) / .18).clamp(0.0, 1.0);
+    final pulse = math.sin((progress - .70) * math.pi * 14).abs() *
+        ((progress - .68) / .16).clamp(0.0, 1.0);
 
-    // 0.00–1.15s: empty screen becomes a living cloud.
-    final cloudIn = _easeOut((progress - .02) / .20);
+    final center = Offset(size.width / 2, size.height * .43);
+    final ambient = Paint()
+      ..color = _gold.withValues(alpha: .035 + .055 * pulse)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, size.shortestSide * .11);
+    canvas.drawCircle(center, size.shortestSide * (.16 + .05 * pulse), ambient);
 
-    // Three long ribbons create the cinematic spiral seen before the logo exists.
-    if (progress > .04 && progress < .72) {
-      final a = math.sin(((progress - .04) / .68) * math.pi).clamp(0.0, 1.0);
-      for (var band = 0; band < 3; band++) {
-        final path = Path();
-        for (var i = 0; i <= 120; i++) {
-          final t = i / 120.0;
-          final y = c.dy - size.height * .30 + t * size.height * .78;
-          final x = c.dx + math.sin(t * math.pi * 3.5 + band * 2.05 + progress * 12.0) *
-              (size.width * (.18 - .035 * t));
-          if (i == 0) {
-            path.moveTo(x, y);
-          } else {
-            path.lineTo(x, y);
-          }
-        }
-        final paint = Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.4 + band * .35
-          ..color = gold.withValues(alpha: a * (.34 - band * .06))
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.4);
-        canvas.drawPath(path, paint);
-      }
+    final dot = Paint()..style = PaintingStyle.fill;
+    final rng = math.Random(771993);
+    for (var i = 0; i < maskPoints.length; i++) {
+      final target = _target(size, maskPoints[i]);
+      final start = starts[i];
+      var p = Offset(
+        start.dx + (target.dx - start.dx) * formation,
+        start.dy + (target.dy - start.dy) * formation,
+      );
+
+      // Tiny settle overshoot makes the particle cloud feel alive instead of
+      // simply interpolating from A to B.
+      final wobble = (1 - formation) * .7 + settle * .3;
+      p += Offset(
+        math.sin(i * .73 + progress * 17) * wobble,
+        math.cos(i * .51 + progress * 15) * wobble,
+      );
+
+      final alpha = (visibility * (1 - locked * .96)).clamp(0.0, 1.0);
+      if (alpha <= 0) continue;
+      final hot = rng.nextDouble() > .88;
+      dot.color = (hot ? _hot : _gold).withValues(alpha: alpha);
+      canvas.drawCircle(p, hot ? 1.45 : 1.0, dot);
     }
 
-    // The particle cloud spirals inward, but never shows a completed logo early.
-    for (var i = 0; i < parts.length; i++) {
-      final p = parts[i];
-      final local = ((progress - p.delay) / .60).clamp(0.0, 1.0);
-      final q = _ease(local);
-      final dx = p.sx - c.dx;
-      final dy = p.sy - c.dy;
-      final orbit = (1 - q) * (2.2 + p.delay * 5.0);
-      final co = math.cos(orbit + p.phase);
-      final si = math.sin(orbit + p.phase);
-      final ox = dx * co - dy * si;
-      final oy = dx * si + dy * co;
-      var x = _lerp(p.sx, c.dx + ox * .35, q);
-      var y = _lerp(p.sy, c.dy + oy * .35, q);
-      if (progress > .18) {
-        final tangent = math.sin(q * math.pi) * (34 + p.delay * 90);
-        final len = math.sqrt(dx * dx + dy * dy) + 1;
-        x += (-dy / len) * tangent;
-        y += (dx / len) * tangent;
-      }
-      // After the cloud phase, particles lock onto their actual logo coordinates.
-      final lock = _ease((progress - .31) / .42);
-      x = _lerp(x, p.tx, lock);
-      y = _lerp(y, p.ty, lock);
-      final alpha = cloudIn * (0.18 + .82 * math.max(lock, .22));
-      final pulse = .72 + .28 * math.sin(progress * 38 + p.phase);
-      _dot(canvas, Offset(x, y), p.size * pulse, alpha, hot: lock > .78);
-    }
-
-    // 1.0–3.2s: draw the actual logo contour progressively. No instant full-logo pop.
-    final contour = _ease((progress - .48) / .28);
-    if (contour > 0) {
-      final stroke = Paint()
+    if (progress >= .62) {
+      final ringT = Curves.easeOut.transform(((progress - .62) / .22).clamp(0.0, 1.0));
+      final ring = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.4
-        ..strokeCap = StrokeCap.round
-        ..color = goldHot.withValues(alpha: .92 * contour)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-      _drawPartialPath(canvas, outer, contour, stroke);
-      _drawPartialPath(canvas, inner, (contour - .12) / .88, stroke);
-    }
-
-    // V169: the final logo is rendered from the official master asset above.
-    // The particle contour remains as the formation stage, but no second hard-coded
-    // pin body is painted here. This prevents the old location-pin look.
-
-    // 3.6–4.8s: target ring appears and reacts to the landing.
-    if (progress > .70) {
-      final q = _ease((progress - .70) / .30);
-      final ringCenter = Offset(c.dx, c.dy + 112);
-      final pulse = progress > .90 ? math.sin((progress - .90) * 32) * .10 : 0.0;
-      _drawTarget(canvas, ringCenter, q, pulse);
-      final beam = Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(c.dx, c.dy + 20),
-          ringCenter,
-          [gold.withValues(alpha: 0), gold.withValues(alpha: .40 * q), gold.withValues(alpha: 0)],
-        )
-        ..strokeWidth = 2.0;
-      canvas.drawLine(Offset(c.dx, c.dy + 28), ringCenter, beam);
-    }
-
-    if (progress > .91) {
-      final q = ((progress - .91) / .09).clamp(0.0, 1.0);
-      final ringCenter = Offset(c.dx, c.dy + 112);
-      final shock = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0 * (1 - q)
-        ..color = goldHot.withValues(alpha: .72 * (1 - q))
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-      canvas.drawOval(Rect.fromCenter(center: ringCenter, width: 95 + q * 220, height: 25 + q * 62), shock);
-    }
-
-    // Branding fades in only after the logo has landed.
-    if (progress > .96) {
-      final q = _ease((progress - .96) / .04);
-      final text = TextPainter(
-        text: TextSpan(
-          text: 'B E N',
-          style: TextStyle(color: Colors.white.withValues(alpha: q), fontSize: 22, fontWeight: FontWeight.w600, letterSpacing: 7),
+        ..strokeWidth = 1.5 + pulse * 2.5
+        ..color = _gold.withValues(alpha: .18 * (1 - locked) + .12 * pulse);
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(size.width / 2, size.height * .43),
+          width: 230 * (1 + .18 * ringT),
+          height: 230 * (1 + .18 * ringT),
         ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      text.paint(canvas, Offset(c.dx - text.width / 2, c.dy + 150));
-      final sub = TextPainter(
-        text: TextSpan(
-          text: 'PAYLAŞ • KEŞFET • HİSSET',
-          style: TextStyle(color: Colors.white.withValues(alpha: .65 * q), fontSize: 8.5, letterSpacing: 3.1),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      sub.paint(canvas, Offset(c.dx - sub.width / 2, c.dy + 184));
+        ring,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _BENParticlePainter oldDelegate) => oldDelegate.progress != progress;
+  bool shouldRepaint(covariant _BENLogoParticlePainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.maskPoints != maskPoints;
 }
