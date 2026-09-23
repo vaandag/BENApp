@@ -168,11 +168,14 @@ class MemoryStorageService {
     return {
       'id': memory.id,
       'ownerId': memory.ownerId,
+      'ownerUsername': memory.ownerUsername,
+      'ownerAvatarUrl': memory.ownerAvatarUrl,
       'type': memory.type.name,
       'photo': memory.photo?.path,
       'text': memory.text,
       'video': memory.video,
       'music': memory.music,
+      'mediaUrl': memory.mediaUrl,
       'latitude': memory.latitude,
       'longitude': memory.longitude,
 
@@ -261,6 +264,8 @@ class MemoryStorageService {
       return Memory(
         id: json['id'] as String,
         ownerId: (json['ownerId'] as num?)?.toInt(),
+        ownerUsername: json['ownerUsername'] as String?,
+        ownerAvatarUrl: json['ownerAvatarUrl'] as String?,
         type: type,
         photo: photoPath != null
             ? File(photoPath)
@@ -270,6 +275,7 @@ class MemoryStorageService {
             json['video'] as String?,
         music:
             json['music'] as String?,
+        mediaUrl: json['mediaUrl'] as String?,
         latitude:
             (json['latitude'] as num?)
                 ?.toDouble(),

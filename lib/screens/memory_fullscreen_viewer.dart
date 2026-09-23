@@ -138,11 +138,10 @@ class _MemoryFullscreenViewerState extends State<MemoryFullscreenViewer> {
   Widget _media() {
     final memory = widget.memory;
     if (memory.photo != null && memory.photo!.existsSync()) {
-      return InteractiveViewer(
-        minScale: .75,
-        maxScale: 4,
-        child: Image.file(memory.photo!, fit: BoxFit.contain, filterQuality: FilterQuality.high),
-      );
+      return InteractiveViewer(minScale: .75, maxScale: 4, child: Image.file(memory.photo!, fit: BoxFit.contain, filterQuality: FilterQuality.high));
+    }
+    if (memory.mediaUrl?.startsWith('http') == true && memory.type == MemoryType.photo) {
+      return InteractiveViewer(minScale: .75, maxScale: 4, child: Image.network(memory.mediaUrl!, fit: BoxFit.contain, filterQuality: FilterQuality.high, errorBuilder: (_, __, ___) => _textMemory()));
     }
     if (_videoReady && _video != null) {
       return Center(

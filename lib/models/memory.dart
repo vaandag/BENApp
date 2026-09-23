@@ -13,12 +13,15 @@ enum MemoryType {
 class Memory {
   final String id;
   final int? ownerId;
+  final String? ownerUsername;
+  final String? ownerAvatarUrl;
   final MemoryType type;
 
   final File? photo;
   final String? text;
   final String? video;
   final String? music;
+  final String? mediaUrl;
 
   final double? latitude;
   final double? longitude;
@@ -42,11 +45,14 @@ class Memory {
   const Memory({
     required this.id,
     this.ownerId,
+    this.ownerUsername,
+    this.ownerAvatarUrl,
     required this.type,
     this.photo,
     this.text,
     this.video,
     this.music,
+    this.mediaUrl,
     this.latitude,
     this.longitude,
     this.title,
@@ -176,11 +182,14 @@ class Memory {
   Memory copyWith({
     String? id,
     int? ownerId,
+    String? ownerUsername,
+    String? ownerAvatarUrl,
     MemoryType? type,
     File? photo,
     String? text,
     String? video,
     String? music,
+    String? mediaUrl,
     double? latitude,
     double? longitude,
     String? title,
@@ -198,11 +207,14 @@ class Memory {
     return Memory(
       id: id ?? this.id,
       ownerId: ownerId ?? this.ownerId,
+      ownerUsername: ownerUsername ?? this.ownerUsername,
+      ownerAvatarUrl: ownerAvatarUrl ?? this.ownerAvatarUrl,
       type: type ?? this.type,
       photo: photo ?? this.photo,
       text: text ?? this.text,
       video: video ?? this.video,
       music: music ?? this.music,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       title: title ?? this.title,

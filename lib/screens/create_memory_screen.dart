@@ -33,6 +33,14 @@ class _CreateMemoryScreenState extends State<CreateMemoryScreen> {
   void initState() {
     super.initState();
     _type = widget.initialType;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoAttachLocation());
+  }
+
+  Future<void> _autoAttachLocation() async {
+    if (!mounted || _latLng != null) return;
+    final value = await _location.getCurrentLatLng(context);
+    if (!mounted || value == null) return;
+    setState(() => _latLng = value);
   }
 
   @override
@@ -200,7 +208,7 @@ class _CreateMemoryScreenState extends State<CreateMemoryScreen> {
           const SizedBox(height: 12),
           TextField(controller: _body, minLines: 5, maxLines: 10, textCapitalization: TextCapitalization.sentences, decoration: InputDecoration(labelText: _type == MemoryActionType.location ? 'Not' : 'Anlat', hintText: 'Bu an hakkında ne söylemek istersin?')),
           const SizedBox(height: 16),
-          _optionTile(Icons.location_on_rounded, 'Konum', _latLng == null ? 'Konum ekle' : '${_latLng!.latitude.toStringAsFixed(4)}, ${_latLng!.longitude.toStringAsFixed(4)}', _addLocation),
+          _optionTile(Icons.location_on_rounded, 'Konum', _latLng == null ? 'Konum alınamadı — tekrar dene' : 'Otomatik konum hazır • ${_latLng!.latitude.toStringAsFixed(5)}, ${_latLng!.longitude.toStringAsFixed(5)}', _addLocation),
           const SizedBox(height: 10),
           _optionTile(Icons.lock_outline_rounded, 'Gizlilik', _privacy, _privacyPicker),
           const SizedBox(height: 20),

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -262,74 +263,34 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
 
     setState(() => _loading3D = true);
     try {
-      await controller.addSource(
-        _buildingsSource,
-        const VectorSourceProperties(
-          url: 'https://tiles.openfreemap.org/planet',
-          attribution: '© OpenStreetMap contributors • OpenFreeMap',
-        ),
-      );
-
-      // Ana 3D bina katmanı. render_height gerçek vector-tile bina yüksekliğini
-      // kullanır; veri yoksa güvenli bir taban yükseklik uygulanır.
-      await controller.addFillExtrusionLayer(
-        _buildingsSource,
-        _buildingsLayer,
-        const FillExtrusionLayerProperties(
-          fillExtrusionColor: [
-            'interpolate',
-            ['linear'],
-            ['coalesce', ['get', 'render_height'], 0],
-            0,
-            '#071114',
-            12,
-            '#0A1A1F',
-            28,
-            '#10282E',
-            60,
-            '#173C44',
-          ],
-          fillExtrusionOpacity: .97,
-          fillExtrusionHeight: ['coalesce', ['get', 'render_height'], 10],
-          fillExtrusionBase: ['coalesce', ['get', 'render_min_height'], 0],
-          fillExtrusionVerticalGradient: true,
-        ),
-        sourceLayer: 'building',
-        minzoom: 13.8,
-        enableInteraction: false,
-      );
-
-      // Sokak katmanı: gerçek vector-tile yol geometrisini 3D kamerada
-      // belirginleştirir. Kaynak OpenMapTiles/OpenFreeMap transportation katmanı.
-      try {
-        await controller.addLineLayer(
+      // iOS'ta MapLibre native tarafında özel vector-layer ifadeleri eski/özel
+      // stillerle birlikte native crash üretebildiği için temel haritayı önce
+      // güvenli şekilde gösteriyoruz. 0.27.1'in iOS crash düzeltmesiyle birlikte
+      // BEN pin katmanı ayrıca yükleniyor. Android'de tam özel 3D katmanları koruyoruz.
+      if (!Platform.isIOS) {
+        await controller.addSource(
           _buildingsSource,
-          _roadsLayer,
-          const LineLayerProperties(
-            lineColor: '#2ED9D0',
-            lineOpacity: .34,
-            lineWidth: [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              13,
-              1,
-              16,
-              2.3,
-              19,
-              4.5,
-            ],
-            lineBlur: .15,
-          ),
-          sourceLayer: 'transportation',
-          minzoom: 13,
-          enableInteraction: false,
+          const VectorSourceProperties(url: 'https://tiles.openfreemap.org/planet', attribution: '© OpenStreetMap contributors • OpenFreeMap'),
         );
-      } catch (_) {
-        // Yol source-layer sağlayıcı tarafından farklı isimlendirilmişse
-        // binalar ve haritanın geri kalanı çalışmaya devam eder.
+        await controller.addFillExtrusionLayer(
+          _buildingsSource,
+          _buildingsLayer,
+          const FillExtrusionLayerProperties(
+            fillExtrusionColor: ['interpolate',['linear'],['coalesce',['get','render_height'],0],0,'#071114',12,'#0A1A1F',28,'#10282E',60,'#173C44'],
+            fillExtrusionOpacity: .97,
+            fillExtrusionHeight: ['coalesce',['get','render_height'],10],
+            fillExtrusionBase: ['coalesce',['get','render_min_height'],0],
+            fillExtrusionVerticalGradient: true,
+          ), sourceLayer: 'building', minzoom: 13.8, enableInteraction: false,
+        );
+        try {
+          await controller.addLineLayer(
+            _buildingsSource, _roadsLayer,
+            const LineLayerProperties(lineColor:'#2ED9D0',lineOpacity:.34,lineWidth:2.0,lineBlur:.15),
+            sourceLayer:'transportation',minzoom:13,enableInteraction:false,
+          );
+        } catch (_) {}
       }
-
       await _addBenMemoryLayer(controller);
       if (!mounted) return;
 
@@ -364,7 +325,6 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
                   ? memory.title
                   : 'BEN',
               textSize: 9,
-              textOffset: const Offset(0, 1.65),
               textColor: '#FFFFFF',
               textHaloColor: '#061116',
               textHaloWidth: 1.6,

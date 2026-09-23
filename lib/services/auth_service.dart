@@ -46,6 +46,10 @@ class AuthService {
     try {
       currentUser = BenUser.fromJson(Map<String, dynamic>.from(jsonDecode(raw) as Map));
       ApiClient.token = token;
+      final remote = await ApiClient().get('auth/me');
+      if (remote is! Map || remote['user'] is! Map) { await clearSession(); return false; }
+      currentUser = BenUser.fromJson(Map<String, dynamic>.from(remote['user'] as Map));
+      await prefs.setString(_userKey, jsonEncode(currentUser!.toJson()));
       return currentUser!.id > 0;
     } catch (_) {
       await clearSession();

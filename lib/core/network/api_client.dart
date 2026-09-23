@@ -23,6 +23,22 @@ class ApiClient {
       _request('POST', path, body: body);
   Future<dynamic> delete(String path) => _request('DELETE', path);
 
+  Future<String> uploadFile(String path, {required String field, String endpoint = 'uploads'}) async {
+    final uri = Uri.parse('${AppConfig.apiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}/$endpoint');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['Accept'] = 'application/json';
+    if (token != null && token!.isNotEmpty) request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(await http.MultipartFile.fromPath(field, path));
+    final streamed = await request.send().timeout(const Duration(seconds: 30));
+    final response = await http.Response.fromStream(streamed);
+    dynamic decoded;
+    try { decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body); } catch (_) { decoded = {'message': response.body}; }
+    if (response.statusCode < 200 || response.statusCode >= 400) throw ApiException((decoded is Map ? decoded['message'] : null)?.toString() ?? 'Dosya yükleme hatası (${response.statusCode})');
+    final url = decoded is Map ? decoded['url']?.toString() : null;
+    if (url == null || url.isEmpty) throw const ApiException('Sunucu dosya adresi döndürmedi.');
+    return url;
+  }
+
   Future<dynamic> _request(String method, String path,
       {Map<String, String>? query, Object? body}) async {
     final uri = Uri.parse('${AppConfig.apiBaseUrl.replaceFirst(RegExp(r'/+$'), '')}/${path.replaceFirst(RegExp(r'^/+'), '')}')

@@ -249,15 +249,21 @@ class _ProfileHeaderState extends State<_ProfileHeader> {
     if (username.length < 3) { _snack('Kullanıcı adı en az 3 karakter.'); return; }
     setState(() => _saving = true);
     try {
+      var avatarUrl = _avatarPath;
+      if (avatarUrl.isNotEmpty && !avatarUrl.startsWith('http')) {
+        final file = File(avatarUrl);
+        if (await file.exists()) avatarUrl = await _api.uploadFile(avatarUrl, field: 'avatar', endpoint: 'uploads/avatar');
+      }
       final result = await _api.post('users/profile', body: {
         'user_id': user.id,
         'username': username,
         'bio': _bio,
-        'avatar_url': _avatarPath,
+        'avatar_url': avatarUrl,
         'bio_font': _bioFont,
         'bio_color': _bioColor,
       });
       AuthService.currentUser = BenUser.fromJson(Map<String, dynamic>.from(result['user'] as Map));
+      _avatarPath = AuthService.currentUser?.avatarUrl ?? avatarUrl;
       await AuthService.persistCurrentUser();
       if (!mounted) return;
       setState(() { _editing = false; _saving = false; });
@@ -643,6 +649,20 @@ class _TreeTabState extends State<_TreeTab> {
   final TransformationController _transform = TransformationController();
   double _scale = 1.0;
   bool _didInitialFit = false;
+
+  @override
+  void didUpdateWidget(covariant _TreeTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldIds = oldWidget.memories.map((m) => m.id).join('|');
+    final newIds = widget.memories.map((m) => m.id).join('|');
+    if (oldIds != newIds) {
+      _didInitialFit = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {});
+      });
+    }
+  }
 
   @override
   void dispose() {

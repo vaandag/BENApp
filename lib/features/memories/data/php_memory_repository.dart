@@ -19,6 +19,7 @@ class PhpMemoryRepository {
         'place': memory.hasLocation ? '${memory.latitude},${memory.longitude}' : '',
         'body': memory.text ?? memory.description ?? '',
         'type': memory.type.name,
+        if (memory.mediaUrl != null) 'media_url': memory.mediaUrl,
         'privacy': memory.privacy,
         'post_type': memory.postType,
         if (memory.expiresAt != null) 'expires_at': memory.expiresAt!.toIso8601String(),
@@ -35,8 +36,8 @@ class PhpMemoryRepository {
     final lat = _number(row['lat']);
     final lng = _number(row['lng']);
     return Memory(
-      id: row['id'].toString(), ownerId: int.tryParse('${row['user_id'] ?? row['owner_id'] ?? ''}'), type: type,
-      title: row['title']?.toString(), text: row['body']?.toString(),
+      id: row['id'].toString(), ownerId: int.tryParse('${row['user_id'] ?? row['owner_id'] ?? ''}'), ownerUsername: row['username']?.toString(), ownerAvatarUrl: row['avatar_url']?.toString(), type: type,
+      title: row['title']?.toString(), mediaUrl: row['media_url']?.toString(), text: row['body']?.toString(),
       description: row['place']?.toString(),
       privacy: row['privacy']?.toString() ?? 'public',
       postType: row['post_type']?.toString() ?? 'memory',

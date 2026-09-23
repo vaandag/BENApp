@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'dart:ui';
 
@@ -66,75 +67,30 @@ class _MainScreenState
   Future<void> _loadMemories() async {
     try {
       await _repository.initialize();
-
-      final memories =
-          await _repository.getAll();
-      // Sunucu meta verisi, telefondaki gerçek medya dosyalarını ezmemeli.
-      // Yerel medya taşıyan anıları koruyor; sunucudan gelen yeni kayıtları ekliyoruz.
-      List<Memory> visibleMemories = List<Memory>.from(memories);
+      final local = await _repository.getAll();
       try {
         final remote = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'discover');
         final connections = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'following');
-        final localKeys = <String>{
-          for (final m in memories) '${m.type.name}|${m.title ?? ''}|${m.createdAt.toIso8601String().substring(0, 16)}',
-        };
-        for (final m in remote) {
-          final key = '${m.type.name}|${m.title ?? ''}|${m.createdAt.toIso8601String().substring(0, 16)}';
-          if (!localKeys.contains(key)) visibleMemories.add(m);
-        }
-        if (mounted) _connectionMemories = connections;
+        final localById = {for (final m in local) m.id: m};
+        final hydrated = remote.map((m) { final cached=localById[m.id]; return cached==null ? m : m.copyWith(photo:cached.photo,video:cached.video,music:cached.music); }).toList();
+        if (!mounted) return;
+        setState(() { _memories=hydrated.where((m)=>!m.isExpired).toList(); _connectionMemories=connections.where((m)=>!m.isExpired).toList(); _loadingMemories=false; });
       } catch (_) {
-        // Çevrimdışı kullanımda mevcut yerel anılar korunur.
+        if (!mounted) return;
+        setState(() { _memories=local.where((m)=>!m.isExpired).toList(); _loadingMemories=false; });
       }
-
-      if (!mounted) return;
-
-      setState(() {
-        _memories = visibleMemories.where((m) => !m.isExpired).toList();
-        _connectionMemories = _connectionMemories.where((m) => !m.isExpired).toList();
-        _loadingMemories = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _memories = [];
-        _loadingMemories = false;
-      });
-
-      _showMessage(
-        'Anılar yüklenirken bir sorun oluştu.',
-      );
-    }
+    } catch (_) { if(!mounted)return; setState(()=>_loadingMemories=false); _showMessage('Anılar yüklenirken bir sorun oluştu.'); }
   }
 
   Future<void> _refreshMemories() async {
     try {
-      final localMemories = await _repository.getAll();
-      List<Memory> memories = List<Memory>.from(localMemories);
-      try {
-        final remote = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'discover');
-        final connections = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'following');
-        if (mounted) _connectionMemories = connections;
-        final localKeys = <String>{
-          for (final m in localMemories) '${m.type.name}|${m.title ?? ''}|${m.createdAt.toIso8601String().substring(0, 16)}',
-        };
-        memories.addAll(remote.where((m) => !localKeys.contains('${m.type.name}|${m.title ?? ''}|${m.createdAt.toIso8601String().substring(0, 16)}')));
-      } catch (_) {}
-
-      if (!mounted) return;
-
-      setState(() {
-        _memories = memories.where((m) => !m.isExpired).toList();
-        _connectionMemories = _connectionMemories.where((m) => !m.isExpired).toList();
-      });
-    } catch (_) {
-      if (!mounted) return;
-
-      _showMessage(
-        'Anılar yenilenemedi.',
-      );
-    }
+      final local=await _repository.getAll();
+      final remote=await _phpRepository.list(userId:widget.currentUser?.id??1,scope:'discover');
+      final connections=await _phpRepository.list(userId:widget.currentUser?.id??1,scope:'following');
+      final localById={for(final m in local)m.id:m};
+      final hydrated=remote.map((m){final c=localById[m.id];return c==null?m:m.copyWith(photo:c.photo,video:c.video,music:c.music);}).toList();
+      if(!mounted)return; setState((){_memories=hydrated.where((m)=>!m.isExpired).toList();_connectionMemories=connections.where((m)=>!m.isExpired).toList();});
+    } catch (_) { if(mounted)_showMessage('Anılar yenilenemedi.'); }
   }
 
   Future<void> _handleMemoryAction(MemoryAction action) async {
@@ -154,7 +110,18 @@ class _MainScreenState
     await _repository.add(memory);
     Memory storedMemory = memory;
     try {
-      final remoteId = await _phpRepository.create(memory, userId: widget.currentUser?.id ?? 1);
+      var remoteMemory = memory;
+      if (memory.photo != null && await memory.photo!.exists()) {
+        final url = await ApiClient().uploadFile(memory.photo!.path, field: 'media', endpoint: 'uploads/media');
+        remoteMemory = memory.copyWith(mediaUrl: url);
+      } else if (memory.video != null) {
+        final file = File(memory.video!);
+        if (await file.exists()) {
+          final url = await ApiClient().uploadFile(file.path, field: 'media', endpoint: 'uploads/media');
+          remoteMemory = memory.copyWith(mediaUrl: url);
+        }
+      }
+      final remoteId = await _phpRepository.create(remoteMemory, userId: widget.currentUser?.id ?? 1);
       if (remoteId != null) {
         storedMemory = memory.copyWith(id: remoteId.toString());
         await _repository.remove(memory.id);

@@ -762,6 +762,7 @@ class _DemoDetailSheet extends StatelessWidget {
 class _FeedMemory {
   final String id;
   final String user;
+  final String avatarUrl;
   final String place;
   final String text;
   final MemoryType kind;
@@ -773,11 +774,11 @@ class _FeedMemory {
   final String time;
   final Memory? memory;
 
-  const _FeedMemory({required this.id, required this.user, required this.place, required this.text, required this.kind, required this.visualIcon, required this.visualColor, required this.likes, required this.comments, required this.saves, required this.time, this.memory});
+  const _FeedMemory({required this.id, required this.user, required this.avatarUrl, required this.place, required this.text, required this.kind, required this.visualIcon, required this.visualColor, required this.likes, required this.comments, required this.saves, required this.time, this.memory});
 
-  factory _FeedMemory.demo(String id, String user, String place, String text, MemoryType kind, IconData icon, Color color, int likes, int comments, int saves, String time) => _FeedMemory(id: id, user: user, place: place, text: text, kind: kind, visualIcon: icon, visualColor: color, likes: likes, comments: comments, saves: saves, time: time);
+  factory _FeedMemory.demo(String id, String user, String place, String text, MemoryType kind, IconData icon, Color color, int likes, int comments, int saves, String time) => _FeedMemory(id: id, user: user, avatarUrl: '', place: place, text: text, kind: kind, visualIcon: icon, visualColor: color, likes: likes, comments: comments, saves: saves, time: time);
 
-  factory _FeedMemory.fromReal(Memory memory) => _FeedMemory(id: memory.id, user: AuthService.currentUser?.username ?? 'BEN', place: memory.hasLocation ? 'Konumlu anı' : 'BEN', text: memory.hasText ? memory.text! : 'Yeni bir an bıraktım.', kind: memory.type, visualIcon: switch (memory.type) { MemoryType.photo => Icons.photo_rounded, MemoryType.video => Icons.play_circle_fill_rounded, MemoryType.music => Icons.music_note_rounded, MemoryType.location => Icons.location_on_rounded, MemoryType.text => Icons.notes_rounded }, visualColor: const Color(0xFF27344D), likes: memory.isFavorite ? 1 : 0, comments: 0, saves: memory.isPinned ? 1 : 0, time: _relative(memory.createdAt), memory: memory);
+  factory _FeedMemory.fromReal(Memory memory) => _FeedMemory(id: memory.id, user: memory.ownerUsername ?? AuthService.currentUser?.username ?? 'BEN', avatarUrl: memory.ownerAvatarUrl ?? AuthService.currentUser?.avatarUrl ?? '', place: memory.hasLocation ? 'Konumlu anı' : 'BEN', text: memory.hasText ? memory.text! : 'Yeni bir an bıraktım.', kind: memory.type, visualIcon: switch (memory.type) { MemoryType.photo => Icons.photo_rounded, MemoryType.video => Icons.play_circle_fill_rounded, MemoryType.music => Icons.music_note_rounded, MemoryType.location => Icons.location_on_rounded, MemoryType.text => Icons.notes_rounded }, visualColor: const Color(0xFF27344D), likes: memory.isFavorite ? 1 : 0, comments: 0, saves: memory.isPinned ? 1 : 0, time: _relative(memory.createdAt), memory: memory);
 
   static String _relative(DateTime value) {
     final d = DateTime.now().difference(value);
@@ -934,7 +935,7 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
                   else
                     CustomPaint(painter: _MemoryVisualPainter(base: widget.item.visualColor, icon: widget.item.visualIcon)),
                   DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withValues(alpha: .10), Colors.black.withValues(alpha: .05), Colors.black.withValues(alpha: .72)]))),
-                  Positioned(top: 12, left: 13, right: 13, child: Row(children: [_Avatar(name: widget.item.user), const SizedBox(width: 8), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(widget.item.user, style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w900, letterSpacing: -.1)), Text(widget.item.time, style: const TextStyle(color: Colors.white70, fontSize: 9.5, fontWeight: FontWeight.w700))])), Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6), decoration: BoxDecoration(color: Colors.black.withValues(alpha: .30), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white24)), child: Text(_typeLabel(widget.item.kind), style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900))) ])),
+                  Positioned(top: 12, left: 13, right: 13, child: Row(children: [_Avatar(name: widget.item.user, avatarUrl: widget.item.avatarUrl), const SizedBox(width: 8), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(widget.item.user, style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w900, letterSpacing: -.1)), Text(widget.item.time, style: const TextStyle(color: Colors.white70, fontSize: 9.5, fontWeight: FontWeight.w700))])), Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6), decoration: BoxDecoration(color: Colors.black.withValues(alpha: .30), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white24)), child: Text(_typeLabel(widget.item.kind), style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900))) ])),
                   Positioned(left: 15, right: 15, bottom: 12, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [const Icon(Icons.place_rounded, color: BenTokens.gold, size: 15), const SizedBox(width: 5), Expanded(child: Text(widget.item.place, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis))]), const SizedBox(height: 5), Text(widget.item.text, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, height: 1.05, letterSpacing: -.4), maxLines: 2, overflow: TextOverflow.ellipsis)])),
                   if (widget.item.kind == MemoryType.video) const Center(child: _PlayOrb()),
                   ],
@@ -1138,18 +1139,15 @@ class _PlayOrb extends StatelessWidget {
 
 class _Avatar extends StatelessWidget {
   final String name;
+  final String avatarUrl;
   final double size;
-  const _Avatar({required this.name, this.size = 39});
+  const _Avatar({required this.name, this.avatarUrl = '', this.size = 39});
   @override
   Widget build(BuildContext context) {
     final safeName = name.trim().isEmpty ? 'B' : name.trim();
-    return Container(
-      width: size,
-      height: size,
-      decoration: const BoxDecoration(color: BenTokens.gold, shape: BoxShape.circle),
-      child: Center(child: Text(safeName.substring(0, 1).toUpperCase(), style: TextStyle(color: BenTokens.ink, fontWeight: FontWeight.w900, fontSize: size * .38))),
-    );
+    return Container(width: size, height: size, clipBehavior: Clip.antiAlias, decoration: const BoxDecoration(color: BenTokens.gold, shape: BoxShape.circle), child: avatarUrl.startsWith('http') ? Image.network(avatarUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _initials(safeName)) : _initials(safeName));
   }
+  Widget _initials(String safeName) => Center(child: Text(safeName.substring(0, 1).toUpperCase(), style: TextStyle(color: BenTokens.ink, fontWeight: FontWeight.w900, fontSize: size * .38)));
 }
 
 class BENDartIcon extends StatelessWidget {
