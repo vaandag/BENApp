@@ -33,7 +33,7 @@ class _LiveScreenState extends State<LiveScreen> {
     try {
       await _api.post('live', body: {'title': 'BEN CANLI', 'status': 'live', 'user_id': AuthService.currentUser?.id ?? 1});
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CANLI yayın başlatma altyapısı hazır.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Canlı yayın odası açıldı. Yayına girdiğinde tüm BEN kullanıcıları görebilir.')));
       await _loadLives();
     } catch (_) {
       if (!mounted) return;

@@ -25,6 +25,7 @@ class PhpMemoryRepository {
         if (memory.expiresAt != null) 'expires_at': memory.expiresAt!.toIso8601String(),
         if (memory.latitude != null) 'lat': memory.latitude,
         if (memory.longitude != null) 'lng': memory.longitude,
+        if (memory.locationAccuracy != null) 'location_accuracy': memory.locationAccuracy,
       });
     if (result is Map) return int.tryParse('${result['id']}');
     return null;
@@ -42,7 +43,7 @@ class PhpMemoryRepository {
       privacy: row['privacy']?.toString() ?? 'public',
       postType: row['post_type']?.toString() ?? 'memory',
       expiresAt: DateTime.tryParse(row['expires_at']?.toString() ?? ''),
-      latitude: lat, longitude: lng,
+      latitude: lat, longitude: lng, locationAccuracy: _number(row['location_accuracy']),
       isFavorite: row['liked'] == true || row['liked'] == 1, isPinned: row['saved'] == true || row['saved'] == 1,
       createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '') ?? DateTime.now(),
     );

@@ -12,6 +12,7 @@ import '../models/memory.dart';
 import '../core/network/api_client.dart';
 import '../services/auth_service.dart';
 import 'memory_detail_screen.dart';
+import 'community_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final List<Memory> memories;
@@ -373,6 +374,8 @@ class _ProfileHeaderState extends State<_ProfileHeader> {
           Row(children: [_Stat('${widget.memories.length}', 'Anı'), _Stat('$locations', 'Yer'), _Stat('${widget.followers}', 'Takipçi'), _Stat('${widget.followingCount}', 'Takip'), _Stat('Sv. $level', 'XP $xp')]),
           const SizedBox(height: 12),
           Row(children: [
+            Expanded(child: OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityScreen())), icon: const Icon(Icons.groups_2_rounded), label: const Text('Topluluk'))),
+            const SizedBox(width: 8),
             Expanded(child: FilledButton.icon(
               onPressed: _saving ? null : (_editing ? _saveProfile : () => setState(() => _editing = true)),
               style: FilledButton.styleFrom(backgroundColor: const Color(0xFF5DEBFF), foregroundColor: const Color(0xFF061018)),

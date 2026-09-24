@@ -23,6 +23,8 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id
 $pdo->exec("CREATE TABLE IF NOT EXISTS coin_transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, from_user INTEGER, to_user INTEGER, amount INTEGER NOT NULL, type TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)");
 $pdo->exec("CREATE TABLE IF NOT EXISTS memory_likes (memory_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(memory_id,user_id))");
 $pdo->exec("CREATE TABLE IF NOT EXISTS memory_saves (memory_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(memory_id,user_id))");
+$pdo->exec("CREATE TABLE IF NOT EXISTS regional_rooms (id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT UNIQUE NOT NULL, name TEXT NOT NULL, country TEXT NOT NULL DEFAULT 'TR', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)");
+$pdo->exec("CREATE TABLE IF NOT EXISTS regional_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id INTEGER NOT NULL, user_id INTEGER NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)");
 
 $path = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
 $path = preg_replace('#^api/?#', '', $path);
@@ -34,6 +36,7 @@ try {
   try { $pdo->exec("ALTER TABLE memories ADD COLUMN post_type TEXT NOT NULL DEFAULT 'memory'"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE memories ADD COLUMN expires_at TEXT NULL"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE memories ADD COLUMN media_url TEXT NOT NULL DEFAULT ''"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE memories ADD COLUMN location_accuracy REAL"); } catch (Throwable $e) {}
   if ($path === 'health' || $path === '') { echo json_encode(['ok'=>true,'service'=>'BEN API','version'=>'104']); exit; }
   if ($path === 'auth/me' && $method === 'GET') {
     $h=$_SERVER['HTTP_AUTHORIZATION']??'';
@@ -119,7 +122,7 @@ try {
     }
     echo json_encode($rows); exit;
   }
-  if ($path === 'memories' && $method === 'POST') { $s=$pdo->prepare('INSERT INTO memories(user_id,title,body,lat,lng,media_type,privacy,post_type,expires_at,media_url) VALUES(?,?,?,?,?,?,?,?,?,?)'); $s->execute([(int)($input['user_id']??1),(string)($input['title']??'Yeni BEN Anısı'),(string)($input['body']??''),$input['lat']??null,$input['lng']??null,(string)($input['type'] ?? $input['media_type'] ?? 'text'),(string)($input['privacy']??'public'),(string)($input['post_type']??'memory'),$input['expires_at']??null,(string)($input['media_url']??'')]); echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]); exit; }
+  if ($path === 'memories' && $method === 'POST') { $s=$pdo->prepare('INSERT INTO memories(user_id,title,body,lat,lng,location_accuracy,media_type,privacy,post_type,expires_at,media_url) VALUES(?,?,?,?,?,?,?,?,?,?,?)'); $s->execute([(int)($input['user_id']??1),(string)($input['title']??'Yeni BEN Anısı'),(string)($input['body']??''),$input['lat']??null,$input['lng']??null,$input['location_accuracy']??null,(string)($input['type'] ?? $input['media_type'] ?? 'text'),(string)($input['privacy']??'public'),(string)($input['post_type']??'memory'),$input['expires_at']??null,(string)($input['media_url']??'')]); echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]); exit; }
   
   if (preg_match('#^memories/(\d+)/(like|save)$#',$path,$m) && $method==='POST') {
     $memoryId=(int)$m[1]; $userId=(int)($input['user_id']??1); $table=$m[2]==='like'?'memory_likes':'memory_saves';
@@ -156,7 +159,29 @@ try {
   }
   if ($path === 'notifications/read' && $method === 'POST') { $uid=(int)($input['user_id']??0); $pdo->prepare('UPDATE notifications SET is_read=1 WHERE user_id=?')->execute([$uid]); echo json_encode(['ok'=>true]); exit; }
   if ($path === 'notifications' && $method === 'GET') { $s=$pdo->prepare('SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC'); $s->execute([(int)($_GET['user_id']??1)]); echo json_encode($s->fetchAll()); exit; }
-  if ($path === 'live' && $method === 'GET') { echo json_encode($pdo->query("SELECT * FROM lives WHERE status='live' ORDER BY id DESC")->fetchAll()); exit; }
+  if ($path === 'regions/resolve' && $method === 'GET') {
+    $lat=(float)($_GET['lat']??0); $lng=(float)($_GET['lng']??0);
+    if(abs($lat)>90||abs($lng)>180){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Geçersiz konum.']);exit;}
+    $region=''; $country='TR';
+    $url='https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='.rawurlencode((string)$lat).'&lon='.rawurlencode((string)$lng).'&zoom=10&addressdetails=1';
+    $ctx=stream_context_create(['http'=>['timeout'=>3,'header'=>"User-Agent: BENApp/1.0\r\nAccept: application/json\r\n"]]);
+    $raw=@file_get_contents($url,false,$ctx); $geo=$raw?json_decode($raw,true):null;
+    if(is_array($geo)&&isset($geo['address'])){ $a=$geo['address']; $region=(string)($a['city']??$a['town']??$a['municipality']??$a['county']??$a['state']??''); $country=(string)($a['country_code']??'tr'); }
+    echo json_encode(['ok'=>true,'region'=>$region?:'Bölgesel BEN','country'=>strtoupper($country),'lat'=>$lat,'lng'=>$lng]);exit;
+  }
+  if ($path === 'regional/rooms' && $method === 'GET') {
+    $lat=(float)($_GET['lat']??0); $lng=(float)($_GET['lng']??0);
+    $url='https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='.rawurlencode((string)$lat).'&lon='.rawurlencode((string)$lng).'&zoom=10&addressdetails=1';
+    $ctx=stream_context_create(['http'=>['timeout'=>3,'header'=>"User-Agent: BENApp/1.0\r\nAccept: application/json\r\n"]]); $raw=@file_get_contents($url,false,$ctx); $geo=$raw?json_decode($raw,true):null; $a=is_array($geo)?($geo['address']??[]):[];
+    $region=(string)($a['city']??$a['town']??$a['municipality']??$a['county']??$a['state']??'Bölgesel BEN'); $country=strtoupper((string)($a['country_code']??'tr')); $slug=strtolower(preg_replace('/[^a-z0-9]+/i','-',iconv('UTF-8','ASCII//TRANSLIT',$country.'-'.$region))); if($slug==='')$slug='tr-regional';
+    $q=$pdo->prepare('INSERT OR IGNORE INTO regional_rooms(slug,name,country) VALUES(?,?,?)');$q->execute([$slug,$region,$country]);$q=$pdo->prepare('SELECT id,slug,name,country FROM regional_rooms WHERE slug=?');$q->execute([$slug]);$room=$q->fetch(); echo json_encode(['ok'=>true,'room_id'=>$room['id']??null,'region'=>$region,'country'=>$country,'room'=>$room]);exit;
+  }
+  if ($path === 'regional/messages' && $method === 'GET') { $rid=(int)($_GET['room_id']??0); $q=$pdo->prepare('SELECT rm.*,u.username,u.avatar_url FROM regional_messages rm LEFT JOIN users u ON u.id=rm.user_id WHERE rm.room_id=? ORDER BY rm.id DESC LIMIT 100');$q->execute([$rid]);echo json_encode(array_reverse($q->fetchAll()));exit; }
+  if ($path === 'regional/messages' && $method === 'POST') { $rid=(int)($input['room_id']??0);$uid=(int)($input['user_id']??0);$body=trim((string)($input['body']??''));if($rid<=0||$uid<=0||$body===''){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Geçerli oda ve mesaj gerekli.']);exit;}$q=$pdo->prepare('INSERT INTO regional_messages(room_id,user_id,body) VALUES(?,?,?)');$q->execute([$rid,$uid,$body]);echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]);exit; }
+  if ($path === 'rank' && $method === 'GET') {
+    $uid=(int)($_GET['user_id']??0);$q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM memories WHERE user_id=?) memories,(SELECT COUNT(*) FROM comments WHERE user_id=?) comments,(SELECT COUNT(*) FROM memory_likes WHERE user_id=?) likes,(SELECT COUNT(*) FROM follows WHERE follower_id=?) following,(SELECT COUNT(*) FROM regional_messages WHERE user_id=?) regional_messages,(SELECT COUNT(*) FROM lives WHERE user_id=?) lives');$q->execute([$uid,$uid,$uid,$uid,$uid,$uid]);$c=$q->fetch()?:[]; $xp=(int)$c['memories']*100+(int)$c['comments']*15+(int)$c['likes']*5+(int)$c['following']*10+(int)$c['regional_messages']*8+(int)$c['lives']*50; $level=max(1,(int)floor($xp/500)+1);$base=($level-1)*500;$next=$level*500;$badges=[];if((int)$c['memories']>=1)$badges[]=['id'=>'first_memory','name'=>'İlk Anı','description'=>'İlk kalıcı anını bıraktın.'];if((int)$c['memories']>=10)$badges[]=['id'=>'memory_10','name'=>'Anı Avcısı','description'=>'10 anı bıraktın.'];if((int)$c['regional_messages']>=10)$badges[]=['id'=>'local_voice','name'=>'Bölge Sesi','description'=>'Bölgesel toplulukta aktif oldun.'];if((int)$c['lives']>=1)$badges[]=['id'=>'live','name'=>'Canlı','description'=>'İlk canlı yayınını başlattın.'];echo json_encode(['ok'=>true,'xp'=>$xp,'level'=>$level,'next_xp'=>$next,'progress'=>min(1,max(0,($xp-$base)/500)),'counts'=>$c,'badges'=>$badges]);exit;
+  }
+  if ($path === 'live' && $method === 'GET') { echo json_encode($pdo->query("SELECT l.*,u.username,u.avatar_url FROM lives l LEFT JOIN users u ON u.id=l.user_id WHERE l.status='live' ORDER BY l.id DESC")->fetchAll()); exit; }
   if ($path === 'live' && $method === 'POST') {
     $h=$_SERVER['HTTP_AUTHORIZATION']??''; $uid=0;
     if (preg_match('/Bearer\s+(.+)/i',$h,$mm)) { $st=$pdo->prepare('SELECT user_id FROM sessions WHERE token=? AND expires_at>CURRENT_TIMESTAMP'); $st->execute([trim($mm[1])]); $uid=(int)$st->fetchColumn(); }

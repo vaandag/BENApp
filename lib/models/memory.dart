@@ -25,6 +25,7 @@ class Memory {
 
   final double? latitude;
   final double? longitude;
+  final double? locationAccuracy;
 
   final String? title;
   final String? description;
@@ -55,6 +56,7 @@ class Memory {
     this.mediaUrl,
     this.latitude,
     this.longitude,
+    this.locationAccuracy,
     this.title,
     this.description,
     this.tags = const [],
@@ -71,6 +73,7 @@ class Memory {
   factory Memory.photo({
     required File photo,
     LatLng? location,
+    double? locationAccuracy,
     String? title,
     String? description,
     List<String> tags = const [],
@@ -86,6 +89,7 @@ class Memory {
       photo: photo,
       latitude: location?.latitude,
       longitude: location?.longitude,
+      locationAccuracy: locationAccuracy,
       title: title,
       description: description,
       tags: List.unmodifiable(tags),
@@ -100,6 +104,7 @@ class Memory {
   factory Memory.text({
     required String text,
     LatLng? location,
+    double? locationAccuracy,
     String? title,
     String? description,
     List<String> tags = const [],
@@ -115,6 +120,7 @@ class Memory {
       text: text,
       latitude: location?.latitude,
       longitude: location?.longitude,
+      locationAccuracy: locationAccuracy,
       title: title,
       description: description,
       tags: List.unmodifiable(tags),
@@ -129,6 +135,7 @@ class Memory {
   factory Memory.video({
     required File video,
     LatLng? location,
+    double? locationAccuracy,
     String? title,
     String? description,
     List<String> tags = const [],
@@ -144,6 +151,7 @@ class Memory {
       video: video.path,
       latitude: location?.latitude,
       longitude: location?.longitude,
+      locationAccuracy: locationAccuracy,
       title: title,
       description: description,
       tags: List.unmodifiable(tags),
@@ -156,6 +164,7 @@ class Memory {
   factory Memory.location({
     required double latitude,
     required double longitude,
+    double? locationAccuracy,
     String? title,
     String? description,
     List<String> tags = const [],
@@ -170,6 +179,7 @@ class Memory {
       type: MemoryType.location,
       latitude: latitude,
       longitude: longitude,
+      locationAccuracy: locationAccuracy,
       title: title,
       description: description,
       tags: List.unmodifiable(tags),
@@ -192,6 +202,7 @@ class Memory {
     String? mediaUrl,
     double? latitude,
     double? longitude,
+    double? locationAccuracy,
     String? title,
     String? description,
     List<String>? tags,
@@ -217,6 +228,7 @@ class Memory {
       mediaUrl: mediaUrl ?? this.mediaUrl,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      locationAccuracy: locationAccuracy ?? this.locationAccuracy,
       title: title ?? this.title,
       description: description ?? this.description,
       tags: List.unmodifiable(

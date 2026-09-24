@@ -26,6 +26,8 @@ class _CreateMemoryScreenState extends State<CreateMemoryScreen> {
   late MemoryActionType _type;
   File? _file;
   LatLng? _latLng;
+  double? _locationAccuracy;
+  bool _locationLoading = false;
   String _privacy = 'Herkese açık';
   bool _busy = false;
 
@@ -38,9 +40,10 @@ class _CreateMemoryScreenState extends State<CreateMemoryScreen> {
 
   Future<void> _autoAttachLocation() async {
     if (!mounted || _latLng != null) return;
-    final value = await _location.getCurrentLatLng(context);
-    if (!mounted || value == null) return;
-    setState(() => _latLng = value);
+    setState(() => _locationLoading = true);
+    final result = await _location.getCurrent(context, showFeedback: false);
+    if (!mounted) return;
+    setState(() { _locationLoading = false; _latLng = result.snapshot?.latLng; _locationAccuracy = result.snapshot?.accuracy; });
   }
 
   @override
@@ -81,9 +84,10 @@ class _CreateMemoryScreenState extends State<CreateMemoryScreen> {
   }
 
   Future<void> _addLocation() async {
-    final value = await _location.getCurrentLatLng(context);
-    if (!mounted || value == null) return;
-    setState(() => _latLng = value);
+    setState(() => _locationLoading = true);
+    final result = await _location.getCurrent(context, showFeedback: true);
+    if (!mounted) return;
+    setState(() { _locationLoading = false; _latLng = result.snapshot?.latLng; _locationAccuracy = result.snapshot?.accuracy; });
   }
 
   Future<void> _publish() async {
@@ -104,10 +108,10 @@ class _CreateMemoryScreenState extends State<CreateMemoryScreen> {
     final expiresAt = isStory ? DateTime.now().add(const Duration(hours: 24)) : null;
     final privacy = _privacy == 'Takipçiler' ? 'followers' : _privacy == 'Sadece BEN' ? 'private' : 'public';
     final memory = switch (_type) {
-      MemoryActionType.text => Memory.text(text: _body.text.trim(), location: _latLng, title: title, description: description, privacy: privacy, postType: choice, expiresAt: expiresAt),
-      MemoryActionType.photo => Memory.photo(photo: _file!, location: _latLng, title: title, description: description, privacy: privacy, postType: choice, expiresAt: expiresAt),
-      MemoryActionType.video => Memory.video(video: _file!, location: _latLng, title: title, description: description, privacy: privacy, postType: choice, expiresAt: expiresAt),
-      MemoryActionType.location => Memory.location(latitude: _latLng?.latitude ?? 0, longitude: _latLng?.longitude ?? 0, title: title, description: description, privacy: privacy, postType: choice, expiresAt: expiresAt),
+      MemoryActionType.text => Memory.text(text: _body.text.trim(), location: _latLng, locationAccuracy: _locationAccuracy, title: title, description: description, privacy: privacy, postType: choice, expiresAt: expiresAt),
+      MemoryActionType.photo => Memory.photo(photo: _file!, location: _latLng, locationAccuracy: _locationAccuracy, title: title, description: description, privacy: privacy, postType: choice, expiresAt: expiresAt),
+      MemoryActionType.video => Memory.video(video: _file!, location: _latLng, locationAccuracy: _locationAccuracy, title: title, description: description, privacy: privacy, postType: choice, expiresAt: expiresAt),
+      MemoryActionType.location => Memory.location(latitude: _latLng?.latitude ?? 0, longitude: _latLng?.longitude ?? 0, locationAccuracy: _locationAccuracy, title: title, description: description, privacy: privacy, postType: choice, expiresAt: expiresAt),
     };
     if (!mounted) return;
     Navigator.pop(context, memory);
@@ -184,6 +188,24 @@ class _CreateMemoryScreenState extends State<CreateMemoryScreen> {
     );
   }
 
+  Widget _locationCard() {
+    final has = _latLng != null;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: BenTokens.cyan.withValues(alpha: .18)), color: BenTokens.cyan.withValues(alpha: .045)),
+      child: Row(children: [
+        Icon(has ? Icons.location_on_rounded : Icons.location_searching_rounded, color: BenTokens.cyan),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(has ? 'Konum hazır' : (_locationLoading ? 'Konum alınıyor…' : 'Konum eklenmedi'), style: const TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 2),
+          Text(has ? 'Bu anı haritada gösterebiliriz${_locationAccuracy == null ? '' : ' • ±${_locationAccuracy!.round()} m'}' : 'Paylaşmadan önce konum ekleyebilirsin.', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .62))),
+        ])),
+        TextButton(onPressed: _locationLoading ? null : _addLocation, child: Text(has ? 'Yenile' : 'Ekle')),
+      ]),
+    );
+  }
+
   void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, content: Text(text)));
 
   @override
@@ -200,6 +222,8 @@ class _CreateMemoryScreenState extends State<CreateMemoryScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 36),
         children: [
+          _locationCard(),
+          const SizedBox(height: 12),
           _typeSelector(),
           const SizedBox(height: 16),
           if (_type == MemoryActionType.photo || _type == MemoryActionType.video) _mediaPreview(),

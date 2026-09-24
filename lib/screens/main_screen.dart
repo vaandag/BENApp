@@ -66,31 +66,33 @@ class _MainScreenState
 
   Future<void> _loadMemories() async {
     try {
-      await _repository.initialize();
-      final local = await _repository.getAll();
-      try {
-        final remote = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'discover');
-        final connections = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'following');
-        final localById = {for (final m in local) m.id: m};
-        final hydrated = remote.map((m) { final cached=localById[m.id]; return cached==null ? m : m.copyWith(photo:cached.photo,video:cached.video,music:cached.music); }).toList();
-        if (!mounted) return;
-        setState(() { _memories=hydrated.where((m)=>!m.isExpired).toList(); _connectionMemories=connections.where((m)=>!m.isExpired).toList(); _loadingMemories=false; });
-      } catch (_) {
-        if (!mounted) return;
-        setState(() { _memories=local.where((m)=>!m.isExpired).toList(); _loadingMemories=false; });
-      }
-    } catch (_) { if(!mounted)return; setState(()=>_loadingMemories=false); _showMessage('Anılar yüklenirken bir sorun oluştu.'); }
+      final remote = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'discover');
+      final connections = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'following');
+      if (!mounted) return;
+      setState(() {
+        _memories = remote.where((m) => !m.isExpired).toList();
+        _connectionMemories = connections.where((m) => !m.isExpired).toList();
+        _loadingMemories = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() { _memories = const []; _connectionMemories = const []; _loadingMemories = false; });
+      _showMessage('BEN sunucusuna bağlanılamadı. İnternet ve sunucu bağlantısını kontrol et.');
+    }
   }
 
   Future<void> _refreshMemories() async {
     try {
-      final local=await _repository.getAll();
-      final remote=await _phpRepository.list(userId:widget.currentUser?.id??1,scope:'discover');
-      final connections=await _phpRepository.list(userId:widget.currentUser?.id??1,scope:'following');
-      final localById={for(final m in local)m.id:m};
-      final hydrated=remote.map((m){final c=localById[m.id];return c==null?m:m.copyWith(photo:c.photo,video:c.video,music:c.music);}).toList();
-      if(!mounted)return; setState((){_memories=hydrated.where((m)=>!m.isExpired).toList();_connectionMemories=connections.where((m)=>!m.isExpired).toList();});
-    } catch (_) { if(mounted)_showMessage('Anılar yenilenemedi.'); }
+      final remote = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'discover');
+      final connections = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'following');
+      if (!mounted) return;
+      setState(() {
+        _memories = remote.where((m) => !m.isExpired).toList();
+        _connectionMemories = connections.where((m) => !m.isExpired).toList();
+      });
+    } catch (_) {
+      if (mounted) _showMessage('BEN sunucusuna bağlanılamadı.');
+    }
   }
 
   Future<void> _handleMemoryAction(MemoryAction action) async {
@@ -107,7 +109,11 @@ class _MainScreenState
     };
     final memory = await Navigator.push<Memory>(context, MaterialPageRoute(builder: (_) => CreateMemoryScreen(initialType: type)));
     if (memory == null || !mounted) return;
-    await _repository.add(memory);
+    if (memory.type == MemoryType.location && !memory.hasLocation) {
+      _showMessage('Konum alınamadı. Konum hizmetini açıp tekrar dene.');
+      return;
+    }
+    setState(() {});
     Memory storedMemory = memory;
     try {
       var remoteMemory = memory;
@@ -122,12 +128,14 @@ class _MainScreenState
         }
       }
       final remoteId = await _phpRepository.create(remoteMemory, userId: widget.currentUser?.id ?? 1);
-      if (remoteId != null) {
-        storedMemory = memory.copyWith(id: remoteId.toString());
-        await _repository.remove(memory.id);
-        await _repository.add(storedMemory);
-      }
-    } catch (_) {}
+      if (remoteId == null) throw const ApiException('Sunucu anı için bir kayıt kimliği döndürmedi.');
+      storedMemory = memory.copyWith(id: remoteId.toString(), mediaUrl: remoteMemory.mediaUrl);
+      await _repository.remove(memory.id);
+      await _repository.add(storedMemory);
+    } catch (e) {
+      if (mounted) _showMessage('Anı sunucuya kaydedilemedi. Tekrar deneyebilirsin.');
+      return;
+    }
     if (!mounted) return;
     setState(() {
       // Sunucu ID'si varsa yerel anıyla birlikte saklıyoruz. Böylece yorumlar

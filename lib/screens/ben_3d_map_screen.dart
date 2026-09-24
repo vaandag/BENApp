@@ -7,6 +7,7 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../core/theme/app_tokens.dart';
 import '../models/memory.dart';
+import '../services/location_service.dart';
 import 'memory_fullscreen_viewer.dart';
 
 /// BEN WORLD V179 — Spatial Street Explorer.
@@ -39,6 +40,8 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
   final bool _cinematic = true;
   bool _streetMode = false;
   Memory? _selectedMemory;
+  LatLng? _userLocation;
+  final LocationService _locationService = LocationService();
 
   double _zoom = 15.2;
   double _bearing = 22;
@@ -57,6 +60,19 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
+    _loadUserLocation();
+  }
+
+  Future<void> _loadUserLocation() async {
+    final result = await _locationService.getCurrent(context, showFeedback: false);
+    if (!mounted || result.snapshot == null) return;
+    setState(() => _userLocation = LatLng(
+      result.snapshot!.latLng.latitude,
+      result.snapshot!.latLng.longitude,
+    ));
+    if (_locatedMemories.isEmpty && _controller != null) {
+      await _controller!.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: _userLocation!, zoom: 15.4, tilt: 58, bearing: 22)));
+    }
   }
 
   @override
@@ -487,9 +503,14 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
   }
 
   Future<void> _flyToFirstMemory() async {
+    final controller = _controller;
+    if (controller == null) return;
+    if (_userLocation != null) {
+      await controller.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: _userLocation!, zoom: 16.2, tilt: 60, bearing: _bearing)), duration: const Duration(milliseconds: 800));
+      return;
+    }
     final first = _locatedMemories.firstOrNull;
-    if (first == null || _controller == null) return;
-    _selectMemory(first.id);
+    if (first != null) _selectMemory(first.id);
   }
 }
 

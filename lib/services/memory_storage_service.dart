@@ -178,6 +178,7 @@ class MemoryStorageService {
       'mediaUrl': memory.mediaUrl,
       'latitude': memory.latitude,
       'longitude': memory.longitude,
+      'locationAccuracy': memory.locationAccuracy,
 
       'title': memory.title,
       'description':
@@ -281,6 +282,9 @@ class MemoryStorageService {
                 ?.toDouble(),
         longitude:
             (json['longitude'] as num?)
+                ?.toDouble(),
+        locationAccuracy:
+            (json['locationAccuracy'] as num?)
                 ?.toDouble(),
 
         title:
