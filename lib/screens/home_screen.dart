@@ -21,7 +21,7 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<Memory>? onDelete;
   final VoidCallback? onCreate;
   final VoidCallback? onOpenLive;
-  final VoidCallback? onOpenMap;
+  final ValueChanged<Memory>? onOpenMap;
   final BenUser? currentUser;
 
   const HomeScreen({
@@ -355,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen>
     final memory = item.memory;
     if (memory == null || !memory.hasLocation) return;
     if (widget.onOpenMap != null) {
-      widget.onOpenMap!();
+      widget.onOpenMap!(memory);
       return;
     }
     Navigator.push(context, MaterialPageRoute(builder: (_) => MemoryMapDetailScreen(memory: memory, memories: widget.memories)));

@@ -29,7 +29,7 @@ class ApiClient {
     request.headers['Accept'] = 'application/json';
     if (token != null && token!.isNotEmpty) request.headers['Authorization'] = 'Bearer $token';
     request.files.add(await http.MultipartFile.fromPath(field, path));
-    final streamed = await request.send().timeout(const Duration(seconds: 30));
+    final streamed = await request.send().timeout(const Duration(seconds: 90));
     final response = await http.Response.fromStream(streamed);
     dynamic decoded;
     try { decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body); } catch (_) { decoded = {'message': response.body}; }

@@ -26,6 +26,21 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>BEN, anılarına gerçek konum eklemek ve haritada göstermek için konumunu kullanır.</string>
+		<key>NSLocalNetworkUsageDescription</key>
+		<string>BEN, aynı Wi-Fi üzerindeki BEN sunucusuna bağlanmak için yerel ağ erişimini kullanır.</string>
+		<key>NSAppTransportSecurity</key>
+		<dict>
+			<key>NSAllowsLocalNetworking</key>
+			<true/>
+		</dict>
+		<key>NSCameraUsageDescription</key>
+		<string>BEN, fotoğraf ve video anıları oluşturmak için kameranı kullanır.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>BEN, galerinden fotoğraf ve video anıları seçebilmek için fotoğraf arşivine erişir.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>BEN, video ve canlı yayın özelliklerinde ses kullanabilmek için mikrofonu kullanır.</string>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>

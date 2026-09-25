@@ -50,6 +50,7 @@ class _MainScreenState
 
   List<Memory> _memories = [];
   List<Memory> _connectionMemories = [];
+  Memory? _mapFocusMemory;
 
   bool _loadingMemories = true;
 
@@ -96,6 +97,10 @@ class _MainScreenState
   }
 
   Future<void> _handleMemoryAction(MemoryAction action) async {
+    if (action == MemoryAction.live) {
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveScreen()));
+      return;
+    }
     if (action == MemoryAction.music) {
       _showMessage('Müzik anısı için ses dosyası seçimi yakında eklenecek.');
       return;
@@ -106,6 +111,7 @@ class _MainScreenState
       MemoryAction.video => MemoryActionType.video,
       MemoryAction.location => MemoryActionType.location,
       MemoryAction.music => MemoryActionType.text,
+      MemoryAction.live => MemoryActionType.text,
     };
     final memory = await Navigator.push<Memory>(context, MaterialPageRoute(builder: (_) => CreateMemoryScreen(initialType: type)));
     if (memory == null || !mounted) return;
@@ -202,9 +208,19 @@ class _MainScreenState
         onDelete: _deleteMemory,
         onCreate: _openMemoryMenu,
         onOpenLive: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveScreen())),
-        onOpenMap: () => setState(() => _selectedIndex = 1),
+        onOpenMap: (memory) => setState(() { _mapFocusMemory = memory; _selectedIndex = 1; }),
       ),
-      Ben3DMapScreen(key: const PageStorageKey('ben-world-map'), memories: _memories, embedded: true),
+      // MapLibre is a native platform view. Keep it lazy so iOS does not
+      // instantiate the native map while the BEN home page is still active.
+      // It is created only when the map tab is actually selected.
+      _selectedIndex == 1
+          ? Ben3DMapScreen(
+              key: const PageStorageKey('ben-world-map'),
+              memories: _memories,
+              embedded: true,
+              focusMemory: _mapFocusMemory,
+            )
+          : const SizedBox.shrink(key: PageStorageKey('ben-world-map-placeholder')),
       const SizedBox.shrink(key: PageStorageKey('ben-create-placeholder')),
       const MessagesScreen(key: PageStorageKey('ben-messages')),
       ProfileScreen(
@@ -234,37 +250,10 @@ class _MainScreenState
                   : Stack(
                       fit: StackFit.expand,
                       children: [
-                        AnimatedSwitcher(
-                          duration: BenTokens.motionStandard,
-                          reverseDuration: BenTokens.motionFast,
-                          switchInCurve: BenTokens.motionCurve,
-                          switchOutCurve: BenTokens.motionReverseCurve,
-                          layoutBuilder: (currentChild, previousChildren) => Stack(
-                            fit: StackFit.expand,
-                            children: <Widget>[
-                              ...previousChildren,
-                              if (currentChild != null) currentChild,
-                            ],
-                          ),
-                          transitionBuilder: (child, animation) {
-                            final slide = Tween<Offset>(
-                              begin: const Offset(.028, .008),
-                              end: Offset.zero,
-                            ).animate(animation);
-                            final scale = Tween<double>(begin: .992, end: 1).animate(animation);
-                            return FadeTransition(
-                              opacity: animation,
-                              child: SlideTransition(
-                                position: slide,
-                                child: ScaleTransition(scale: scale, child: child),
-                              ),
-                            );
-                          },
-                          child: KeyedSubtree(
-                            key: ValueKey('main-page-$_selectedIndex'),
-                            child: pages[_selectedIndex],
-                          ),
-                        ),
+                        IndexedStack(
+                          index: _selectedIndex,
+                          children: pages,
+                        )
                       ],
                     ),
             ),

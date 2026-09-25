@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,8 +19,9 @@ import 'memory_fullscreen_viewer.dart';
 class Ben3DMapScreen extends StatefulWidget {
   final List<Memory> memories;
   final bool embedded;
+  final Memory? focusMemory;
 
-  const Ben3DMapScreen({super.key, required this.memories, this.embedded = false});
+  const Ben3DMapScreen({super.key, required this.memories, this.embedded = false, this.focusMemory});
 
   @override
   State<Ben3DMapScreen> createState() => _Ben3DMapScreenState();
@@ -30,9 +30,7 @@ class Ben3DMapScreen extends StatefulWidget {
 class _Ben3DMapScreenState extends State<Ben3DMapScreen>
     with SingleTickerProviderStateMixin {
   static const _style = 'https://tiles.openfreemap.org/styles/dark';
-  static const _buildingsSource = 'ben-openfreemap-buildings';
   static const _buildingsLayer = 'ben-3d-buildings';
-  static const _roadsLayer = 'ben-3d-roads';
 
   MapLibreMapController? _controller;
   bool _loading3D = false;
@@ -76,6 +74,17 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
   }
 
   @override
+  void didUpdateWidget(covariant Ben3DMapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = widget.focusMemory;
+    if (next != null && next.id != oldWidget.focusMemory?.id && next.hasLocation) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _selectMemory(next.id);
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _pulseController.dispose();
     super.dispose();
@@ -83,10 +92,13 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
 
   @override
   Widget build(BuildContext context) {
+    final focused = widget.focusMemory;
     final first = _locatedMemories.firstOrNull;
-    final center = first == null
-        ? const LatLng(41.0082, 28.9784)
-        : LatLng(first.latitude!, first.longitude!);
+    final center = focused?.hasLocation == true
+        ? LatLng(focused!.latitude!, focused.longitude!)
+        : first == null
+            ? const LatLng(41.0082, 28.9784)
+            : LatLng(first.latitude!, first.longitude!);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -279,34 +291,38 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
 
     setState(() => _loading3D = true);
     try {
-      // iOS'ta MapLibre native tarafında özel vector-layer ifadeleri eski/özel
-      // stillerle birlikte native crash üretebildiği için temel haritayı önce
-      // güvenli şekilde gösteriyoruz. 0.27.1'in iOS crash düzeltmesiyle birlikte
-      // BEN pin katmanı ayrıca yükleniyor. Android'de tam özel 3D katmanları koruyoruz.
-      if (!Platform.isIOS) {
-        await controller.addSource(
-          _buildingsSource,
-          const VectorSourceProperties(url: 'https://tiles.openfreemap.org/planet', attribution: '© OpenStreetMap contributors • OpenFreeMap'),
+      // OpenFreeMap'in kendi stilinde `openmaptiles` adlı vector source zaten
+      // bulunur. Aynı source'u kullanmak; ikinci bir planet source açmaktan daha
+      // güvenlidir ve Android/iOS arasında aynı veri yolunu korur.
+      await controller.addFillExtrusionLayer(
+        'openmaptiles',
+        _buildingsLayer,
+        const FillExtrusionLayerProperties(
+          fillExtrusionColor: ['interpolate', ['linear'], ['coalesce', ['get', 'render_height'], 0], 0, '#071114', 12, '#0A1A1F', 28, '#10282E', 60, '#173C44'],
+          fillExtrusionOpacity: .96,
+          fillExtrusionHeight: ['coalesce', ['get', 'render_height'], 10],
+          fillExtrusionBase: ['coalesce', ['get', 'render_min_height'], 0],
+          fillExtrusionVerticalGradient: true,
+        ),
+        sourceLayer: 'building',
+        minzoom: 12.5,
+        enableInteraction: false,
+      );
+      try {
+        await controller.addLineLayer(
+          'openmaptiles',
+          'ben-3d-roads',
+          const LineLayerProperties(
+            lineColor: '#2ED9D0',
+            lineOpacity: .28,
+            lineWidth: 1.5,
+            lineBlur: .12,
+          ),
+          sourceLayer: 'transportation',
+          minzoom: 13,
+          enableInteraction: false,
         );
-        await controller.addFillExtrusionLayer(
-          _buildingsSource,
-          _buildingsLayer,
-          const FillExtrusionLayerProperties(
-            fillExtrusionColor: ['interpolate',['linear'],['coalesce',['get','render_height'],0],0,'#071114',12,'#0A1A1F',28,'#10282E',60,'#173C44'],
-            fillExtrusionOpacity: .97,
-            fillExtrusionHeight: ['coalesce',['get','render_height'],10],
-            fillExtrusionBase: ['coalesce',['get','render_min_height'],0],
-            fillExtrusionVerticalGradient: true,
-          ), sourceLayer: 'building', minzoom: 13.8, enableInteraction: false,
-        );
-        try {
-          await controller.addLineLayer(
-            _buildingsSource, _roadsLayer,
-            const LineLayerProperties(lineColor:'#2ED9D0',lineOpacity:.34,lineWidth:2.0,lineBlur:.15),
-            sourceLayer:'transportation',minzoom:13,enableInteraction:false,
-          );
-        } catch (_) {}
-      }
+      } catch (_) {}
       await _addBenMemoryLayer(controller);
       if (!mounted) return;
 

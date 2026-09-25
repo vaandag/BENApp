@@ -8,7 +8,9 @@ class MediaService {
   Future<File?> takePhoto() async {
     final XFile? picked = await _picker.pickImage(
       source: ImageSource.camera,
-      imageQuality: 90,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      imageQuality: 78,
     );
 
     if (picked == null) {
@@ -21,7 +23,9 @@ class MediaService {
   Future<File?> pickPhotoFromGallery() async {
     final XFile? picked = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 90,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      imageQuality: 78,
     );
 
     if (picked == null) {

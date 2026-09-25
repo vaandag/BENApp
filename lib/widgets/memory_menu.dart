@@ -8,6 +8,7 @@ enum MemoryAction {
   music,
   text,
   location,
+  live,
 }
 
 class MemoryMenu {
@@ -112,6 +113,17 @@ class MemoryMenu {
                     onSelected(MemoryAction.location);
                   },
                 ),
+                const SizedBox(height: 4),
+                _MemoryOption(
+                  icon: Icons.fiber_manual_record_rounded,
+                  iconColor: Colors.redAccent,
+                  title: 'Canlı Yayın Aç',
+                  subtitle: 'BEN üzerinde canlı yayına başla',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    onSelected(MemoryAction.live);
+                  },
+                ),
               ],
             ),
           ),
@@ -125,12 +137,14 @@ class _MemoryOption extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final Color? iconColor;
   final VoidCallback onTap;
 
   const _MemoryOption({
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.iconColor,
     required this.onTap,
   });
 
@@ -154,7 +168,7 @@ class _MemoryOption extends StatelessWidget {
               ),
               child: Icon(
                 icon,
-                color: Theme.of(context).brightness == Brightness.dark ? BenTokens.ink : Colors.white,
+                color: iconColor ?? (Theme.of(context).brightness == Brightness.dark ? BenTokens.ink : Colors.white),
                 size: 22,
               ),
             ),
