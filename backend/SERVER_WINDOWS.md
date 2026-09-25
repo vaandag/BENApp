@@ -1,43 +1,13 @@
-# BEN API — Windows yerel sunucu
+# BEN API — Windows local development server
 
-Evet, gelistirme asamasinda kendi bilgisayarimizi BEN sunucusu olarak kullanabiliriz. Bu PHP + SQLite yapisi icin uygundur. Telefon ile bilgisayarin ayni Wi-Fi aginda olmasi gerekir.
+The local PHP + SQLite server is a development environment for BENApp.
 
-## 1. Sunucuyu baslat
-
-`backend/start_ben_server.bat` dosyasini calistir. Bu, PHP'yi `0.0.0.0:8080` adresine baglar.
-
-## 2. Gerekirse firewall
-
-`allow_ben_api_8080_admin.bat` dosyasini Yonetici olarak bir kez calistir.
-
-## 3. Bilgisayarin yerel IP adresini bul
-
-Windows CMD:
-
-```bat
-ipconfig
-```
-
-Wi-Fi adaptoru altindaki `IPv4 Address` degerini kullan. Ornek: `192.168.1.42`.
-
-## 4. Flutter'i telefona LAN sunucusuna bagla
-
-```bat
-flutter run -d 0025772a0307 --dart-define=BEN_API_URL=http://192.168.1.42:8080/api
-```
-
-Buradaki IP kendi bilgisayarinin IPv4 adresi olmalidir.
-
-## 5. Saglik kontrolu
-
-PC'de:
+Start with `backend/start_ben_server.bat`, then verify:
 
 ```bat
 curl http://127.0.0.1:8080/api/health
 ```
 
-Telefondan da ayni Wi-Fi uzerinden `http://192.168.1.42:8080/api/health` adresine ulasilabilmeli.
+The Flutter app should point `BEN_API_URL` to `http://<PC-IP>:8080/api` on the same Wi-Fi network.
 
-## Not
-
-Bu yapi gelistirme/test sunucusudur. Gercek kullanicilara acilacak production ortaminda PHP built-in server yerine Nginx/Apache + HTTPS, ayri veritabani, medya depolama/CDN, yedekleme ve guvenlik katmanlari kullanilmalidir.
+V192 adds server-side session authorization for critical write operations, SQLite WAL/busy-timeout settings, migrations and request IDs. It is still not a public production server.

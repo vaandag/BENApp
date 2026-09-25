@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../core/theme/app_tokens.dart';
@@ -9,7 +10,7 @@ import '../models/memory.dart';
 import '../services/location_service.dart';
 import 'memory_fullscreen_viewer.dart';
 
-/// BEN WORLD V179 — Spatial Street Explorer.
+/// BEN WORLD V191 — Premium spatial memory explorer.
 ///
 /// Bu ekran mevcut 2D haritayı değiştirmez. MapLibre'ın gerçek vector-tile
 /// bina/yol verisini yüksek pitch + street camera ile kullanır. Android/iOS
@@ -31,6 +32,10 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
     with SingleTickerProviderStateMixin {
   static const _style = 'https://tiles.openfreemap.org/styles/dark';
   static const _buildingsLayer = 'ben-3d-buildings';
+  static const _memorySource = 'ben-memory-source';
+  static const _clusterLayer = 'ben-memory-clusters';
+  static const _clusterCountLayer = 'ben-memory-cluster-count';
+  static const _memoryPointLayer = 'ben-memory-points';
 
   MapLibreMapController? _controller;
   bool _loading3D = false;
@@ -39,6 +44,8 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
   bool _streetMode = false;
   Memory? _selectedMemory;
   LatLng? _userLocation;
+  LatLng? _initialCenter;
+  bool _initialCenterReady = false;
   final LocationService _locationService = LocationService();
 
   double _zoom = 15.2;
@@ -58,19 +65,41 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
-    _loadUserLocation();
+    _prepareInitialCamera();
   }
 
-  Future<void> _loadUserLocation() async {
-    final result = await _locationService.getCurrent(context, showFeedback: false);
-    if (!mounted || result.snapshot == null) return;
-    setState(() => _userLocation = LatLng(
-      result.snapshot!.latLng.latitude,
-      result.snapshot!.latLng.longitude,
-    ));
-    if (_locatedMemories.isEmpty && _controller != null) {
-      await _controller!.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: _userLocation!, zoom: 15.4, tilt: 58, bearing: 22)));
+  Future<void> _prepareInitialCamera() async {
+    final focused = widget.focusMemory;
+    if (focused?.hasLocation == true) {
+      _initialCenter = LatLng(focused!.latitude!, focused.longitude!);
+      _initialCenterReady = true;
+      if (mounted) setState(() {});
+      return;
     }
+
+    // Do not create the native map over an arbitrary/sea coordinate.
+    // Resolve the best available location first, then create MapLibre once.
+    try {
+      final result = await _locationService.getCurrent(context, showFeedback: false);
+      if (result.snapshot != null) {
+        final point = LatLng(
+          result.snapshot!.latLng.latitude,
+          result.snapshot!.latLng.longitude,
+        );
+        _userLocation = point;
+        _initialCenter = point;
+      }
+    } catch (_) {}
+
+    if (_initialCenter == null) {
+      final first = _locatedMemories.firstOrNull;
+      _initialCenter = first == null
+          ? const LatLng(41.0082, 28.9784)
+          : LatLng(first.latitude!, first.longitude!);
+    }
+
+    _initialCenterReady = true;
+    if (mounted) setState(() {});
   }
 
   @override
@@ -92,19 +121,18 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
 
   @override
   Widget build(BuildContext context) {
-    final focused = widget.focusMemory;
-    final first = _locatedMemories.firstOrNull;
-    final center = focused?.hasLocation == true
-        ? LatLng(focused!.latitude!, focused.longitude!)
-        : first == null
-            ? const LatLng(41.0082, 28.9784)
-            : LatLng(first.latitude!, first.longitude!);
+    final center = _initialCenter ?? const LatLng(41.0082, 28.9784);
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          MapLibreMap(
+          if (!_initialCenterReady)
+            const Center(
+              child: CircularProgressIndicator(color: BenTokens.cyan),
+            )
+          else
+            MapLibreMap(
             initialCameraPosition: CameraPosition(
               target: center,
               zoom: _zoom,
@@ -121,14 +149,16 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
             myLocationEnabled: false,
             myLocationTrackingMode: MyLocationTrackingMode.none,
             onMapCreated: (controller) => _controller = controller,
+            featureTapsTriggersMapClick: true,
             onStyleLoadedCallback: _onStyleLoaded,
+            onMapClick: _onMapClick,
             onCameraMove: (position) {
               _zoom = position.zoom;
               _bearing = position.bearing;
               _tilt = position.tilt;
               _target = position.target;
             },
-          ),
+            ),
           IgnorePointer(
             child: AnimatedOpacity(
               opacity: _cinematic ? 1 : 0,
@@ -291,41 +321,79 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
 
     setState(() => _loading3D = true);
     try {
-      // OpenFreeMap'in kendi stilinde `openmaptiles` adlı vector source zaten
-      // bulunur. Aynı source'u kullanmak; ikinci bir planet source açmaktan daha
-      // güvenlidir ve Android/iOS arasında aynı veri yolunu korur.
-      await controller.addFillExtrusionLayer(
-        'openmaptiles',
-        _buildingsLayer,
-        const FillExtrusionLayerProperties(
-          fillExtrusionColor: ['interpolate', ['linear'], ['coalesce', ['get', 'render_height'], 0], 0, '#071114', 12, '#0A1A1F', 28, '#10282E', 60, '#173C44'],
-          fillExtrusionOpacity: .96,
-          fillExtrusionHeight: ['coalesce', ['get', 'render_height'], 10],
-          fillExtrusionBase: ['coalesce', ['get', 'render_min_height'], 0],
-          fillExtrusionVerticalGradient: true,
-        ),
-        sourceLayer: 'building',
-        minzoom: 12.5,
-        enableInteraction: false,
-      );
-      try {
-        await controller.addLineLayer(
-          'openmaptiles',
-          'ben-3d-roads',
-          const LineLayerProperties(
-            lineColor: '#2ED9D0',
-            lineOpacity: .28,
-            lineWidth: 1.5,
-            lineBlur: .12,
-          ),
-          sourceLayer: 'transportation',
-          minzoom: 13,
-          enableInteraction: false,
-        );
-      } catch (_) {}
+      // Android: restore the proven V186 OpenFreeMap planet source for
+      // extrusion/road layers. iOS keeps the provider's native style layers
+      // only; this avoids re-introducing the native MapLibre crash while the
+      // map is now lazily mounted.
+      if (!Platform.isIOS) {
+        try {
+          await controller.addSource(
+            'ben-openfreemap-buildings',
+            const VectorSourceProperties(
+              url: 'https://tiles.openfreemap.org/planet',
+              attribution: '© OpenStreetMap contributors • OpenFreeMap',
+            ),
+          );
+        } catch (_) {
+          // The style may already expose the source.
+        }
+        try {
+          await controller.addFillExtrusionLayer(
+            'ben-openfreemap-buildings',
+            _buildingsLayer,
+            const FillExtrusionLayerProperties(
+              fillExtrusionColor: [
+                'interpolate', ['linear'],
+                ['coalesce', ['get', 'render_height'], 0],
+                0, '#071114',
+                12, '#0A1A1F',
+                28, '#10282E',
+                60, '#173C44',
+              ],
+              fillExtrusionOpacity: .97,
+              fillExtrusionHeight: ['coalesce', ['get', 'render_height'], 10],
+              fillExtrusionBase: ['coalesce', ['get', 'render_min_height'], 0],
+              fillExtrusionVerticalGradient: true,
+            ),
+            sourceLayer: 'building',
+            minzoom: 13.8,
+            enableInteraction: false,
+          );
+        } catch (_) {}
+        try {
+          await controller.addLineLayer(
+            'ben-openfreemap-buildings',
+            'ben-3d-roads',
+            const LineLayerProperties(
+              lineColor: '#2ED9D0',
+              lineOpacity: .34,
+              lineWidth: 2.0,
+              lineBlur: .15,
+            ),
+            sourceLayer: 'transportation',
+            minzoom: 13,
+            enableInteraction: false,
+          );
+        } catch (_) {}
+        try {
+          await controller.addLineLayer(
+            'ben-openfreemap-buildings',
+            'ben-building-edges',
+            const LineLayerProperties(
+              lineColor: '#36E5DE',
+              lineOpacity: .16,
+              lineWidth: 1.0,
+              lineBlur: .25,
+            ),
+            sourceLayer: 'building',
+            minzoom: 14.8,
+            enableInteraction: false,
+          );
+        } catch (_) {}
+      }
+
       await _addBenMemoryLayer(controller);
       if (!mounted) return;
-
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -340,65 +408,159 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
     final located = _locatedMemories;
     if (located.isEmpty) return;
 
+    final featureCollection = <String, dynamic>{
+      'type': 'FeatureCollection',
+      'features': located.map((memory) {
+        return <String, dynamic>{
+          'type': 'Feature',
+          'id': memory.id,
+          'geometry': <String, dynamic>{
+            'type': 'Point',
+            'coordinates': <double>[memory.longitude!, memory.latitude!],
+          },
+          'properties': <String, dynamic>{
+            'memoryId': memory.id,
+            'title': memory.title?.trim().isNotEmpty == true ? memory.title : 'BEN',
+          },
+        };
+      }).toList(),
+    };
+
+    try {
+      await controller.addSource(
+        _memorySource,
+        GeojsonSourceProperties(
+          data: featureCollection,
+          cluster: true,
+          clusterRadius: 58,
+          clusterMaxZoom: 15.5,
+          clusterMinPoints: 2,
+          generateId: true,
+        ),
+      );
+    } catch (_) {
+      try {
+        await controller.setGeoJsonSource(_memorySource, featureCollection);
+      } catch (_) {}
+    }
+
+    // Cluster bubbles: compact at city scale, larger when a dense memory pocket
+    // contains many points. This is native MapLibre clustering, not a Flutter
+    // overlay, so Android and iOS use the same spatial calculation.
+    try {
+      await controller.addCircleLayer(
+        _memorySource,
+        _clusterLayer,
+        const CircleLayerProperties(
+          circleRadius: [
+            'step',
+            ['get', 'point_count'],
+            18,
+            8, 22,
+            25, 27,
+            60, 33,
+          ],
+          circleColor: '#08D9D2',
+          circleOpacity: .94,
+          circleStrokeColor: '#B9FFFC',
+          circleStrokeWidth: 2.0,
+          circleStrokeOpacity: .72,
+        ),
+        filter: ['has', 'point_count'],
+      );
+      await controller.addSymbolLayer(
+        _memorySource,
+        _clusterCountLayer,
+        const SymbolLayerProperties(
+          textField: [Expressions.get, 'point_count_abbreviated'],
+          textSize: 12.5,
+          textColor: '#031014',
+          textHaloColor: '#B9FFFC',
+          textHaloWidth: .5,
+          textAllowOverlap: true,
+          textIgnorePlacement: true,
+        ),
+        filter: ['has', 'point_count'],
+      );
+    } catch (_) {}
+
+    // Individual BEN points appear only after the cluster has expanded.
     try {
       final bytes = (await rootBundle.load('assets/branding/ben_master_logo.png'))
           .buffer
           .asUint8List();
       await controller.addImage('ben-master-marker', bytes);
-
-      final options = located
-          .map(
-            (memory) => SymbolOptions(
-              geometry: LatLng(memory.latitude!, memory.longitude!),
-              iconImage: 'ben-master-marker',
-              iconSize: .10,
-              iconOpacity: .98,
-              textField: memory.title?.trim().isNotEmpty == true
-                  ? memory.title
-                  : 'BEN',
-              textSize: 9,
-              textColor: '#FFFFFF',
-              textHaloColor: '#061116',
-              textHaloWidth: 1.6,
-            ),
-          )
-          .toList();
-      await controller.addSymbols(
-        options,
-        located.map((memory) => {'memoryId': memory.id}).toList(),
+      await controller.addSymbolLayer(
+        _memorySource,
+        _memoryPointLayer,
+        const SymbolLayerProperties(
+          iconImage: 'ben-master-marker',
+          iconSize: .105,
+          iconAllowOverlap: true,
+          iconIgnorePlacement: true,
+          textField: [Expressions.get, 'title'],
+          textSize: 8.5,
+          textColor: '#FFFFFF',
+          textHaloColor: '#061116',
+          textHaloWidth: 1.5,
+          textOffset: [0, 1.7],
+          textAllowOverlap: false,
+          textOptional: true,
+        ),
+        filter: ['!', ['has', 'point_count']],
       );
-      controller.onSymbolTapped.add(_onSymbolTapped);
-      return;
     } catch (_) {
-      final options = located
-          .map(
-            (memory) => CircleOptions(
-              geometry: LatLng(memory.latitude!, memory.longitude!),
-              circleRadius: 10,
-              circleColor: '#19D9D1',
-              circleOpacity: .95,
-              circleStrokeColor: '#061116',
-              circleStrokeWidth: 3,
-              circleStrokeOpacity: 1,
-            ),
-          )
-          .toList();
-      await controller.addCircles(
-        options,
-        located.map((memory) => {'memoryId': memory.id}).toList(),
-      );
-      controller.onCircleTapped.add(_onCircleTapped);
+      try {
+        await controller.addCircleLayer(
+          _memorySource,
+          _memoryPointLayer,
+          const CircleLayerProperties(
+            circleRadius: 8,
+            circleColor: '#19D9D1',
+            circleOpacity: .96,
+            circleStrokeColor: '#B9FFFC',
+            circleStrokeWidth: 2,
+          ),
+          filter: ['!', ['has', 'point_count']],
+        );
+      } catch (_) {}
     }
   }
 
-  void _onSymbolTapped(Symbol symbol) {
-    final memoryId = symbol.data?['memoryId']?.toString();
-    if (memoryId != null) _selectMemory(memoryId);
-  }
-
-  void _onCircleTapped(Circle circle) {
-    final memoryId = circle.data?['memoryId']?.toString();
-    if (memoryId != null) _selectMemory(memoryId);
+  Future<void> _onMapClick(math.Point<double> point, LatLng coordinates) async {
+    final controller = _controller;
+    if (controller == null) return;
+    try {
+      final features = await controller.queryRenderedFeatures(
+        point,
+        [_clusterLayer, _memoryPointLayer],
+        null,
+      );
+      if (features.isEmpty) return;
+      final feature = features.first;
+      final properties = (feature['properties'] as Map?)?.cast<String, dynamic>() ?? const {};
+      if (properties.containsKey('cluster_id')) {
+        final clusterId = (properties['cluster_id'] as num?)?.toInt();
+        if (clusterId == null) return;
+        final zoom = await controller.getClusterExpansionZoom(_memorySource, clusterId);
+        final geometry = feature['geometry'];
+        if (geometry is Map && geometry['coordinates'] is List) {
+          final coords = geometry['coordinates'] as List;
+          if (coords.length >= 2) {
+            await controller.animateCamera(
+              CameraUpdate.newLatLngZoom(
+                LatLng((coords[1] as num).toDouble(), (coords[0] as num).toDouble()),
+                zoom.toDouble(),
+              ),
+              duration: const Duration(milliseconds: 650),
+            );
+          }
+        }
+        return;
+      }
+      final memoryId = properties['memoryId']?.toString();
+      if (memoryId != null) _selectMemory(memoryId);
+    } catch (_) {}
   }
 
   void _selectMemory(String memoryId) {
@@ -507,9 +669,9 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
     if (controller == null) return;
     setState(() => _streetMode = false);
     final first = _selectedMemory ?? _locatedMemories.firstOrNull;
-    final target = first == null
+    final target = _userLocation ?? (first == null
         ? const LatLng(41.0082, 28.9784)
-        : LatLng(first.latitude!, first.longitude!);
+        : LatLng(first.latitude!, first.longitude!));
     await controller.animateCamera(
       CameraUpdate.newCameraPosition(
         CameraPosition(target: target, zoom: 15.2, tilt: 58, bearing: 22),

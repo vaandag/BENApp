@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 
 import '../core/theme/app_tokens.dart';
+import '../core/di/app_dependencies.dart';
 import '../core/network/api_client.dart';
 import '../features/memories/data/php_memory_repository.dart';
 import '../features/messages/presentation/messages_screen.dart';
@@ -26,6 +27,7 @@ class MainScreen extends StatefulWidget {
   final ValueChanged<ThemeMode> onThemeChanged;
   final VoidCallback onLogout;
   final BenUser? currentUser;
+  final AppDependencies dependencies;
 
   const MainScreen({
     super.key,
@@ -33,6 +35,7 @@ class MainScreen extends StatefulWidget {
     required this.onThemeChanged,
     required this.onLogout,
     this.currentUser,
+    required this.dependencies,
   });
 
   @override
@@ -42,9 +45,9 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState
     extends State<MainScreen> {
-  final MemoryRepository _repository =
-      MemoryRepository();
-  final PhpMemoryRepository _phpRepository = PhpMemoryRepository(ApiClient());
+  late final MemoryRepository _repository;
+  late final PhpMemoryRepository _phpRepository;
+  late final ApiClient _api;
 
   int _selectedIndex = 0;
 
@@ -57,6 +60,9 @@ class _MainScreenState
   @override
   void initState() {
     super.initState();
+    _repository = widget.dependencies.localMemoryRepository;
+    _phpRepository = widget.dependencies.memories;
+    _api = widget.dependencies.api;
     _loadMemories();
   }
 
@@ -67,8 +73,8 @@ class _MainScreenState
 
   Future<void> _loadMemories() async {
     try {
-      final remote = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'discover');
-      final connections = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'following');
+      final remote = await _phpRepository.list(scope: 'discover');
+      final connections = await _phpRepository.list(scope: 'following');
       if (!mounted) return;
       setState(() {
         _memories = remote.where((m) => !m.isExpired).toList();
@@ -84,8 +90,8 @@ class _MainScreenState
 
   Future<void> _refreshMemories() async {
     try {
-      final remote = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'discover');
-      final connections = await _phpRepository.list(userId: widget.currentUser?.id ?? 1, scope: 'following');
+      final remote = await _phpRepository.list(scope: 'discover');
+      final connections = await _phpRepository.list(scope: 'following');
       if (!mounted) return;
       setState(() {
         _memories = remote.where((m) => !m.isExpired).toList();
@@ -124,16 +130,16 @@ class _MainScreenState
     try {
       var remoteMemory = memory;
       if (memory.photo != null && await memory.photo!.exists()) {
-        final url = await ApiClient().uploadFile(memory.photo!.path, field: 'media', endpoint: 'uploads/media');
+        final url = await _api.uploadFile(memory.photo!.path, field: 'media', endpoint: 'uploads/media');
         remoteMemory = memory.copyWith(mediaUrl: url);
       } else if (memory.video != null) {
         final file = File(memory.video!);
         if (await file.exists()) {
-          final url = await ApiClient().uploadFile(file.path, field: 'media', endpoint: 'uploads/media');
+          final url = await _api.uploadFile(file.path, field: 'media', endpoint: 'uploads/media');
           remoteMemory = memory.copyWith(mediaUrl: url);
         }
       }
-      final remoteId = await _phpRepository.create(remoteMemory, userId: widget.currentUser?.id ?? 1);
+      final remoteId = await _phpRepository.create(remoteMemory);
       if (remoteId == null) throw const ApiException('Sunucu anı için bir kayıt kimliği döndürmedi.');
       storedMemory = memory.copyWith(id: remoteId.toString(), mediaUrl: remoteMemory.mediaUrl);
       await _repository.remove(memory.id);
@@ -157,9 +163,17 @@ class _MainScreenState
   Future<void> _deleteMemory(
     Memory memory,
   ) async {
-    await _repository.remove(
-      memory.id,
-    );
+    try {
+      final id = int.tryParse(memory.id);
+      if (id != null && id > 0) {
+        await _api.delete('memories/$id');
+      }
+    } catch (_) {
+      _showMessage('Anı sunucudan silinemedi. Tekrar deneyebilirsin.');
+      return;
+    }
+
+    await _repository.remove(memory.id);
 
     await _refreshMemories();
 

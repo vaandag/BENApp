@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../core/network/api_client.dart';
 import '../core/theme/app_tokens.dart';
 import '../services/auth_service.dart';
 import '../widgets/ben_logo.dart';
 
 class AccountEntryScreen extends StatefulWidget {
   final Future<void> Function(BenUser user) onAuthenticated;
-  const AccountEntryScreen({super.key, required this.onAuthenticated});
+  final AuthService auth;
+  const AccountEntryScreen({super.key, required this.onAuthenticated, required this.auth});
 
   @override
   State<AccountEntryScreen> createState() => _AccountEntryScreenState();
@@ -18,7 +18,6 @@ class _AccountEntryScreenState extends State<AccountEntryScreen> {
   bool _register = false;
   bool _busy = false;
 
-  final _auth = AuthService(ApiClient());
   final _formKey = GlobalKey<FormState>();
   String _email = '';
   String _password = '';
@@ -47,12 +46,12 @@ class _AccountEntryScreenState extends State<AccountEntryScreen> {
 
     try {
       final user = _register
-          ? await _auth.register(
+          ? await widget.auth.register(
               username: _username.trim(),
               email: _email.trim(),
               password: _password,
             )
-          : await _auth.login(
+          : await widget.auth.login(
               email: _email.trim(),
               password: _password,
             );

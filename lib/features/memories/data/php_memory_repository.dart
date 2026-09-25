@@ -6,15 +6,20 @@ class PhpMemoryRepository {
   PhpMemoryRepository(this._api);
   final ApiClient _api;
 
-  Future<List<Memory>> list({String query = '', int userId = 1, String scope = 'mine'}) async {
-    final json = await _api.get('memories', query: {'q': query, 'user_id': '$userId', 'scope': scope});
+  Future<List<Memory>> list({String query = '', int? userId, String scope = 'mine', int limit = 50}) async {
+    final json = await _api.get('memories', query: {
+      'q': query,
+      'scope': scope,
+      'limit': '$limit',
+      if (userId != null) 'user_id': '$userId',
+    });
     final rows = json is List ? json : (json is Map && json['data'] is List ? json['data'] as List : <dynamic>[]);
     return rows.whereType<Map>().map(_memoryFromJson).toList();
   }
 
-  Future<int?> create(Memory memory, {int userId = 1}) async {
+  Future<int?> create(Memory memory, {int? userId}) async {
     final result = await _api.post('memories', body: {
-        'user_id': userId,
+        if (userId != null) 'user_id': userId,
         'title': memory.title ?? _typeTitle(memory.type),
         'place': memory.hasLocation ? '${memory.latitude},${memory.longitude}' : '',
         'body': memory.text ?? memory.description ?? '',
