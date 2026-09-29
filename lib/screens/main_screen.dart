@@ -75,16 +75,25 @@ class _MainScreenState
     try {
       final remote = await _phpRepository.list(scope: 'discover');
       final connections = await _phpRepository.list(scope: 'following');
+      final local = await _repository.getAll();
+      final visible = remote.isNotEmpty ? remote : local;
       if (!mounted) return;
       setState(() {
-        _memories = remote.where((m) => !m.isExpired).toList();
+        _memories = visible.where((m) => !m.isExpired).toList();
         _connectionMemories = connections.where((m) => !m.isExpired).toList();
         _loadingMemories = false;
       });
     } catch (_) {
+      // Network failure must not erase the local memory map. Keep previously
+      // stored memories available so location pins remain visible offline.
+      final local = await _repository.getAll();
       if (!mounted) return;
-      setState(() { _memories = const []; _connectionMemories = const []; _loadingMemories = false; });
-      _showMessage('BEN sunucusuna bağlanılamadı. İnternet ve sunucu bağlantısını kontrol et.');
+      setState(() {
+        _memories = local.where((m) => !m.isExpired).toList();
+        _connectionMemories = const [];
+        _loadingMemories = false;
+      });
+      _showMessage('Sunucuya bağlanılamadı. Kayıtlı anıların gösteriliyor.');
     }
   }
 
@@ -92,13 +101,21 @@ class _MainScreenState
     try {
       final remote = await _phpRepository.list(scope: 'discover');
       final connections = await _phpRepository.list(scope: 'following');
+      final local = await _repository.getAll();
+      final visible = remote.isNotEmpty ? remote : local;
       if (!mounted) return;
       setState(() {
-        _memories = remote.where((m) => !m.isExpired).toList();
+        _memories = visible.where((m) => !m.isExpired).toList();
         _connectionMemories = connections.where((m) => !m.isExpired).toList();
       });
     } catch (_) {
-      if (mounted) _showMessage('BEN sunucusuna bağlanılamadı.');
+      final local = await _repository.getAll();
+      if (mounted) {
+        setState(() {
+          _memories = local.where((m) => !m.isExpired).toList();
+        });
+        _showMessage('Sunucuya bağlanılamadı. Kayıtlı anıların korunuyor.');
+      }
     }
   }
 
