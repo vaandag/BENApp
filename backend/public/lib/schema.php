@@ -34,6 +34,14 @@ function ben_migrate(PDO $pdo): void {
       'ALTER TABLE memories ADD COLUMN location_accuracy REAL',
       'ALTER TABLE memories ADD COLUMN media_url TEXT NOT NULL DEFAULT \'\'',
     ],
+    '004_live_realtime' => [
+      "ALTER TABLE lives ADD COLUMN host_peer_id TEXT",
+      "CREATE TABLE IF NOT EXISTS live_peers (peer_id TEXT PRIMARY KEY, live_id INTEGER NOT NULL, user_id INTEGER NOT NULL, role TEXT NOT NULL, joined_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+      "CREATE TABLE IF NOT EXISTS live_signals (id INTEGER PRIMARY KEY AUTOINCREMENT, live_id INTEGER NOT NULL, from_peer TEXT NOT NULL, to_peer TEXT NOT NULL, kind TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+      'CREATE INDEX IF NOT EXISTS idx_live_peers_live ON live_peers(live_id, last_seen_at)',
+      'CREATE INDEX IF NOT EXISTS idx_live_peers_user ON live_peers(user_id, live_id)',
+      'CREATE INDEX IF NOT EXISTS idx_live_signals_to_peer ON live_signals(live_id, to_peer, id)',
+    ],
   ];
 
   foreach ($migrations as $version => $statements) {

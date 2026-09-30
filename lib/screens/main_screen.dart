@@ -16,7 +16,7 @@ import '../widgets/ben_nav_icons.dart';
 import '../widgets/ben_brand_header.dart';
 import 'create_memory_screen.dart';
 import 'home_screen.dart';
-import 'ben_3d_map_screen.dart';
+import 'map_screen.dart';
 import 'profile_screen.dart';
 import 'notifications_screen.dart';
 import 'settings_screen.dart';
@@ -241,14 +241,14 @@ class _MainScreenState
         onOpenLive: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveScreen())),
         onOpenMap: (memory) => setState(() { _mapFocusMemory = memory; _selectedIndex = 1; }),
       ),
-      // MapLibre is a native platform view. Keep it lazy so iOS does not
-      // instantiate the native map while the BEN home page is still active.
-      // It is created only when the map tab is actually selected.
+      // BEN Harita now uses the pure-Flutter map path as the primary world
+      // surface. This removes the native MapLibre platform-view from the
+      // default navigation path and gives us room for deterministic memory
+      // clustering + location-aware exploration.
       _selectedIndex == 1
-          ? Ben3DMapScreen(
+          ? MapScreen(
               key: const PageStorageKey('ben-world-map'),
               memories: _memories,
-              embedded: true,
               focusMemory: _mapFocusMemory,
             )
           : const SizedBox.shrink(key: PageStorageKey('ben-world-map-placeholder')),

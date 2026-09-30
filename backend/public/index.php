@@ -20,7 +20,7 @@ $input = json_decode(file_get_contents('php://input'), true) ?: [];
 try {
   $pdo = db();
   ben_migrate($pdo);
-  if ($path === 'health' || $path === '') { echo json_encode(['ok'=>true,'service'=>'BEN API','version'=>'192']); exit; }
+  if ($path === 'health' || $path === '') { echo json_encode(['ok'=>true,'service'=>'BEN API','version'=>'194']); exit; }
   if ($path === 'auth/me' && $method === 'GET') {
     $h=$_SERVER['HTTP_AUTHORIZATION']??'';
     if (!preg_match('/Bearer\s+(.+)/i',$h,$mm)) { http_response_code(401); echo json_encode(['ok'=>false,'message'=>'Oturum gerekli.']); exit; }
@@ -184,14 +184,74 @@ try {
   if ($path === 'rank' && $method === 'GET') {
     $uid=ben_require_user_id($pdo);$q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM memories WHERE user_id=?) memories,(SELECT COUNT(*) FROM comments WHERE user_id=?) comments,(SELECT COUNT(*) FROM memory_likes WHERE user_id=?) likes,(SELECT COUNT(*) FROM follows WHERE follower_id=?) following,(SELECT COUNT(*) FROM regional_messages WHERE user_id=?) regional_messages,(SELECT COUNT(*) FROM lives WHERE user_id=?) lives');$q->execute([$uid,$uid,$uid,$uid,$uid,$uid]);$c=$q->fetch()?:[]; $xp=(int)$c['memories']*100+(int)$c['comments']*15+(int)$c['likes']*5+(int)$c['following']*10+(int)$c['regional_messages']*8+(int)$c['lives']*50; $level=max(1,(int)floor($xp/500)+1);$base=($level-1)*500;$next=$level*500;$badges=[];if((int)$c['memories']>=1)$badges[]=['id'=>'first_memory','name'=>'İlk Anı','description'=>'İlk kalıcı anını bıraktın.'];if((int)$c['memories']>=10)$badges[]=['id'=>'memory_10','name'=>'Anı Avcısı','description'=>'10 anı bıraktın.'];if((int)$c['regional_messages']>=10)$badges[]=['id'=>'local_voice','name'=>'Bölge Sesi','description'=>'Bölgesel toplulukta aktif oldun.'];if((int)$c['lives']>=1)$badges[]=['id'=>'live','name'=>'Canlı','description'=>'İlk canlı yayınını başlattın.'];echo json_encode(['ok'=>true,'xp'=>$xp,'level'=>$level,'next_xp'=>$next,'progress'=>min(1,max(0,($xp-$base)/500)),'counts'=>$c,'badges'=>$badges]);exit;
   }
-  if ($path === 'live' && $method === 'GET') { echo json_encode($pdo->query("SELECT l.*,u.username,u.avatar_url FROM lives l LEFT JOIN users u ON u.id=l.user_id WHERE l.status='live' ORDER BY l.id DESC")->fetchAll()); exit; }
-  if ($path === 'live' && $method === 'POST') {
-    $h=$_SERVER['HTTP_AUTHORIZATION']??''; $uid=ben_require_user_id($pdo);
-    if ($uid<=0) { http_response_code(401); echo json_encode(['ok'=>false,'message'=>'CANLI başlatmak için giriş yapmalısın.']); exit; }
-    $check=$pdo->prepare('SELECT 1 FROM users WHERE id=?'); $check->execute([$uid]); if (!$check->fetchColumn()) { http_response_code(401); echo json_encode(['ok'=>false,'message'=>'Kullanıcı bulunamadı.']); exit; }
-    $s=$pdo->prepare('INSERT INTO lives(user_id,title,place) VALUES(?,?,?)'); $s->execute([$uid,(string)($input['title']??'BEN CANLI'),(string)($input['place']??'')]); echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId(),'user_id'=>$uid]); exit;
+  if ($path === 'live' && $method === 'GET') {
+    $sql = "SELECT l.*,u.username,u.avatar_url,(SELECT COUNT(*) FROM live_peers lp WHERE lp.live_id=l.id AND lp.role='viewer' AND lp.last_seen_at > datetime('now','-30 seconds')) viewers FROM lives l LEFT JOIN users u ON u.id=l.user_id WHERE l.status='live' ORDER BY l.id DESC";
+    echo json_encode($pdo->query($sql)->fetchAll()); exit;
   }
-  if ($path === 'coins/gift' && $method === 'POST') { $from=ben_require_user_id($pdo); $to=(int)($input['to_user']??0); $amount=(int)($input['amount']??0); if($to<=0||$to===$from||$amount<=0||$amount>100000){ben_error('Geçerli hediye bilgisi gerekli.',422,'INVALID_GIFT');} $pdo->beginTransaction(); try { $balance=$pdo->prepare('SELECT coins FROM users WHERE id=?'); $balance->execute([$from]); $coins=(int)$balance->fetchColumn(); if($coins<$amount){throw new RuntimeException('Yetersiz coin.');} $pdo->prepare('UPDATE users SET coins=coins-? WHERE id=?')->execute([$amount,$from]); $pdo->prepare('UPDATE users SET coins=coins+? WHERE id=?')->execute([$amount,$to]); $s=$pdo->prepare('INSERT INTO coin_transactions(from_user,to_user,amount,type) VALUES(?,?,?,?)'); $s->execute([$from,$to,$amount,'gift']); $pdo->commit(); ben_ok(); } catch(Throwable $e) { if($pdo->inTransaction())$pdo->rollBack(); ben_error($e instanceof RuntimeException?$e->getMessage():'Hediye gönderilemedi.',422,'GIFT_FAILED'); } }
+  if ($path === 'live' && $method === 'POST') {
+    $uid = ben_require_user_id($pdo);
+    if ($uid <= 0) { http_response_code(401); echo json_encode(['ok'=>false,'message'=>'CANLI başlatmak için giriş yapmalısın.']); exit; }
+    $check=$pdo->prepare('SELECT 1 FROM users WHERE id=?'); $check->execute([$uid]);
+    if (!$check->fetchColumn()) { http_response_code(401); echo json_encode(['ok'=>false,'message'=>'Kullanıcı bulunamadı.']); exit; }
+    $hostPeer=trim((string)($input['host_peer_id']??''));
+    if ($hostPeer==='' || strlen($hostPeer)>100) { http_response_code(422); echo json_encode(['ok'=>false,'message'=>'Canlı yayın oturumu oluşturulamadı.']); exit; }
+    $pdo->prepare("UPDATE lives SET status='ended' WHERE user_id=? AND status='live'")->execute([$uid]);
+    $s=$pdo->prepare('INSERT INTO lives(user_id,title,place,status,host_peer_id) VALUES(?,?,?,?,?)');
+    $s->execute([$uid,(string)($input['title']??'BEN CANLI'),(string)($input['place']??''),'live',$hostPeer]);
+    $liveId=(int)$pdo->lastInsertId();
+    $pdo->prepare('INSERT INTO live_peers(peer_id,live_id,user_id,role) VALUES(?,?,?,?)')->execute([$hostPeer,$liveId,$uid,'host']);
+    echo json_encode(['ok'=>true,'id'=>$liveId,'user_id'=>$uid,'host_peer_id'=>$hostPeer]); exit;
+  }
+  if (preg_match('#^live/(\d+)/join$#',$path,$m) && $method==='POST') {
+    $uid=ben_require_user_id($pdo); $liveId=(int)$m[1]; $peerId=trim((string)($input['peer_id']??''));
+    if($uid<=0||$liveId<=0||$peerId===''||strlen($peerId)>100){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Canlı katılım bilgisi eksik.']);exit;}
+    $q=$pdo->prepare("SELECT id,user_id,host_peer_id,title FROM lives WHERE id=? AND status='live'");$q->execute([$liveId]);$live=$q->fetch();
+    if(!$live){http_response_code(404);echo json_encode(['ok'=>false,'message'=>'Canlı yayın bulunamadı.']);exit;}
+    $pdo->prepare('DELETE FROM live_peers WHERE peer_id=?')->execute([$peerId]);
+    $pdo->prepare('INSERT INTO live_peers(peer_id,live_id,user_id,role) VALUES(?,?,?,?)')->execute([$peerId,$liveId,$uid,'viewer']);
+    echo json_encode(['ok'=>true,'live_id'=>$liveId,'host_peer_id'=>$live['host_peer_id'],'title'=>$live['title']]); exit;
+  }
+  if (preg_match('#^live/(\d+)/peers$#',$path,$m) && $method==='GET') {
+    $uid=ben_require_user_id($pdo); $liveId=(int)$m[1];
+    $owner=$pdo->prepare("SELECT user_id,host_peer_id FROM lives WHERE id=? AND status='live'");$owner->execute([$liveId]);$row=$owner->fetch();
+    if(!$row || (int)$row['user_id']!==$uid){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Canlı izleyici listesine erişim yok.']);exit;}
+    $pdo->prepare("DELETE FROM live_peers WHERE last_seen_at < datetime('now','-90 seconds')")->execute();
+    $q=$pdo->prepare("SELECT peer_id,user_id,joined_at FROM live_peers WHERE live_id=? AND role='viewer' AND last_seen_at > datetime('now','-30 seconds') ORDER BY joined_at");$q->execute([$liveId]);
+    echo json_encode(['ok'=>true,'peers'=>$q->fetchAll(),'host_peer_id'=>$row['host_peer_id']]); exit;
+  }
+  if (preg_match('#^live/(\d+)/signals$#',$path,$m) && $method==='GET') {
+    $uid=ben_require_user_id($pdo); $liveId=(int)$m[1]; $peerId=trim((string)($_GET['peer_id']??''));
+    if($peerId===''){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Peer gerekli.']);exit;}
+    $check=$pdo->prepare('SELECT 1 FROM live_peers WHERE peer_id=? AND live_id=? AND user_id=?');$check->execute([$peerId,$liveId,$uid]);if(!$check->fetchColumn()){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Peer doğrulanamadı.']);exit;}
+    $q=$pdo->prepare('SELECT id,from_peer,to_peer,kind,payload,created_at FROM live_signals WHERE live_id=? AND to_peer=? ORDER BY id LIMIT 100');$q->execute([$liveId,$peerId]);$signals=$q->fetchAll();
+    if($signals){$ids=array_column($signals,'id');$placeholders=implode(',',array_fill(0,count($ids),'?'));$pdo->prepare("DELETE FROM live_signals WHERE id IN ($placeholders)")->execute($ids);}
+    foreach($signals as &$signal){$signal['payload']=json_decode((string)$signal['payload'],true)??[];} unset($signal);
+    echo json_encode(['ok'=>true,'signals'=>$signals]); exit;
+  }
+  if (preg_match('#^live/(\d+)/signal$#',$path,$m) && $method==='POST') {
+    $uid=ben_require_user_id($pdo); $liveId=(int)$m[1]; $fromPeer=trim((string)($input['from_peer']??'')); $toPeer=trim((string)($input['to_peer']??'')); $kind=trim((string)($input['kind']??'')); $payload=$input['payload']??[];
+    if($uid<=0||$liveId<=0||$fromPeer===''||$toPeer===''||!in_array($kind,['offer','answer','candidate'],true)){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Geçerli canlı sinyali gerekli.']);exit;}
+    if(!is_array($payload)){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Geçersiz sinyal verisi.']);exit;}
+    $owner=$pdo->prepare("SELECT 1 FROM lives WHERE id=? AND status='live'");$owner->execute([$liveId]);if(!$owner->fetchColumn()){http_response_code(404);echo json_encode(['ok'=>false,'message'=>'Canlı yayın sona ermiş.']);exit;}
+    $q=$pdo->prepare('SELECT 1 FROM live_peers WHERE peer_id=? AND live_id=? AND user_id=?');$q->execute([$fromPeer,$liveId,$uid]);if(!$q->fetchColumn()){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Gönderen peer doğrulanamadı.']);exit;}
+    $q=$pdo->prepare('SELECT 1 FROM live_peers WHERE peer_id=? AND live_id=?');$q->execute([$toPeer,$liveId]);if(!$q->fetchColumn()){http_response_code(404);echo json_encode(['ok'=>false,'message'=>'Alıcı peer bulunamadı.']);exit;}
+    $encoded=json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); if($encoded===false || strlen($encoded)>700000){http_response_code(413);echo json_encode(['ok'=>false,'message'=>'Sinyal verisi çok büyük.']);exit;}
+    $pdo->prepare('INSERT INTO live_signals(live_id,from_peer,to_peer,kind,payload) VALUES(?,?,?,?,?)')->execute([$liveId,$fromPeer,$toPeer,$kind,$encoded]);
+    $pdo->prepare('UPDATE live_peers SET last_seen_at=CURRENT_TIMESTAMP WHERE peer_id=?')->execute([$fromPeer]);
+    echo json_encode(['ok'=>true]); exit;
+  }
+  if (preg_match('#^live/(\d+)/heartbeat$#',$path,$m) && $method==='POST') {
+    $uid=ben_require_user_id($pdo);$liveId=(int)$m[1];$peerId=trim((string)($input['peer_id']??''));
+    $q=$pdo->prepare("UPDATE live_peers SET last_seen_at=CURRENT_TIMESTAMP WHERE peer_id=? AND live_id=? AND user_id=? AND EXISTS(SELECT 1 FROM lives WHERE id=? AND status='live')");$q->execute([$peerId,$liveId,$uid,$liveId]);echo json_encode(['ok'=>$q->rowCount()>0]);exit;
+  }
+  if (preg_match('#^live/(\d+)/leave$#',$path,$m) && $method==='POST') {
+    $uid=ben_require_user_id($pdo);$liveId=(int)$m[1];$peerId=trim((string)($input['peer_id']??''));$pdo->prepare('DELETE FROM live_peers WHERE peer_id=? AND live_id=? AND user_id=?')->execute([$peerId,$liveId,$uid]);$pdo->prepare('DELETE FROM live_signals WHERE live_id=? AND (from_peer=? OR to_peer=?)')->execute([$liveId,$peerId,$peerId]);echo json_encode(['ok'=>true]);exit;
+  }
+  if (preg_match('#^live/(\d+)/stop$#',$path,$m) && $method==='POST') {
+    $uid=ben_require_user_id($pdo);$liveId=(int)$m[1];$q=$pdo->prepare("UPDATE lives SET status='ended' WHERE id=? AND user_id=? AND status='live'");$q->execute([$liveId,$uid]);$pdo->prepare('DELETE FROM live_peers WHERE live_id=?')->execute([$liveId]);$pdo->prepare('DELETE FROM live_signals WHERE live_id=?')->execute([$liveId]);echo json_encode(['ok'=>$q->rowCount()>0]);exit;
+  }
+  if ($path === 'coins/gift'
+ && $method === 'POST') { $from=ben_require_user_id($pdo); $to=(int)($input['to_user']??0); $amount=(int)($input['amount']??0); if($to<=0||$to===$from||$amount<=0||$amount>100000){ben_error('Geçerli hediye bilgisi gerekli.',422,'INVALID_GIFT');} $pdo->beginTransaction(); try { $balance=$pdo->prepare('SELECT coins FROM users WHERE id=?'); $balance->execute([$from]); $coins=(int)$balance->fetchColumn(); if($coins<$amount){throw new RuntimeException('Yetersiz coin.');} $pdo->prepare('UPDATE users SET coins=coins-? WHERE id=?')->execute([$amount,$from]); $pdo->prepare('UPDATE users SET coins=coins+? WHERE id=?')->execute([$amount,$to]); $s=$pdo->prepare('INSERT INTO coin_transactions(from_user,to_user,amount,type) VALUES(?,?,?,?)'); $s->execute([$from,$to,$amount,'gift']); $pdo->commit(); ben_ok(); } catch(Throwable $e) { if($pdo->inTransaction())$pdo->rollBack(); ben_error($e instanceof RuntimeException?$e->getMessage():'Hediye gönderilemedi.',422,'GIFT_FAILED'); } }
   http_response_code(404); echo json_encode(['ok'=>false,'message'=>'Endpoint bulunamadı']);
 } catch (Throwable $e) {
   error_log(sprintf('[BEN API %s] %s', $requestId, $e->getMessage()));
