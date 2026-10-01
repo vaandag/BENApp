@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -458,7 +457,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   count: pins.length,
                   nearbyCount: suggestion == null ? 0 : _pins.where((p) => _distanceKm(_userLocation ?? _center, LatLng(p.latitude, p.longitude)) < 2.5).length,
                   locating: _locating,
-                  show3D: defaultTargetPlatform != TargetPlatform.iOS,
+                  show3D: true,
                   onLocate: _locateMe,
                   onOpen3D: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Ben3DMapScreen(memories: widget.memories))),
                 ),

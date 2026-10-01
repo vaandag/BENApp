@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as geo;
 
 import '../core/theme/app_tokens.dart';
 import '../models/memory.dart';
@@ -127,6 +129,8 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
             const Center(
               child: CircularProgressIndicator(color: BenTokens.cyan),
             )
+          else if (Platform.isIOS)
+            _buildIOSStableWorld(center)
           else
             MapLibreMap(
             initialCameraPosition: CameraPosition(
@@ -306,6 +310,118 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildIOSStableWorld(LatLng center) {
+    final mapCenter = geo.LatLng(center.latitude, center.longitude);
+    final memoryMarkers = _locatedMemories.map((memory) {
+      final point = geo.LatLng(memory.latitude!, memory.longitude!);
+      final selected = _selectedMemory?.id == memory.id;
+      return Marker(
+        point: point,
+        width: selected ? 62 : 52,
+        height: selected ? 70 : 60,
+        child: GestureDetector(
+          onTap: () => _selectMemory(memory.id),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedScale(
+                duration: const Duration(milliseconds: 220),
+                scale: selected ? 1.15 : 1,
+                child: Container(
+                  width: selected ? 46 : 40,
+                  height: selected ? 46 : 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: BenTokens.cyan,
+                    border: Border.all(color: const Color(0xFF061116), width: 2.4),
+                    boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 14, offset: Offset(0, 6))],
+                  ),
+                  child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF061116), size: 20),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xEE081117),
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(color: BenTokens.cyan.withValues(alpha: .22)),
+                ),
+                child: Text(
+                  (memory.title?.trim().isNotEmpty == true ? memory.title!.trim() : 'BEN'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList();
+
+    return Stack(
+      children: [
+        FlutterMap(
+          options: MapOptions(
+            initialCenter: mapCenter,
+            initialZoom: 15.2,
+            minZoom: 3.2,
+            maxZoom: 19,
+            interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+              userAgentPackageName: 'com.benapp.mobile',
+            ),
+            MarkerLayer(markers: memoryMarkers),
+            RichAttributionWidget(
+              attributions: [
+                TextSourceAttribution('© OpenStreetMap contributors © CARTO'),
+              ],
+            ),
+          ],
+        ),
+        IgnorePointer(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xB0000000),
+                  Colors.transparent,
+                  const Color(0xD9000000),
+                ],
+                stops: const [0, .48, 1],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 18,
+          right: 18,
+          top: 94,
+          child: IgnorePointer(
+            child: Container(
+              height: 78,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: BenTokens.cyan.withValues(alpha: .13)),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0x1600FFF0), Color(0x0000FFF0)],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
