@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../models/memory.dart';
 import '../../../services/auth_service.dart';
+import '../../../widgets/ben_button.dart';
 
 class MessagesScreen extends StatefulWidget {
   final Memory? memoryToShare;
@@ -584,12 +585,15 @@ class _ChatScreenState extends State<_ChatScreen> {
           maxLines: 4,
           autofocus: true,
         ),
-        actions: [
-          TextButton(
+               actions: [
+          BenButton(
+            label: 'Vazgeç',
+            variant: BenButtonVariant.ghost,
             onPressed: () => Navigator.pop(x),
-            child: const Text('Vazgeç'),
           ),
-          FilledButton(
+          BenButton(
+            label: 'Kaydet',
+            icon: Icons.check_rounded,
             onPressed: () async {
               final t = c.text.trim();
 
@@ -616,7 +620,6 @@ class _ChatScreenState extends State<_ChatScreen> {
                 }
               } catch (_) {}
             },
-            child: const Text('Kaydet'),
           ),
         ],
       ),
