@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../core/theme/app_tokens.dart';
+import '../widgets/ben_button.dart';
 import '../models/memory.dart';
 import '../services/location_service.dart';
 import '../services/media_service.dart';
@@ -216,7 +217,14 @@ class _CreateMemoryScreenState extends State<CreateMemoryScreen> {
       appBar: AppBar(
         title: const Text('Yeni Paylaşım', style: TextStyle(fontWeight: FontWeight.w900)),
         actions: [
-          Padding(padding: const EdgeInsets.only(right: 10), child: FilledButton(onPressed: _busy ? null : _publish, child: const Text('Yayınla'))),
+          Padding(
+  padding: const EdgeInsets.only(right: 10),
+  child: BenButton(
+    label: 'Yayınla',
+    onPressed: _busy ? null : _publish,
+    loading: _busy,
+  ),
+),
         ],
       ),
       body: ListView(
