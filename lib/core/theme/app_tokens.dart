@@ -27,6 +27,49 @@ class BenTokens {
   static const radiusMd = 18.0;
   static const radiusLg = 24.0;
   static const radiusXl = 32.0;
+  // ─────────────────────────────────────────────
+  // BEN DESIGN SYSTEM — SPACING
+  // ─────────────────────────────────────────────
+
+  static const space1 = 4.0;
+  static const space2 = 8.0;
+  static const space3 = 12.0;
+  static const space4 = 16.0;
+  static const space5 = 20.0;
+  static const space6 = 24.0;
+  static const space7 = 28.0;
+  static const space8 = 32.0;
+  static const space10 = 40.0;
+  static const space12 = 48.0;
+  static const space16 = 64.0;
+
+  // ─────────────────────────────────────────────
+  // BEN DESIGN SYSTEM — BORDERS
+  // ─────────────────────────────────────────────
+
+  static const borderHairline = 0.6;
+  static const borderThin = 1.0;
+  static const borderFocus = 1.5;
+
+  static const glassBorderDark = Color(0x0FFFFFFF);
+  static const glassBorderLight = Color(0x12061017);
+
+  // ─────────────────────────────────────────────
+  // BEN DESIGN SYSTEM — LAYOUT
+  // ─────────────────────────────────────────────
+
+  static const contentMaxWidth = 680.0;
+  static const screenHorizontal = 16.0;
+  static const screenHorizontalWide = 20.0;
+
+  // ─────────────────────────────────────────────
+  // BEN DESIGN SYSTEM — OPACITY
+  // ─────────────────────────────────────────────
+
+  static const opacitySubtle = 0.06;
+  static const opacitySoft = 0.10;
+  static const opacityMedium = 0.16;
+  static const opacityStrong = 0.24;
 
   /// Ortak hareket dili: BEN ekranlarının birbirinden kopuk hissettirmemesi için
   /// tüm geçişlerde aynı ritim ve easing değerleri kullanılır.
