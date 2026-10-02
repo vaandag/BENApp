@@ -13,6 +13,7 @@ import '../core/network/api_client.dart';
 import '../services/auth_service.dart';
 import 'memory_detail_screen.dart';
 import 'community_screen.dart';
+import '../widgets/ben_button.dart';
 
 class ProfileScreen extends StatefulWidget {
   final List<Memory> memories;
@@ -376,12 +377,23 @@ class _ProfileHeaderState extends State<_ProfileHeader> {
           Row(children: [
             Expanded(child: OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityScreen())), icon: const Icon(Icons.groups_2_rounded), label: const Text('Topluluk'))),
             const SizedBox(width: 8),
-            Expanded(child: FilledButton.icon(
-              onPressed: _saving ? null : (_editing ? _saveProfile : () => setState(() => _editing = true)),
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF5DEBFF), foregroundColor: const Color(0xFF061018)),
-              icon: Icon(_editing ? Icons.check_rounded : Icons.edit_rounded),
-              label: Text(_editing ? (_saving ? 'Kaydediliyor...' : 'Kaydet') : 'Profili düzenle', style: const TextStyle(fontWeight: FontWeight.w900)),
-            )),
+            Expanded(
+              child: BenButton(
+                label: _editing
+                    ? (_saving ? 'Kaydediliyor...' : 'Kaydet')
+                    : 'Profili düzenle',
+                onPressed: _saving
+                    ? null
+                    : (_editing
+                        ? _saveProfile
+                        : () => setState(() => _editing = true)),
+                icon: _editing
+                    ? Icons.check_rounded
+                    : Icons.edit_rounded,
+                loading: _saving,
+                expand: true,
+              ),
+            ),
             const SizedBox(width: 8),
             OutlinedButton(
               onPressed: () => _showProfileShareSheet(context, username),
