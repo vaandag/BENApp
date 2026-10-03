@@ -291,35 +291,86 @@ class _MainScreenState
           ],
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+            bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(
+          10,
+          0,
+          10,
+          8,
+        ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(
+            BenTokens.radiusXl,
+          ),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            filter: ImageFilter.blur(
+              sigmaX: 22,
+              sigmaY: 22,
+            ),
             child: Container(
-              height: 72,
+              height: 78,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 6,
+                vertical: 5,
+              ),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: dark
-                      ? const [Color(0xF00E1C27), Color(0xE807121A)]
-                      : const [Color(0xF9FFFFFF), Color(0xF0EEF5F6)],
+                      ? const [
+                          Color(0xEE0C1923),
+                          Color(0xE5081119),
+                        ]
+                      : const [
+                          Color(0xF7FFFFFF),
+                          Color(0xEEF1F6F7),
+                        ],
                 ),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: BenTokens.cyan.withValues(alpha: .16)),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? .34 : .10), blurRadius: 36, offset: const Offset(0, 12))],
+                borderRadius: BorderRadius.circular(
+                  BenTokens.radiusXl,
+                ),
+                border: Border.all(
+                  color: BenTokens.cyan.withValues(
+                    alpha: dark ? .14 : .10,
+                  ),
+                  width: BenTokens.borderThin,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: dark ? .26 : .08,
+                    ),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
               child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _navigationItem(BENNavIconType.ben, 'BEN', 0),
-            _navigationItem(BENNavIconType.map, 'Harita', 1),
-            _createNavigationItem(),
-            _navigationItem(BENNavIconType.messages, 'Mesajlar', 3),
-            _navigationItem(BENNavIconType.profile, 'Profil', 4),
-          ],
+                children: [
+                  _navigationItem(
+                    BENNavIconType.ben,
+                    'BEN',
+                    0,
+                  ),
+                  _navigationItem(
+                    BENNavIconType.map,
+                    'Harita',
+                    1,
+                  ),
+                  _createNavigationItem(),
+                  _navigationItem(
+                    BENNavIconType.messages,
+                    'Mesajlar',
+                    3,
+                  ),
+                  _navigationItem(
+                    BENNavIconType.profile,
+                    'Profil',
+                    4,
+                  ),
+                ],
               ),
             ),
           ),
