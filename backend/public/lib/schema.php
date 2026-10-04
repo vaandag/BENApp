@@ -32,7 +32,7 @@ function ben_migrate(PDO $pdo): void {
     ],
     '003_legacy_columns' => [
       'ALTER TABLE memories ADD COLUMN location_accuracy REAL',
-      'ALTER TABLE memories ADD COLUMN media_url TEXT NOT NULL DEFAULT \'\'',
+      "ALTER TABLE memories ADD COLUMN media_url TEXT NOT NULL DEFAULT ''",
     ],
     '004_live_realtime' => [
       "ALTER TABLE lives ADD COLUMN host_peer_id TEXT",
@@ -41,6 +41,10 @@ function ben_migrate(PDO $pdo): void {
       'CREATE INDEX IF NOT EXISTS idx_live_peers_live ON live_peers(live_id, last_seen_at)',
       'CREATE INDEX IF NOT EXISTS idx_live_peers_user ON live_peers(user_id, live_id)',
       'CREATE INDEX IF NOT EXISTS idx_live_signals_to_peer ON live_signals(live_id, to_peer, id)',
+    ],
+    '005_memory_client_id' => [
+      'ALTER TABLE memories ADD COLUMN client_id TEXT',
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_user_client_id ON memories(user_id, client_id)',
     ],
   ];
 

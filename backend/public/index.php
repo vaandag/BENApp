@@ -106,7 +106,61 @@ try {
     }
     echo json_encode($rows); exit;
   }
-  if ($path === 'memories' && $method === 'POST') { $uid=ben_require_user_id($pdo); $s=$pdo->prepare('INSERT INTO memories(user_id,title,body,lat,lng,location_accuracy,media_type,privacy,post_type,expires_at,media_url) VALUES(?,?,?,?,?,?,?,?,?,?,?)'); $s->execute([$uid,(string)($input['title']??'Yeni BEN Anısı'),(string)($input['body']??''),$input['lat']??null,$input['lng']??null,$input['location_accuracy']??null,(string)($input['type'] ?? $input['media_type'] ?? 'text'),(string)($input['privacy']??'public'),(string)($input['post_type']??'memory'),$input['expires_at']??null,(string)($input['media_url']??'')]); echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]); exit; }
+  if ($path === 'memories' && $method === 'POST') {
+    $uid = ben_require_user_id($pdo);
+    $clientId = trim((string)($input['client_id'] ?? ''));
+    if ($clientId !== '' && strlen($clientId) > 160) {
+      ben_error('Anı kimliği çok uzun.', 422, 'INVALID_CLIENT_ID');
+    }
+
+    // The client may retry the same memory after a timeout or app resume.
+    // A per-user client_id makes the create endpoint idempotent, preventing
+    // duplicate memories when a previously accepted request is retried.
+    if ($clientId !== '') {
+      $existing = $pdo->prepare('SELECT id FROM memories WHERE user_id=? AND client_id=? LIMIT 1');
+      $existing->execute([$uid, $clientId]);
+      $existingId = $existing->fetchColumn();
+      if ($existingId !== false) {
+        echo json_encode(['ok' => true, 'id' => (int)$existingId, 'deduplicated' => true]);
+        exit;
+      }
+    }
+
+    $sql = 'INSERT INTO memories(user_id,client_id,title,body,lat,lng,location_accuracy,media_type,privacy,post_type,expires_at,media_url) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)';
+    try {
+      $s = $pdo->prepare($sql);
+      $s->execute([
+        $uid,
+        $clientId !== '' ? $clientId : null,
+        (string)($input['title'] ?? 'Yeni BEN Anısı'),
+        (string)($input['body'] ?? ''),
+        $input['lat'] ?? null,
+        $input['lng'] ?? null,
+        $input['location_accuracy'] ?? null,
+        (string)($input['type'] ?? $input['media_type'] ?? 'text'),
+        (string)($input['privacy'] ?? 'public'),
+        (string)($input['post_type'] ?? 'memory'),
+        $input['expires_at'] ?? null,
+        (string)($input['media_url'] ?? ''),
+      ]);
+    } catch (PDOException $e) {
+      // If two retries race, the unique index can reject the second insert.
+      // Resolve that race by returning the already-created memory.
+      if ($clientId !== '') {
+        $existing = $pdo->prepare('SELECT id FROM memories WHERE user_id=? AND client_id=? LIMIT 1');
+        $existing->execute([$uid, $clientId]);
+        $existingId = $existing->fetchColumn();
+        if ($existingId !== false) {
+          echo json_encode(['ok' => true, 'id' => (int)$existingId, 'deduplicated' => true]);
+          exit;
+        }
+      }
+      throw $e;
+    }
+
+    echo json_encode(['ok' => true, 'id' => $pdo->lastInsertId(), 'deduplicated' => false]);
+    exit;
+  }
   
   if (preg_match('#^memories/(\d+)$#',$path,$m) && $method==='DELETE') {
     $uid=ben_require_user_id($pdo);

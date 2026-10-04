@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../core/theme/app_tokens.dart';
+import '../core/config/map_config.dart';
 import '../core/navigation/ben_routes.dart';
 import 'memory_fullscreen_viewer.dart';
 import 'ben_3d_map_screen.dart';
@@ -360,7 +361,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final pins = _pins;
     final nodes = _nodes;
     final suggestion = _rankedPins().firstOrNull;
@@ -402,9 +402,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           ),
           children: [
             TileLayer(
-              urlTemplate: dark
-                  ? 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
-                  : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              urlTemplate: BenMapConfig.tileUrlTemplate,
               userAgentPackageName: 'com.benapp.mobile',
             ),
             if (_userLocation != null)
@@ -440,7 +438,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
             RichAttributionWidget(
               attributions: [
-                TextSourceAttribution(dark ? '© OpenStreetMap contributors © CARTO' : 'OpenStreetMap contributors'),
+                TextSourceAttribution(BenMapConfig.attribution),
               ],
             ),
           ],

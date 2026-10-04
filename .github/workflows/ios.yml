@@ -27,7 +27,18 @@ jobs:
         run: flutter analyze
 
       - name: Build iOS
-        run: flutter build ios --release --no-codesign --dart-define=BEN_API_URL=http://192.168.1.24:8080/api
+        shell: bash
+        env:
+          BEN_API_URL_SECRET: ${{ secrets.BEN_API_URL }}
+          BEN_MAPTILER_KEY: ${{ secrets.BEN_MAPTILER_KEY }}
+        run: |
+          API_URL="$BEN_API_URL_SECRET"
+          if [ -z "$API_URL" ]; then
+            API_URL="http://192.168.1.24:8080/api"
+          fi
+          flutter build ios --release --no-codesign \
+            --dart-define=BEN_API_URL="$API_URL" \
+            --dart-define=BEN_MAPTILER_KEY="$BEN_MAPTILER_KEY"
 
       - name: Create unsigned IPA
         run: |

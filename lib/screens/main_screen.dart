@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'dart:ui';
@@ -11,6 +12,7 @@ import '../features/messages/presentation/messages_screen.dart';
 import '../models/memory.dart';
 import '../services/auth_service.dart';
 import '../services/memory_repository.dart';
+import '../services/pending_memory_sync.dart';
 import '../widgets/memory_menu.dart';
 import '../widgets/ben_nav_icons.dart';
 import '../widgets/ben_brand_header.dart';
@@ -44,10 +46,13 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState
-    extends State<MainScreen> {
+    extends State<MainScreen>
+    with WidgetsBindingObserver {
   late final MemoryRepository _repository;
   late final PhpMemoryRepository _phpRepository;
   late final ApiClient _api;
+  late final PendingMemorySync _pendingMemorySync;
+  bool _syncingPending = false;
 
   int _selectedIndex = 0;
 
@@ -63,12 +68,22 @@ class _MainScreenState
     _repository = widget.dependencies.localMemoryRepository;
     _phpRepository = widget.dependencies.memories;
     _api = widget.dependencies.api;
+    _pendingMemorySync = PendingMemorySync();
+    WidgetsBinding.instance.addObserver(this);
     _loadMemories();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_syncPendingMemories());
+    }
   }
 
   Future<void> _loadMemories() async {
@@ -76,13 +91,20 @@ class _MainScreenState
       final remote = await _phpRepository.list(scope: 'discover');
       final connections = await _phpRepository.list(scope: 'following');
       final local = await _repository.getAll();
-      final visible = remote.isNotEmpty ? remote : local;
+      final pendingIds = await _pendingMemorySync.ids();
+      final pendingLocal = local.where((memory) => pendingIds.contains(memory.id));
+      final remoteIds = remote.map((memory) => memory.id).toSet();
+      final visible = [
+        ...remote,
+        ...pendingLocal.where((memory) => !remoteIds.contains(memory.id)),
+      ];
       if (!mounted) return;
       setState(() {
         _memories = visible.where((m) => !m.isExpired).toList();
         _connectionMemories = connections.where((m) => !m.isExpired).toList();
         _loadingMemories = false;
       });
+      unawaited(_syncPendingMemories());
     } catch (_) {
       // Network failure must not erase the local memory map. Keep previously
       // stored memories available so location pins remain visible offline.
@@ -93,7 +115,7 @@ class _MainScreenState
         _connectionMemories = const [];
         _loadingMemories = false;
       });
-      _showMessage('Sunucuya bağlanılamadı. Kayıtlı anıların gösteriliyor.');
+      unawaited(_syncPendingMemories());
     }
   }
 
@@ -102,21 +124,110 @@ class _MainScreenState
       final remote = await _phpRepository.list(scope: 'discover');
       final connections = await _phpRepository.list(scope: 'following');
       final local = await _repository.getAll();
-      final visible = remote.isNotEmpty ? remote : local;
+      final pendingIds = await _pendingMemorySync.ids();
+      final pendingLocal = local.where((memory) => pendingIds.contains(memory.id));
+      final remoteIds = remote.map((memory) => memory.id).toSet();
+      final visible = [
+        ...remote,
+        ...pendingLocal.where((memory) => !remoteIds.contains(memory.id)),
+      ];
       if (!mounted) return;
       setState(() {
         _memories = visible.where((m) => !m.isExpired).toList();
         _connectionMemories = connections.where((m) => !m.isExpired).toList();
       });
+      unawaited(_syncPendingMemories());
     } catch (_) {
       final local = await _repository.getAll();
       if (mounted) {
         setState(() {
           _memories = local.where((m) => !m.isExpired).toList();
         });
-        _showMessage('Sunucuya bağlanılamadı. Kayıtlı anıların korunuyor.');
+        unawaited(_syncPendingMemories());
       }
     }
+  }
+
+  Future<void> _syncPendingMemories({String? feedbackId}) async {
+    if (_syncingPending) return;
+    _syncingPending = true;
+    try {
+      final pendingIds = await _pendingMemorySync.ids();
+      for (final id in pendingIds) {
+        final memory = await _repository.getById(id);
+        if (memory == null) {
+          await _pendingMemorySync.remove(id);
+          continue;
+        }
+
+        try {
+          final storedMemory = await _publishMemoryToServer(memory);
+          await _pendingMemorySync.remove(id);
+          await _repository.remove(memory.id);
+          await _repository.add(storedMemory);
+
+          if (!mounted) continue;
+          setState(() {
+            _memories = [
+              storedMemory,
+              ..._memories.where(
+                (existing) =>
+                    existing.id != memory.id &&
+                    existing.id != storedMemory.id,
+              ),
+            ];
+          });
+          if (id == feedbackId) {
+            _showMessage('Anın BEN dünyasına bırakıldı.');
+          }
+        } catch (_) {
+          // Keep the ID in the persistent queue. The next app resume or
+          // explicit refresh will try the server again.
+          if (id == feedbackId && mounted) {
+            _showMessage('Anın kaydedildi. Sunucu eşitlemesi yeniden denenecek.');
+          }
+        }
+      }
+    } finally {
+      _syncingPending = false;
+    }
+  }
+
+  Future<Memory> _publishMemoryToServer(Memory memory) async {
+    var remoteMemory = memory;
+    if (memory.photo != null && await memory.photo!.exists()) {
+      final url = await _api.uploadFile(
+        memory.photo!.path,
+        field: 'media',
+        endpoint: 'uploads/media',
+      );
+      remoteMemory = memory.copyWith(mediaUrl: url);
+      await _repository.replace(remoteMemory);
+    } else if (memory.video != null) {
+      final file = File(memory.video!);
+      if (await file.exists()) {
+        final url = await _api.uploadFile(
+          file.path,
+          field: 'media',
+          endpoint: 'uploads/media',
+        );
+        remoteMemory = memory.copyWith(mediaUrl: url);
+        await _repository.replace(remoteMemory);
+      }
+    }
+
+    final remoteId = await _phpRepository.create(
+      remoteMemory,
+      clientId: memory.id,
+    );
+    if (remoteId == null) {
+      throw const ApiException('Sunucu anı için bir kayıt kimliği döndürmedi.');
+    }
+
+    return memory.copyWith(
+      id: remoteId.toString(),
+      mediaUrl: remoteMemory.mediaUrl,
+    );
   }
 
   Future<void> _handleMemoryAction(MemoryAction action) async {
@@ -142,39 +253,32 @@ class _MainScreenState
       _showMessage('Konum alınamadı. Konum hizmetini açıp tekrar dene.');
       return;
     }
-    setState(() {});
-    Memory storedMemory = memory;
-    try {
-      var remoteMemory = memory;
-      if (memory.photo != null && await memory.photo!.exists()) {
-        final url = await _api.uploadFile(memory.photo!.path, field: 'media', endpoint: 'uploads/media');
-        remoteMemory = memory.copyWith(mediaUrl: url);
-      } else if (memory.video != null) {
-        final file = File(memory.video!);
-        if (await file.exists()) {
-          final url = await _api.uploadFile(file.path, field: 'media', endpoint: 'uploads/media');
-          remoteMemory = memory.copyWith(mediaUrl: url);
+    // Save locally first so a temporary network/backend failure never makes
+    // the user's newly created memory disappear. The remote copy is attempted
+    // immediately afterwards and replaces the local draft when successful.
+    await _repository.remove(memory.id);
+    await _repository.add(memory);
+    if (mounted) {
+      setState(() {
+        if (!_memories.any((existing) => existing.id == memory.id)) {
+          _memories = [memory, ..._memories];
         }
-      }
-      final remoteId = await _phpRepository.create(remoteMemory);
-      if (remoteId == null) throw const ApiException('Sunucu anı için bir kayıt kimliği döndürmedi.');
-      storedMemory = memory.copyWith(id: remoteId.toString(), mediaUrl: remoteMemory.mediaUrl);
-      await _repository.remove(memory.id);
-      await _repository.add(storedMemory);
-    } catch (e) {
-      if (mounted) _showMessage('Anı sunucuya kaydedilemedi. Tekrar deneyebilirsin.');
-      return;
+      });
     }
-    if (!mounted) return;
-    setState(() {
-      // Sunucu ID'si varsa yerel anıyla birlikte saklıyoruz. Böylece yorumlar
-      // aynı anının kalıcı API kaydına bağlanabilir.
-      if (!_memories.any((existing) => existing.id == storedMemory.id)) {
-        _memories = [storedMemory, ..._memories];
-      }
-      _selectedIndex = storedMemory.type == MemoryType.location ? 1 : 0;
-    });
-    _showMessage('Anın BEN dünyasına bırakıldı.');
+
+    await _pendingMemorySync.add(memory.id);
+    if (mounted) {
+      setState(() {
+        if (!_memories.any((existing) => existing.id == memory.id)) {
+          _memories = [memory, ..._memories];
+        }
+        _selectedIndex = memory.type == MemoryType.location ? 1 : 0;
+      });
+    }
+
+    // Do not make the user wait on the network. The persistent queue owns the
+    // upload and automatically retries after a connection returns.
+    unawaited(_syncPendingMemories(feedbackId: memory.id));
   }
 
   Future<void> _deleteMemory(

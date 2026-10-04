@@ -8,6 +8,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as geo;
 
 import '../core/theme/app_tokens.dart';
+import '../core/config/map_config.dart';
 import '../models/memory.dart';
 import '../services/location_service.dart';
 import 'memory_fullscreen_viewer.dart';
@@ -375,13 +376,13 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
           ),
           children: [
             TileLayer(
-              urlTemplate: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+              urlTemplate: BenMapConfig.tileUrlTemplate,
               userAgentPackageName: 'com.benapp.mobile',
             ),
             MarkerLayer(markers: memoryMarkers),
             RichAttributionWidget(
               attributions: [
-                TextSourceAttribution('© OpenStreetMap contributors © CARTO'),
+                TextSourceAttribution(BenMapConfig.attribution),
               ],
             ),
           ],
