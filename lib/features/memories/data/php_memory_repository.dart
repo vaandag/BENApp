@@ -17,9 +17,10 @@ class PhpMemoryRepository {
     return rows.whereType<Map>().map(_memoryFromJson).toList();
   }
 
-  Future<int?> create(Memory memory, {int? userId}) async {
+  Future<int?> create(Memory memory, {int? userId, String? clientId}) async {
     final result = await _api.post('memories', body: {
         if (userId != null) 'user_id': userId,
+        if (clientId != null && clientId.trim().isNotEmpty) 'client_id': clientId.trim(),
         'title': memory.title ?? _typeTitle(memory.type),
         'place': memory.hasLocation ? '${memory.latitude},${memory.longitude}' : '',
         'body': memory.text ?? memory.description ?? '',
