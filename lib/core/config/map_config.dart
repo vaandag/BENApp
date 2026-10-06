@@ -1,8 +1,10 @@
 /// Central map configuration for BEN.
 ///
 /// Development builds work without a provider key by falling back to the
-/// standard OpenStreetMap raster tiles. Production builds can provide a
-/// secured MapTiler public key with:
+/// standard OpenStreetMap raster tiles. Production builds use the dark BEN
+/// map style through MapTiler when BEN_MAPTILER_KEY is provided.
+///
+/// Build example:
 ///
 /// flutter build ios --dart-define=BEN_MAPTILER_KEY=YOUR_KEY
 ///
@@ -18,7 +20,7 @@ final class BenMapConfig {
 
   static String get tileUrlTemplate {
     if (usesMapTiler) {
-      return 'https://api.maptiler.com/maps/streets-v4/256/{z}/{x}/{y}.png?key=$mapTilerKey';
+      return 'https://api.maptiler.com/maps/streets-v4-dark/256/{z}/{x}/{y}.png?key=$mapTilerKey';
     }
 
     return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';

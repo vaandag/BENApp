@@ -13,13 +13,17 @@ import 'ben_3d_map_screen.dart';
 import '../models/memory.dart';
 import '../services/location_service.dart';
 
+
+
 /// BEN WORLD / Harita — stable spatial memory explorer.
 ///
 /// The main navigation uses this pure-Flutter map. Native MapLibre remains a
 /// separate experimental 3D surface, but it is no longer part of the primary
 /// iOS navigation path. Memory points are shown as scale-aware clusters rather
 /// than a wall of identical pins, and selection is driven by a deterministic
-/// location-aware discovery score.
+/// location-aware discovery score. The raster basemap is visually transformed
+/// at tile level so the BEN dark visual identity stays intact while the map
+/// provider remains swappable through BenMapConfig.
 class MapScreen extends StatefulWidget {
   final List<Memory> memories;
   final Memory? focusMemory;
@@ -104,7 +108,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   List<_MapPin> get _pins {
     final real = widget.memories
-        .where((m) => m.hasLocation && !m.isExpired && (_filter == 0 || _filter == 1))
+        .where((m) =>
+            m.hasLocation &&
+            !m.isExpired &&
+            (_filter == 0 || _filter == 1) &&
+            m.latitude!.isFinite &&
+            m.longitude!.isFinite)
         .map(_MapPin.fromMemory);
     final demo = _demoPins.where((p) {
       if (_filter == 1) return p.kind == _MapPinKind.memory;
@@ -138,8 +147,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   Future<void> _prepareStart() async {
     final focus = widget.focusMemory;
-    if (focus?.hasLocation == true) {
-      _center = LatLng(focus!.latitude!, focus.longitude!);
+    if (focus?.hasLocation == true &&
+        focus!.latitude!.isFinite &&
+        focus.longitude!.isFinite) {
+      _center = LatLng(focus.latitude!, focus.longitude!);
       _preparedLocation = true;
       if (mounted) setState(() {});
       return;
@@ -149,8 +160,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       final result = await _locationService.getCurrent(context, showFeedback: false);
       final snapshot = result.snapshot;
       if (snapshot != null) {
-        _userLocation = snapshot.latLng;
-        _center = snapshot.latLng;
+        if (snapshot.latLng.latitude.isFinite && snapshot.latLng.longitude.isFinite) {
+          _userLocation = snapshot.latLng;
+          _center = snapshot.latLng;
+        }
       }
     } catch (_) {}
 
@@ -219,6 +232,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   double _distanceKm(LatLng a, LatLng b) {
+    if (!a.latitude.isFinite ||
+        !a.longitude.isFinite ||
+        !b.latitude.isFinite ||
+        !b.longitude.isFinite) {
+      return double.infinity;
+    }
     const earthRadiusKm = 6371.0088;
     final dLat = _degToRad(b.latitude - a.latitude);
     final dLon = _degToRad(b.longitude - a.longitude);
@@ -249,7 +268,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _selectPin(_MapPin pin, {bool addHistory = true}) {
-    if (!mounted) return;
+    if (!mounted || !pin.latitude.isFinite || !pin.longitude.isFinite) return;
     final previous = _selectedPin;
     if (addHistory && previous != null && previous.id != pin.id) {
       _history.add(previous.id);
@@ -326,15 +345,20 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final result = await _locationService.getCurrent(context, showFeedback: true);
     if (!mounted) return;
     final point = result.snapshot?.latLng;
+    final validPoint = point != null &&
+            point.latitude.isFinite &&
+            point.longitude.isFinite
+        ? point
+        : null;
     setState(() {
       _locating = false;
-      if (point != null) {
-        _userLocation = point;
-        _center = point;
+      if (validPoint != null) {
+        _userLocation = validPoint;
+        _center = validPoint;
       }
     });
-    if (point != null && _mapReady) {
-      _controller.move(point, 15.4);
+    if (validPoint != null && _mapReady) {
+      _controller.move(validPoint, 15.4);
     }
   }
 
@@ -376,12 +400,19 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           options: MapOptions(
             initialCenter: _center,
             initialZoom: _currentZoom,
+            backgroundColor: BenTokens.night,
             minZoom: 3.2,
             maxZoom: 19,
             interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
             onMapReady: () => _mapReady = true,
             onMapEvent: (event) {
               final nextZoom = event.camera.zoom;
+              final nextCenter = event.camera.center;
+              if (!nextZoom.isFinite ||
+                  !nextCenter.latitude.isFinite ||
+                  !nextCenter.longitude.isFinite) {
+                return;
+              }
               if ((nextZoom - _currentZoom).abs() >= .12 && mounted) {
                 setState(() {
                   _currentZoom = nextZoom;
@@ -401,6 +432,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             },
           ),
           children: [
+            // Preserve the BEN dark visual language without changing the
+            // stable pure-Flutter map path or the cyan memory markers.
             TileLayer(
               urlTemplate: BenMapConfig.tileUrlTemplate,
               userAgentPackageName: 'com.benapp.mobile',
