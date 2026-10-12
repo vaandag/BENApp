@@ -608,8 +608,6 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
     final pins = _pins;
     final routes = _makeRoutes();
     final photoCount = widget.memories.where((m) => m.type == MemoryType.photo).length;
-    final textCount = widget.memories.where((m) => m.type == MemoryType.text).length;
-    final videoCount = widget.memories.where((m) => m.type == MemoryType.video).length;
     final visibleMarkers = pins.take(120).toList();
 
     return ColoredBox(
@@ -823,7 +821,7 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
                           child: GestureDetector(
                             onTap: _editing ? _showBioEditor : null,
                             child: Text(
-                              _bio.isEmpty ? '${_name}’in dünyası' : _bio,
+                              _bio.isEmpty ? '$_name’in dünyası' : _bio,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.center,
@@ -1338,6 +1336,7 @@ class _RouteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cover = route.coverMemory;
+    final coverPhoto = cover?.photo;
     return SizedBox(
       width: 208,
       child: Material(
@@ -1358,9 +1357,8 @@ class _RouteCard extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if (route.coverMemory?.photo != null &&
-                          route.coverMemory!.photo!.existsSync())
-                        Image.file(route.coverMemory!.photo!, fit: BoxFit.cover)
+                      if (coverPhoto != null && coverPhoto.existsSync())
+                        Image.file(coverPhoto, fit: BoxFit.cover)
                       else
                         const _ScenicFallback(icon: Icons.route_rounded),
                       const DecoratedBox(
