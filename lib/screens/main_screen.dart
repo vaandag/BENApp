@@ -374,7 +374,9 @@ class _MainScreenState
         bottom: false,
         child: Column(
           children: [
-            _globalTopBar(context),
+            // Profil ekranı kendi harita üstü profil başlığını çizer.
+            // Ortak BEN başlığını burada gizlemek, iki başlığın üst üste binmesini önler.
+            if (_selectedIndex != 4) _globalTopBar(context),
             Expanded(
               child: _loadingMemories
                   ? Center(
