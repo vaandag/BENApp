@@ -592,15 +592,6 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
     );
   }
 
-  void _resetPanel() {
-    if (!_sheetController.isAttached) return;
-    _sheetController.animateTo(
-      .50,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
-    );
-  }
-
   List<_RouteGroup> _makeRoutes() => _routes;
 
   @override
@@ -672,12 +663,6 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
             top: 8,
             child: Row(
                 children: [
-                  _RoundAction(
-                    icon: Icons.home_outlined,
-                    tooltip: 'Profil panelini daralt',
-                    onTap: _resetPanel,
-                  ),
-                  const SizedBox(width: 8),
                   Expanded(
                     child: GestureDetector(
                       onTap: _editing ? _showPhotoOptions : _showProfileOptions,

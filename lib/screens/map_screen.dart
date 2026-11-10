@@ -13,7 +13,17 @@ import 'ben_3d_map_screen.dart';
 import '../models/memory.dart';
 import '../services/location_service.dart';
 
-
+Widget _benDarkTileBuilder(BuildContext _, Widget tileWidget, TileImage __) {
+  return ColorFiltered(
+    colorFilter: const ColorFilter.matrix(<double>[
+      -0.22, -0.08, -0.08, 0, 72,
+      -0.08, -0.18, -0.08, 0, 92,
+      -0.06, -0.08, -0.20, 0, 112,
+      0, 0, 0, 1, 0,
+    ]),
+    child: tileWidget,
+  );
+}
 
 /// BEN WORLD / Harita — stable spatial memory explorer.
 ///
@@ -437,6 +447,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             TileLayer(
               urlTemplate: BenMapConfig.tileUrlTemplate,
               userAgentPackageName: 'com.benapp.mobile',
+              tileBuilder: _benDarkTileBuilder,
             ),
             if (_userLocation != null)
               MarkerLayer(markers: [
@@ -676,7 +687,7 @@ class _MapHeader extends StatelessWidget {
           Material(color: BenTokens.cyan.withValues(alpha: .96), shape: const CircleBorder(), child: IconButton(tooltip: '3D Dünya', onPressed: onOpen3D, icon: const Icon(Icons.threed_rotation_rounded, color: Color(0xFF061116)))),
         ],
         const SizedBox(width: 6),
-        Material(color: Theme.of(context).colorScheme.surface.withValues(alpha: .94), shape: const CircleBorder(), child: IconButton(onPressed: locating ? null : onLocate, icon: locating ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.my_location_rounded))),
+        Material(color: const Color(0xE90B171B), shape: const CircleBorder(), child: IconButton(color: BenTokens.cyan, onPressed: locating ? null : onLocate, icon: locating ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: BenTokens.cyan)) : const Icon(Icons.my_location_rounded))),
       ],
     );
   }
@@ -688,8 +699,8 @@ class _MapGlass extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface.withValues(alpha: .94), borderRadius: BorderRadius.circular(18), boxShadow: BenTokens.softShadow(Theme.of(context).brightness == Brightness.dark)),
-        child: child,
+        decoration: BoxDecoration(color: const Color(0xE90B171B), borderRadius: BorderRadius.circular(18), border: Border.all(color: BenTokens.cyan.withValues(alpha: .22)), boxShadow: BenTokens.softShadow(true)),
+        child: DefaultTextStyle.merge(style: const TextStyle(color: Colors.white), child: IconTheme(data: const IconThemeData(color: BenTokens.cyan), child: child)),
       );
 }
 
@@ -712,8 +723,8 @@ class _MapFilters extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             padding: const EdgeInsets.symmetric(horizontal: 15),
-            decoration: BoxDecoration(color: selected == index ? BenTokens.gold : Theme.of(context).colorScheme.surface.withValues(alpha: .92), borderRadius: BorderRadius.circular(99), border: Border.all(color: selected == index ? Colors.transparent : Theme.of(context).dividerColor.withValues(alpha: .35))),
-            child: Center(child: Text(labels[index], style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: selected == index ? BenTokens.ink : Theme.of(context).colorScheme.onSurface))),
+            decoration: BoxDecoration(color: selected == index ? BenTokens.gold : const Color(0xE90B171B), borderRadius: BorderRadius.circular(99), border: Border.all(color: selected == index ? Colors.transparent : BenTokens.cyan.withValues(alpha: .24))),
+            child: Center(child: Text(labels[index], style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: selected == index ? BenTokens.ink : Colors.white))),
           ),
         ),
       ),
@@ -749,19 +760,25 @@ class _ExploreBottomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: .96),
+        color: const Color(0xF20B171B),
         borderRadius: BorderRadius.circular(24),
         elevation: 12,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-          child: Row(
-            children: [
+        child: DefaultTextStyle.merge(
+          style: const TextStyle(color: Colors.white),
+          child: IconTheme(
+            data: const IconThemeData(color: Colors.white),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              child: Row(
+                children: [
               Container(width: 46, height: 46, decoration: BoxDecoration(color: BenTokens.cyan.withValues(alpha: .12), borderRadius: BorderRadius.circular(15)), child: const Icon(Icons.explore_rounded, color: BenTokens.cyan)),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('BEN dünyasında dolaş', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14)), Text(suggestion == null ? '$count keşfedilebilir iz' : 'Sıradaki öneri: ${suggestion?.place ?? 'Yakındaki anı'}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700))])),
               IconButton(tooltip: 'Konumum', onPressed: onLocate, icon: const Icon(Icons.my_location_rounded)),
               FilledButton(onPressed: suggestion == null ? null : onExplore, style: FilledButton.styleFrom(backgroundColor: BenTokens.cyan, foregroundColor: BenTokens.ink), child: const Text('GEZ')),
-            ],
+                ],
+              ),
+            ),
           ),
         ),
       );
@@ -786,15 +803,19 @@ class _SelectedMapPinCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Theme.of(context).colorScheme.surface,
+      color: const Color(0xF20B171B),
       borderRadius: BorderRadius.circular(24),
       elevation: 10,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.all(13),
-          child: Column(children: [
+        child: DefaultTextStyle.merge(
+          style: const TextStyle(color: Colors.white),
+          child: IconTheme(
+            data: const IconThemeData(color: Colors.white),
+            child: Padding(
+              padding: const EdgeInsets.all(13),
+              child: Column(children: [
             Row(children: [
               Container(width: 58, height: 58, decoration: BoxDecoration(color: BenTokens.navy, borderRadius: BorderRadius.circular(17)), child: Icon(pin.icon, color: BenTokens.cyan, size: 28)),
               const SizedBox(width: 11),
@@ -802,7 +823,7 @@ class _SelectedMapPinCard extends StatelessWidget {
               Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), decoration: BoxDecoration(color: BenTokens.cyan.withValues(alpha: .11), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.open_in_full_rounded, size: 17, color: BenTokens.cyan)),
             ]),
             const SizedBox(height: 6),
-            Align(alignment: Alignment.centerLeft, child: Text('${distanceKm.toStringAsFixed(distanceKm < 1 ? 2 : 1)} km • anılar arasında keşif', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .5)))),
+            Align(alignment: Alignment.centerLeft, child: Text('${distanceKm.toStringAsFixed(distanceKm < 1 ? 2 : 1)} km • anılar arasında keşif', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Colors.white.withValues(alpha: .58)))),
             const SizedBox(height: 7),
             Row(children: [
               IconButton(tooltip: 'Önceki anı', onPressed: hasPrevious ? onPrevious : null, icon: const Icon(Icons.arrow_back_rounded)),
@@ -811,7 +832,9 @@ class _SelectedMapPinCard extends StatelessWidget {
               IconButton(tooltip: saved ? 'Kaydedildi' : 'Kaydet', onPressed: onSave, icon: Icon(saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded)),
               IconButton(tooltip: liked ? 'Beğenildi' : 'Beğen', onPressed: onLike, icon: Icon(liked ? Icons.favorite_rounded : Icons.favorite_border_rounded)),
             ]),
-          ]),
+              ]),
+            ),
+          ),
         ),
       ),
     );
@@ -836,8 +859,12 @@ class _MapDemoSheetState extends State<_MapDemoSheet> {
   Widget build(BuildContext context) => SafeArea(
         child: Container(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
-          decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          decoration: BoxDecoration(color: const Color(0xF20B171B), borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
+          child: DefaultTextStyle.merge(
+            style: const TextStyle(color: Colors.white),
+            child: IconTheme(
+              data: const IconThemeData(color: Colors.white),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Center(child: Container(width: 42, height: 5, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: .3), borderRadius: BorderRadius.circular(99)))),
             const SizedBox(height: 18),
             Row(children: [Container(width: 50, height: 50, decoration: const BoxDecoration(color: BenTokens.gold, shape: BoxShape.circle), child: Icon(widget.pin.icon, color: BenTokens.ink)), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(widget.pin.user, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900)), Text(widget.pin.place, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w700))]))]),
@@ -845,7 +872,9 @@ class _MapDemoSheetState extends State<_MapDemoSheet> {
             Text(widget.pin.text, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, height: 1.2)),
             const SizedBox(height: 14),
             Row(children: [_MapAction(icon: widget.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded, label: '${widget.pin.likes + (widget.liked ? 1 : 0)}', active: widget.liked, onTap: () { widget.onLike(); setState(() {}); }), _MapAction(icon: Icons.chat_bubble_outline_rounded, label: '${widget.commentCount}', onTap: widget.onComments), const Spacer(), _MapAction(icon: widget.saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, label: 'Kaydet', active: widget.saved, onTap: () { widget.onSave(); setState(() {}); })]),
-          ]),
+              ]),
+            ),
+          ),
         ),
       );
 }
