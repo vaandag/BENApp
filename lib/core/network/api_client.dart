@@ -152,6 +152,11 @@ class ApiClient {
   }
 
   Uri _buildUri(String path, {Map<String, String>? query}) {
+    if (_baseUrl.isEmpty) {
+      throw const ApiException(
+        'BEN sunucu adresi tanımlı değil. BEN_API_URL ayarını kontrol et.',
+      );
+    }
     final clean = path.replaceFirst(RegExp(r'^/+'), '');
     final base = Uri.parse('$_baseUrl/$clean');
     return query == null || query.isEmpty
