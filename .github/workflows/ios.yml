@@ -6,6 +6,10 @@ on:
       - ui/ben-design-system-v1
   workflow_dispatch:
 
+concurrency:
+  group: benapp-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Analyze and test
