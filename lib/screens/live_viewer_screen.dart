@@ -27,6 +27,11 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   bool _busy = true;
   String _title = 'CANLI';
   String _status = 'Canlıya bağlanıyor…';
+  bool _polling = false;
+  bool _turnAvailable = false;
+  List<Map<String, dynamic>> _iceServers = <Map<String, dynamic>>[
+    <String, dynamic>{'urls': <String>['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478']},
+  ];
 
   @override
   void initState() {
@@ -34,14 +39,34 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
     _join();
   }
 
+  Future<void> _loadIceServers() async {
+    try {
+      final result = await _api.get('live/ice-servers');
+      if (result is! Map || result['ice_servers'] is! List) return;
+      final servers = (result['ice_servers'] as List)
+          .whereType<Map>()
+          .map((server) => Map<String, dynamic>.from(server))
+          .toList();
+      if (servers.isEmpty) return;
+      _iceServers = servers;
+      _turnAvailable = result['turn_available'] == true;
+    } catch (_) {
+      _turnAvailable = false;
+    }
+  }
+
   Future<void> _join() async {
     try {
+      await _loadIceServers();
       await _renderer.initialize();
       final result = await _api.post('live/${widget.liveId}/join', body: {'peer_id': _peerId});
       if (result is! Map) throw const ApiException('Canlı bilgisi alınamadı.');
       _hostPeerId = result['host_peer_id']?.toString();
       _title = result['title']?.toString() ?? 'CANLI';
-      _pc = await createPeerConnection({'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}, {'urls': 'stun:stun.cloudflare.com:3478'}], 'sdpSemantics': 'unified-plan'});
+      _pc = await createPeerConnection({
+        'iceServers': _iceServers,
+        'sdpSemantics': 'unified-plan',
+      });
       _pc!.onIceCandidate = (candidate) {
         if (candidate.candidate == null || candidate.candidate!.isEmpty || _hostPeerId == null) return;
         _sendSignal('candidate', candidate.toMap());
@@ -54,6 +79,9 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
       };
       _joined = true;
       _busy = false;
+      if (!_turnAvailable) {
+        _status = 'STUN bağlantısı • TURN ayarı bekleniyor';
+      }
       _pollTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) => _pollSignals());
       _heartbeatTimer = Timer.periodic(const Duration(seconds: 12), (_) => _heartbeat());
       if (mounted) setState(() {});
@@ -64,7 +92,8 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   }
 
   Future<void> _pollSignals() async {
-    if (!_joined || !mounted) return;
+    if (!_joined || !mounted || _polling) return;
+    _polling = true;
     try {
       final result = await _api.get('live/${widget.liveId}/signals', query: {'peer_id': _peerId});
       final signals = result is Map && result['signals'] is List ? result['signals'] as List : const [];
@@ -77,7 +106,13 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
         if (kind == 'offer') await _handleOffer(payload);
         if (kind == 'candidate') await _handleCandidate(payload);
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted && _joined) {
+        setState(() => _status = 'Bağlantı yenileniyor…');
+      }
+    } finally {
+      _polling = false;
+    }
   }
 
   Future<void> _handleOffer(Map payload) async {
