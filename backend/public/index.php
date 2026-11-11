@@ -415,6 +415,23 @@ try {
   if ($path === 'rank' && $method === 'GET') {
     $uid=ben_require_user_id($pdo);$q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM memories WHERE user_id=?) memories,(SELECT COUNT(*) FROM comments WHERE user_id=?) comments,(SELECT COUNT(*) FROM memory_likes WHERE user_id=?) likes,(SELECT COUNT(*) FROM follows WHERE follower_id=?) following,(SELECT COUNT(*) FROM regional_messages WHERE user_id=?) regional_messages,(SELECT COUNT(*) FROM lives WHERE user_id=?) lives');$q->execute([$uid,$uid,$uid,$uid,$uid,$uid]);$c=$q->fetch()?:[]; $xp=(int)$c['memories']*100+(int)$c['comments']*15+(int)$c['likes']*5+(int)$c['following']*10+(int)$c['regional_messages']*8+(int)$c['lives']*50; $level=max(1,(int)floor($xp/500)+1);$base=($level-1)*500;$next=$level*500;$badges=[];if((int)$c['memories']>=1)$badges[]=['id'=>'first_memory','name'=>'İlk Anı','description'=>'İlk kalıcı anını bıraktın.'];if((int)$c['memories']>=10)$badges[]=['id'=>'memory_10','name'=>'Anı Avcısı','description'=>'10 anı bıraktın.'];if((int)$c['regional_messages']>=10)$badges[]=['id'=>'local_voice','name'=>'Bölge Sesi','description'=>'Bölgesel toplulukta aktif oldun.'];if((int)$c['lives']>=1)$badges[]=['id'=>'live','name'=>'Canlı','description'=>'İlk canlı yayınını başlattın.'];echo json_encode(['ok'=>true,'xp'=>$xp,'level'=>$level,'next_xp'=>$next,'progress'=>min(1,max(0,($xp-$base)/500)),'counts'=>$c,'badges'=>$badges]);exit;
   }
+  if ($path === 'live/ice-servers' && $method === 'GET') {
+    $uid=ben_require_user_id($pdo);
+    $stunUrls=['stun:stun.l.google.com:19302','stun:stun.cloudflare.com:3478'];
+    $servers=[['urls'=>$stunUrls]];
+    $turnUrls=array_values(array_filter(array_map('trim',explode(',',(string)ben_env('BEN_TURN_URLS','')))));
+    $turnSecret=ben_env('BEN_TURN_SHARED_SECRET');
+    if(count($turnUrls)>0 && $turnSecret!==null){
+      // Coturn REST API credentials are signed on the server and expire quickly.
+      // Never ship the shared secret inside the mobile application.
+      $expiresAt=time()+3600;
+      $username=$expiresAt.':'.$uid;
+      $credential=base64_encode(hash_hmac('sha1',$username,$turnSecret,true));
+      $servers[]=['urls'=>$turnUrls,'username'=>$username,'credential'=>$credential];
+    }
+    ben_json(['ok'=>true,'ice_servers'=>$servers,'turn_available'=>count($servers)>1]);
+  }
+
   if ($path === 'live' && $method === 'GET') {
     $sql = "SELECT l.*,u.username,u.avatar_url,(SELECT COUNT(*) FROM live_peers lp WHERE lp.live_id=l.id AND lp.role='viewer' AND lp.last_seen_at > datetime('now','-30 seconds')) viewers FROM lives l LEFT JOIN users u ON u.id=l.user_id WHERE l.status='live' ORDER BY l.id DESC";
     echo json_encode($pdo->query($sql)->fetchAll()); exit;
