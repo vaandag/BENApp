@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/errors/app_exception.dart';
 import '../core/network/api_client.dart';
 import '../core/network/auth_token_store.dart';
 
@@ -68,26 +69,37 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_userKey);
     final token = await _tokenStore.read();
-    if (raw == null || token == null) return false;
+    if (token == null) return false;
 
+    // Keep cached identity available if the server is temporarily unreachable.
+    if (raw != null) {
+      try {
+        currentUser = BenUser.fromJson(
+          Map<String, dynamic>.from(jsonDecode(raw) as Map),
+        );
+      } catch (_) {
+        currentUser = null;
+        await prefs.remove(_userKey);
+      }
+    }
+
+    await api.setToken(token);
     try {
-      currentUser = BenUser.fromJson(
-        Map<String, dynamic>.from(jsonDecode(raw) as Map),
-      );
-      await api.setToken(token);
       final remote = await api.get('auth/me');
       if (remote is! Map || remote['user'] is! Map) {
-        await clearSession();
-        return false;
+        return currentUser != null && currentUser!.id > 0;
       }
       currentUser = BenUser.fromJson(
         Map<String, dynamic>.from(remote['user'] as Map),
       );
       await _persistUser();
       return currentUser!.id > 0;
-    } catch (_) {
+    } on UnauthorizedException {
       await clearSession();
       return false;
+    } catch (_) {
+      // Timeouts and server outages are not proof that the session expired.
+      return currentUser != null && currentUser!.id > 0;
     }
   }
 
