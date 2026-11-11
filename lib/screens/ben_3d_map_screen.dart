@@ -114,6 +114,11 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
 
   @override
   void dispose() {
+    final controller = _controller;
+    if (controller != null && !controller.isDisposed) {
+      controller.onSymbolTapped.remove(_onSymbolTapped);
+      controller.onCircleTapped.remove(_onCircleTapped);
+    }
     _pulseController.dispose();
     super.dispose();
   }
@@ -670,14 +675,29 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
   }
 
   Future<void> _toggleMemoryLayer() async {
-    setState(() => _showMemoryLayer = !_showMemoryLayer);
     final controller = _controller;
-    if (controller == null) return;
+    if (controller == null || controller.isDisposed) return;
+
+    final show = !_showMemoryLayer;
+    setState(() => _showMemoryLayer = show);
+
     try {
-      await controller.setLayerVisibility('ben-master-marker-layer', _showMemoryLayer);
-    } catch (_) {
-      // Annotation API symbols are not always addressable by style layer id;
-      // fallback is to leave the existing annotations untouched.
+      if (show) {
+        await _addBenMemoryLayer(controller);
+      } else {
+        // Markers in this screen are annotation-manager objects, not a style
+        // layer. Clear both possible annotation types and detach their taps.
+        await controller.clearSymbols();
+        await controller.clearCircles();
+        controller.onSymbolTapped.remove(_onSymbolTapped);
+        controller.onCircleTapped.remove(_onCircleTapped);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _showMemoryLayer = !show);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Anı pinleri güncellenemedi: $error')),
+      );
     }
   }
 
