@@ -46,6 +46,10 @@ function ben_migrate(PDO $pdo): void {
       'ALTER TABLE memories ADD COLUMN client_id TEXT',
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_user_client_id ON memories(user_id, client_id)',
     ],
+    '006_auth_rate_limits' => [
+      'CREATE TABLE IF NOT EXISTS auth_rate_limits (bucket_key TEXT PRIMARY KEY, attempts INTEGER NOT NULL, reset_at INTEGER NOT NULL)',
+      'CREATE INDEX IF NOT EXISTS idx_auth_rate_limits_reset ON auth_rate_limits(reset_at)',
+    ],
   ];
 
   foreach ($migrations as $version => $statements) {
