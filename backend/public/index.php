@@ -199,8 +199,13 @@ try {
     $scope=trim((string)($_GET['scope']??'discover'));
     $limit=max(1,min(100,(int)($_GET['limit']??50)));
     $where="(m.expires_at IS NULL OR m.expires_at > CURRENT_TIMESTAMP)";
-    if($scope==='following') $where.=" AND (m.user_id=$uid OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id=$uid AND f.following_id=m.user_id))";
-    else $where.=" AND (m.privacy='public' OR m.user_id=$uid OR (m.privacy='followers' AND EXISTS (SELECT 1 FROM follows f WHERE f.follower_id=$uid AND f.following_id=m.user_id)))";
+    if($scope==='following') {
+      // The following feed may show public and follower-only posts from followed
+      // accounts, but must never expose their private memories.
+      $where.=" AND (m.user_id=$uid OR (m.privacy IN ('public','followers') AND EXISTS (SELECT 1 FROM follows f WHERE f.follower_id=$uid AND f.following_id=m.user_id)))";
+    } else {
+      $where.=" AND (m.privacy='public' OR m.user_id=$uid OR (m.privacy='followers' AND EXISTS (SELECT 1 FROM follows f WHERE f.follower_id=$uid AND f.following_id=m.user_id)))";
+    }
     $sql="SELECT m.*,u.username AS username,u.avatar_url AS avatar_url,(SELECT COUNT(*) FROM memory_likes l WHERE l.memory_id=m.id) AS likes_count,(SELECT COUNT(*) FROM memory_saves s WHERE s.memory_id=m.id) AS saves_count,(SELECT COUNT(*) FROM comments c WHERE c.memory_id=m.id) AS comments_count FROM memories m LEFT JOIN users u ON u.id=m.user_id WHERE $where ORDER BY m.id DESC LIMIT $limit";
     $rows = $pdo->query($sql)->fetchAll();
     $likeStmt=$pdo->prepare('SELECT 1 FROM memory_likes WHERE memory_id=? AND user_id=?');
