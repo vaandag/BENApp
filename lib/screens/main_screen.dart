@@ -55,6 +55,7 @@ class _MainScreenState
   bool _syncingPending = false;
 
   int _selectedIndex = 0;
+  bool _mapInitialized = false;
 
   List<Memory> _memories = [];
   List<Memory> _connectionMemories = [];
@@ -294,6 +295,7 @@ class _MainScreenState
       return;
     }
 
+    await _pendingMemorySync.remove(memory.id);
     await _repository.remove(memory.id);
 
     await _refreshMemories();
@@ -343,13 +345,17 @@ class _MainScreenState
         onDelete: _deleteMemory,
         onCreate: _openMemoryMenu,
         onOpenLive: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveScreen())),
-        onOpenMap: (memory) => setState(() { _mapFocusMemory = memory; _selectedIndex = 1; }),
+        onOpenMap: (memory) => setState(() {
+          _mapFocusMemory = memory;
+          _mapInitialized = true;
+          _selectedIndex = 1;
+        }),
       ),
       // BEN Harita now uses the pure-Flutter map path as the primary world
       // surface. This removes the native MapLibre platform-view from the
       // default navigation path and gives us room for deterministic memory
       // clustering + location-aware exploration.
-      _selectedIndex == 1
+      _mapInitialized
           ? MapScreen(
               key: const PageStorageKey('ben-world-map'),
               memories: _memories,
@@ -639,6 +645,7 @@ class _MainScreenState
           if (!mounted) return;
           setState(() {
             _selectedIndex = index;
+            if (index == 1) _mapInitialized = true;
           });
         },
         borderRadius: BorderRadius.circular(18),
