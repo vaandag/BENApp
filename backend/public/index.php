@@ -231,22 +231,47 @@ try {
       }
     }
 
+    $title=trim((string)($input['title']??'Yeni BEN Anısı'));
+    $body=(string)($input['body']??'');
+    $type=(string)($input['type']??$input['media_type']??'text');
+    $privacy=(string)($input['privacy']??'public');
+    $postType=(string)($input['post_type']??'memory');
+    $mediaUrl=trim((string)($input['media_url']??''));
+    $lat=$input['lat']??null;
+    $lng=$input['lng']??null;
+    if($title===''||strlen($title)>160||strlen($body)>10000){ben_error('Anı başlığı veya metni geçersiz.',422,'INVALID_MEMORY');}
+    if(!in_array($type,['photo','text','video','music','location'],true)){ben_error('Anı türü geçersiz.',422,'INVALID_MEMORY_TYPE');}
+    if(!in_array($privacy,['public','followers','private'],true)){ben_error('Gizlilik seçimi geçersiz.',422,'INVALID_PRIVACY');}
+    if(!in_array($postType,['memory','story'],true)){ben_error('Paylaşım türü geçersiz.',422,'INVALID_POST_TYPE');}
+    if(($lat===null)!==($lng===null) || ($lat!==null && (!is_numeric($lat)||!is_numeric($lng)||!is_finite((float)$lat)||!is_finite((float)$lng)||abs((float)$lat)>90||abs((float)$lng)>180))){
+      ben_error('Anı konumu geçersiz.',422,'INVALID_COORDINATES');
+    }
+    if($mediaUrl!==''){
+      $mediaPath=parse_url($mediaUrl,PHP_URL_PATH);
+      if(!is_string($mediaPath)||!preg_match('#/api/media/[A-Za-z0-9._-]{1,200}$#',$mediaPath)){
+        ben_error('Medya adresi BEN güvenli medya yoluna ait değil.',422,'INVALID_MEDIA_URL');
+      }
+    }
+    $expiresAt=$input['expires_at']??null;
+    if($expiresAt!==null && $expiresAt!=='' && strtotime((string)$expiresAt)===false){ben_error('Anı bitiş tarihi geçersiz.',422,'INVALID_EXPIRY');}
+    if($postType==='story' && ($expiresAt===null||$expiresAt==='')){$expiresAt=date('Y-m-d H:i:s',time()+86400);}
+
     $sql = 'INSERT INTO memories(user_id,client_id,title,body,lat,lng,location_accuracy,media_type,privacy,post_type,expires_at,media_url) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)';
     try {
       $s = $pdo->prepare($sql);
       $s->execute([
         $uid,
         $clientId !== '' ? $clientId : null,
-        (string)($input['title'] ?? 'Yeni BEN Anısı'),
-        (string)($input['body'] ?? ''),
-        $input['lat'] ?? null,
-        $input['lng'] ?? null,
+        $title,
+        $body,
+        $lat,
+        $lng,
         $input['location_accuracy'] ?? null,
-        (string)($input['type'] ?? $input['media_type'] ?? 'text'),
-        (string)($input['privacy'] ?? 'public'),
-        (string)($input['post_type'] ?? 'memory'),
-        $input['expires_at'] ?? null,
-        (string)($input['media_url'] ?? ''),
+        $type,
+        $privacy,
+        $postType,
+        $expiresAt,
+        $mediaUrl,
       ]);
     } catch (PDOException $e) {
       // If two retries race, the unique index can reject the second insert.
@@ -288,6 +313,9 @@ try {
   }
   if (preg_match('#^memories/(\d+)/(like|save)$#',$path,$m) && $method==='POST') {
     $memoryId=(int)$m[1]; $userId=ben_require_user_id($pdo); $table=$m[2]==='like'?'memory_likes':'memory_saves';
+    $visible=$pdo->prepare("SELECT 1 FROM memories m WHERE m.id=? AND (m.expires_at IS NULL OR m.expires_at>CURRENT_TIMESTAMP) AND (m.privacy='public' OR m.user_id=? OR (m.privacy='followers' AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=m.user_id)))");
+    $visible->execute([$memoryId,$userId,$userId]);
+    if(!$visible->fetchColumn()){ben_error('Anı bulunamadı veya etkileşim yetkin yok.',404,'MEMORY_NOT_FOUND');}
     $exists=$pdo->prepare("SELECT 1 FROM $table WHERE memory_id=? AND user_id=?"); $exists->execute([$memoryId,$userId]);
     if ($exists->fetchColumn()) { $s=$pdo->prepare("DELETE FROM $table WHERE memory_id=? AND user_id=?"); $s->execute([$memoryId,$userId]); $active=false; }
     else { $s=$pdo->prepare("INSERT INTO $table(memory_id,user_id) VALUES(?,?)"); $s->execute([$memoryId,$userId]); $active=true; if ($m[2]==='like') { $owner=$pdo->prepare('SELECT user_id FROM memories WHERE id=?'); $owner->execute([$memoryId]); $to=(int)$owner->fetchColumn(); if ($to && $to!==$userId) { $who=$pdo->prepare('SELECT username FROM users WHERE id=?'); $who->execute([$userId]); $name=(string)$who->fetchColumn(); $pdo->prepare("INSERT INTO notifications(user_id,type,text) VALUES(?,?,?)")->execute([$to,'like',$name.' anını beğendi.']); } } }
@@ -318,7 +346,20 @@ try {
     echo json_encode($pdo->query($sql)->fetchAll());exit;
   }
   if ($path === 'messages' && $method === 'GET') { $uid=ben_require_user_id($pdo);$other=(int)($_GET['with_user_id']??0);if($other>0){$s=$pdo->prepare('SELECT * FROM messages WHERE (sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?) ORDER BY id');$s->execute([$uid,$other,$other,$uid]);}else{$s=$pdo->prepare('SELECT * FROM messages WHERE sender_id=? OR receiver_id=? ORDER BY id');$s->execute([$uid,$uid]);}echo json_encode($s->fetchAll());exit; }
-  if ($path === 'messages' && $method === 'POST') { $uid=ben_require_user_id($pdo); $receiver=(int)($input['receiver_id']??0); $body=trim((string)($input['body']??'')); if($receiver<=0||$body===''){ben_error('Geçerli alıcı ve mesaj gerekli.',422,'INVALID_MESSAGE');} $s=$pdo->prepare('INSERT INTO messages(sender_id,receiver_id,body) VALUES(?,?,?)'); $s->execute([$uid,(int)$input['receiver_id'],(string)$input['body']]); echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]); exit; }
+  if ($path === 'messages' && $method === 'POST') {
+    $uid=ben_require_user_id($pdo);
+    $receiver=(int)($input['receiver_id']??0);
+    $body=trim((string)($input['body']??''));
+    if($receiver<=0||$receiver===$uid||$body===''||strlen($body)>5000){
+      ben_error('Geçerli bir alıcı ve 1-5000 karakterlik mesaj gerekli.',422,'INVALID_MESSAGE');
+    }
+    $recipient=$pdo->prepare('SELECT 1 FROM users WHERE id=?');
+    $recipient->execute([$receiver]);
+    if(!$recipient->fetchColumn()){ben_error('Alıcı bulunamadı.',404,'RECIPIENT_NOT_FOUND');}
+    $s=$pdo->prepare('INSERT INTO messages(sender_id,receiver_id,body) VALUES(?,?,?)');
+    $s->execute([$uid,$receiver,$body]);
+    echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]); exit;
+  }
   if (preg_match('#^messages/(\\d+)/edit$#',$path,$m) && $method==='POST') {
     $uid=ben_require_user_id($pdo);
     $body=trim((string)($input['body']??''));
