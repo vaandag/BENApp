@@ -811,6 +811,15 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
                   children: [
                   if (widget.item.memory?.photo != null && widget.item.memory!.photo!.existsSync())
                     Image.file(widget.item.memory!.photo!, fit: BoxFit.cover)
+                  else if (widget.item.memory?.mediaUrl?.startsWith('http') == true && widget.item.memory!.type == MemoryType.photo)
+                    Image.network(
+                      widget.item.memory!.mediaUrl!,
+                      headers: ApiClient().authorizationHeaders,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => CustomPaint(
+                        painter: _MemoryVisualPainter(base: widget.item.visualColor, icon: widget.item.visualIcon),
+                      ),
+                    )
                   else if (widget.item.memory?.hasVideo == true && widget.item.memory!.video != null)
                     _LocalVideoPreview(path: widget.item.memory!.video!, fallbackColor: widget.item.visualColor, icon: widget.item.visualIcon)
                   else
