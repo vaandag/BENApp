@@ -20,6 +20,75 @@ $input = json_decode(file_get_contents('php://input'), true) ?: [];
 try {
   $pdo = db();
   ben_migrate($pdo);
+
+  // Migrate any legacy public media files into storage outside the web root.
+  $privateMediaDir = dirname(__DIR__) . '/storage/media';
+  $legacyMediaDir = __DIR__ . '/uploads/media';
+  if (is_dir($legacyMediaDir) && (!is_dir($privateMediaDir) && @mkdir($privateMediaDir, 0775, true) || is_dir($privateMediaDir))) {
+    foreach (new DirectoryIterator($legacyMediaDir) as $legacyFile) {
+      if ($legacyFile->isDot() || !$legacyFile->isFile()) continue;
+      $destination = $privateMediaDir . '/' . basename($legacyFile->getFilename());
+      if (!is_file($destination)) @rename($legacyFile->getPathname(), $destination);
+    }
+  }
+  // Old app versions persisted public upload URLs in the memories table.
+  $pdo->exec("UPDATE memories SET media_url=REPLACE(media_url,'/uploads/media/','/api/media/') WHERE media_url LIKE '%/uploads/media/%'");
+
+  if (preg_match('#^media/([A-Za-z0-9._-]{1,200})$#', $path, $mediaMatch) && $method === 'GET') {
+    $viewerId = ben_require_user_id($pdo);
+    $filename = basename($mediaMatch[1]);
+    $mediaPath = '/api/media/' . $filename;
+    $visible = $pdo->prepare("SELECT 1 FROM memories m WHERE instr(m.media_url,?)>0 AND (m.expires_at IS NULL OR m.expires_at>CURRENT_TIMESTAMP) AND (m.privacy='public' OR m.user_id=? OR (m.privacy='followers' AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=m.user_id))) LIMIT 1");
+    $visible->execute([$mediaPath, $viewerId, $viewerId]);
+    if (!$visible->fetchColumn()) ben_error('Medya bulunamadı veya görüntüleme yetkin yok.',404,'MEDIA_NOT_FOUND');
+
+    $mediaFile = $privateMediaDir . '/' . $filename;
+    if (!is_file($mediaFile) || !is_readable($mediaFile)) ben_error('Medya dosyası bulunamadı.',404,'MEDIA_NOT_FOUND');
+    $mime = mime_content_type($mediaFile) ?: 'application/octet-stream';
+    $size = filesize($mediaFile);
+    if ($size === false) ben_error('Medya dosyası okunamadı.',500,'MEDIA_READ_FAILED');
+
+    header_remove('Content-Type');
+    header('Content-Type: ' . $mime);
+    header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: private, no-store');
+    header('Accept-Ranges: bytes');
+
+    $start = 0;
+    $end = $size - 1;
+    $range = $_SERVER['HTTP_RANGE'] ?? '';
+    if ($range !== '' && preg_match('/bytes=(\\d*)-(\\d*)/', $range, $rangeMatch)) {
+      if ($rangeMatch[1] === '' && $rangeMatch[2] !== '') {
+        $suffix = (int)$rangeMatch[2];
+        $start = max(0, $size - $suffix);
+      } else {
+        $start = (int)$rangeMatch[1];
+        if ($rangeMatch[2] !== '') $end = min($end, (int)$rangeMatch[2]);
+      }
+      if ($start > $end || $start >= $size) {
+        http_response_code(416);
+        header('Content-Range: bytes */' . $size);
+        exit;
+      }
+      http_response_code(206);
+      header("Content-Range: bytes $start-$end/$size");
+    }
+    $length = max(0, $end - $start + 1);
+    header('Content-Length: ' . $length);
+    $handle = fopen($mediaFile, 'rb');
+    if ($handle === false) ben_error('Medya dosyası açılamadı.',500,'MEDIA_READ_FAILED');
+    fseek($handle, $start);
+    $remaining = $length;
+    while ($remaining > 0 && !feof($handle)) {
+      $chunk = fread($handle, min(1024 * 1024, $remaining));
+      if ($chunk === false || $chunk === '') break;
+      echo $chunk;
+      $remaining -= strlen($chunk);
+    }
+    fclose($handle);
+    exit;
+  }
+
   if ($path === 'health' || $path === '') { echo json_encode(['ok'=>true,'service'=>'BEN API','version'=>'194']); exit; }
   if ($path === 'auth/me' && $method === 'GET') {
     $h=$_SERVER['HTTP_AUTHORIZATION']??'';
@@ -58,12 +127,16 @@ try {
     $allowed=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp','video/mp4'=>'mp4','video/quicktime'=>'mov','video/webm'=>'webm'];
     if(!isset($allowed[$mime])){http_response_code(415);echo json_encode(['ok'=>false,'message'=>'Desteklenmeyen medya türü.']);exit;}
     if(str_starts_with($mime,'image/')&&$size>15*1024*1024){http_response_code(413);echo json_encode(['ok'=>false,'message'=>'Fotoğraf dosyası en fazla 15 MB olabilir.']);exit;}
-    $dir=__DIR__.'/uploads/media';
-    if(!is_dir($dir)&&!mkdir($dir,0775,true)&&!is_dir($dir)){http_response_code(500);echo json_encode(['ok'=>false,'message'=>'Yükleme klasörü oluşturulamadı.']);exit;}
+    $dir=dirname(__DIR__).'/storage/media';
+    if(!is_dir($dir)&&!mkdir($dir,0775,true)&&!is_dir($dir)){http_response_code(500);echo json_encode(['ok'=>false,'message'=>'Güvenli medya klasörü oluşturulamadı.']);exit;}
     $name='u_'.$uid.'_'.bin2hex(random_bytes(10)).'.'.$allowed[$mime];
     $target=$dir.'/'.$name;
     if(!move_uploaded_file($tmp,$target)){http_response_code(500);echo json_encode(['ok'=>false,'message'=>'Medya kaydedilemedi.']);exit;}
-    $scheme=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http';$url=$scheme.'://'.($_SERVER['HTTP_HOST']??'localhost').'/uploads/media/'.rawurlencode($name);echo json_encode(['ok'=>true,'url'=>$url]);exit;
+    $scheme=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http';
+    $requestPath=parse_url($_SERVER['REQUEST_URI']??'/api/uploads/media',PHP_URL_PATH)?:'/api/uploads/media';
+    $apiPrefix=preg_replace('#/uploads/media/?$#','',$requestPath)?:'/api';
+    $url=$scheme.'://'.($_SERVER['HTTP_HOST']??'localhost').rtrim($apiPrefix,'/').'/media/'.rawurlencode($name);
+    echo json_encode(['ok'=>true,'url'=>$url]);exit;
   }
   if ($path === 'auth/logout' && $method === 'POST') { $h=$_SERVER['HTTP_AUTHORIZATION']??''; if (preg_match('/Bearer\s+(.+)/i',$h,$mm)) { $pdo->prepare('DELETE FROM sessions WHERE token=?')->execute([trim($mm[1])]); } echo json_encode(['ok'=>true]); exit; }
   if ($path === 'users/profile' && $method === 'POST') {
