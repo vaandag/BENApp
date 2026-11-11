@@ -31,6 +31,11 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
   String _status = 'Kamera hazırlanıyor…';
   String _title = 'BEN CANLI';
   int _viewerCount = 0;
+  bool _polling = false;
+  bool _turnAvailable = false;
+  List<Map<String, dynamic>> _iceServers = <Map<String, dynamic>>[
+    <String, dynamic>{'urls': <String>['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478']},
+  ];
 
   @override
   void initState() {
@@ -52,10 +57,28 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
     }
   }
 
+  Future<void> _loadIceServers() async {
+    try {
+      final result = await _api.get('live/ice-servers');
+      if (result is! Map || result['ice_servers'] is! List) return;
+      final servers = (result['ice_servers'] as List)
+          .whereType<Map>()
+          .map((server) => Map<String, dynamic>.from(server))
+          .toList();
+      if (servers.isEmpty) return;
+      _iceServers = servers;
+      _turnAvailable = result['turn_available'] == true;
+    } catch (_) {
+      // Keep public STUN fallback when optional TURN configuration is absent.
+      _turnAvailable = false;
+    }
+  }
+
   Future<void> _startLive() async {
     if (_localStream == null || _live != false || _busy) return;
     setState(() { _busy = true; _status = 'CANLI başlatılıyor…'; });
     try {
+      await _loadIceServers();
       final result = await _api.post('live', body: {'title': _title.trim().isEmpty ? 'BEN CANLI' : _title.trim(), 'host_peer_id': _peerId});
       final id = result is Map ? int.tryParse('${result['id'] ?? ''}') : null;
       if (id == null) throw const ApiException('Canlı yayın kimliği alınamadı.');
@@ -77,7 +100,8 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
 
   Future<void> _pollSignalsAndPeers() async {
     final liveId = _liveId;
-    if (!_live || liveId == null || !mounted) return;
+    if (!_live || liveId == null || !mounted || _polling) return;
+    _polling = true;
     try {
       final peerResult = await _api.get('live/$liveId/peers');
       final rawPeers = peerResult is Map && peerResult['peers'] is List ? peerResult['peers'] as List : const [];
@@ -117,15 +141,30 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
           }
         }
       }
-      if (mounted) setState(() {});
-    } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _status = _turnAvailable
+              ? 'CANLI • bağlantılar izleniyor'
+              : 'CANLI • TURN ayarı bekleniyor';
+        });
+      }
+    } catch (_) {
+      if (mounted && _live) {
+        setState(() => _status = 'Bağlantı yenileniyor…');
+      }
+    } finally {
+      _polling = false;
+    }
   }
 
   Future<void> _createHostPeer(String viewerPeer) async {
     final liveId = _liveId;
     final local = _localStream;
     if (liveId == null || local == null || _peers.containsKey(viewerPeer)) return;
-    final pc = await createPeerConnection({'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}, {'urls': 'stun:stun.cloudflare.com:3478'}], 'sdpSemantics': 'unified-plan'});
+    final pc = await createPeerConnection({
+      'iceServers': _iceServers,
+      'sdpSemantics': 'unified-plan',
+    });
     _peers[viewerPeer] = pc;
     _pendingCandidates[viewerPeer] = <RTCIceCandidate>[];
     pc.onIceCandidate = (candidate) {
