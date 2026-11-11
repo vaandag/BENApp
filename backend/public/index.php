@@ -260,7 +260,13 @@ try {
     }
     $expiresAt=$input['expires_at']??null;
     if($expiresAt!==null && $expiresAt!=='' && strtotime((string)$expiresAt)===false){ben_error('Anı bitiş tarihi geçersiz.',422,'INVALID_EXPIRY');}
-    if($postType==='story' && ($expiresAt===null||$expiresAt==='')){$expiresAt=date('Y-m-d H:i:s',time()+86400);}
+    if($postType==='story'){
+      // Stories have a server-enforced 24-hour lifetime. Normalize every
+      // timestamp to SQLite's sortable datetime format to avoid ISO "T" issues.
+      $expiresAt=date('Y-m-d H:i:s',time()+86400);
+    } elseif($expiresAt!==null && $expiresAt!=='') {
+      $expiresAt=date('Y-m-d H:i:s',strtotime((string)$expiresAt));
+    }
 
     $sql = 'INSERT INTO memories(user_id,client_id,title,body,lat,lng,location_accuracy,media_type,privacy,post_type,expires_at,media_url) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)';
     try {
