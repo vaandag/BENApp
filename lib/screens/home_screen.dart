@@ -811,7 +811,7 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
                   children: [
                   if (widget.item.memory?.photo != null && widget.item.memory!.photo!.existsSync())
                     Image.file(widget.item.memory!.photo!, fit: BoxFit.cover)
-                  else if (widget.item.memory?.mediaUrl?.startsWith('http') == true && widget.item.memory!.type == MemoryType.photo)
+                  else if (widget.item.memory?.mediaUrl?.contains('/media/') == true && widget.item.memory!.type == MemoryType.photo)
                     Image.network(
                       ApiClient()
                           .resolveMediaUri(widget.item.memory!.mediaUrl!)
@@ -944,7 +944,7 @@ class _LocalVideoPreviewState extends State<_LocalVideoPreview> {
   Future<void> _init() async {
     final file = File(widget.path);
     final isLocalFile = file.existsSync();
-    if (!isLocalFile && !widget.path.startsWith('http')) return;
+    if (!isLocalFile && !widget.path.contains('/media/')) return;
     try {
       final controller = isLocalFile
           ? VideoPlayerController.file(file)
