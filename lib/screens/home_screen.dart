@@ -941,13 +941,18 @@ class _LocalVideoPreviewState extends State<_LocalVideoPreview> {
   }
   Future<void> _init() async {
     final file = File(widget.path);
-    if (!file.existsSync()) return;
     try {
-      final c = VideoPlayerController.file(file);
-      await c.initialize();
-      await c.setVolume(0);
-      if (!mounted) { c.dispose(); return; }
-      setState(() => _controller = c);
+      final controller = file.existsSync()
+          ? VideoPlayerController.file(file)
+          : VideoPlayerController.networkUrl(
+              Uri.parse(widget.path),
+              httpHeaders: ApiClient().authorizationHeaders,
+            );
+      if (!file.existsSync() && !widget.path.startsWith('http')) return;
+      await controller.initialize();
+      await controller.setVolume(0);
+      if (!mounted) { controller.dispose(); return; }
+      setState(() => _controller = controller);
     } catch (_) {}
   }
   @override
