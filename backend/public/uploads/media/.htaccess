@@ -1,0 +1,8 @@
+# Uploaded memory media is served only by the authenticated API route.
+Options -Indexes
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Deny from all
+</IfModule>
