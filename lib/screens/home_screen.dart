@@ -813,7 +813,9 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
                     Image.file(widget.item.memory!.photo!, fit: BoxFit.cover)
                   else if (widget.item.memory?.mediaUrl?.startsWith('http') == true && widget.item.memory!.type == MemoryType.photo)
                     Image.network(
-                      widget.item.memory!.mediaUrl!,
+                      ApiClient()
+                          .resolveMediaUri(widget.item.memory!.mediaUrl!)
+                          .toString(),
                       headers: ApiClient().authorizationHeaders,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => CustomPaint(
@@ -941,14 +943,15 @@ class _LocalVideoPreviewState extends State<_LocalVideoPreview> {
   }
   Future<void> _init() async {
     final file = File(widget.path);
+    final isLocalFile = file.existsSync();
+    if (!isLocalFile && !widget.path.startsWith('http')) return;
     try {
-      final controller = file.existsSync()
+      final controller = isLocalFile
           ? VideoPlayerController.file(file)
           : VideoPlayerController.networkUrl(
-              Uri.parse(widget.path),
+              ApiClient().resolveMediaUri(widget.path),
               httpHeaders: ApiClient().authorizationHeaders,
             );
-      if (!file.existsSync() && !widget.path.startsWith('http')) return;
       await controller.initialize();
       await controller.setVolume(0);
       if (!mounted) { controller.dispose(); return; }
