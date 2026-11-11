@@ -33,9 +33,17 @@ try {
     if(preg_match('/Bearer\s+(.+)/i',$h,$mm)){ $st=$pdo->prepare('SELECT user_id FROM sessions WHERE token=? AND expires_at>CURRENT_TIMESTAMP');$st->execute([trim($mm[1])]);$uid=(int)$st->fetchColumn(); }
     if($uid<=0){http_response_code(401);echo json_encode(['ok'=>false,'message'=>'Oturum gerekli.']);exit;}
     if(!isset($_FILES['avatar'])||$_FILES['avatar']['error']!==UPLOAD_ERR_OK){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Profil fotoğrafı alınamadı.']);exit;}
-    $tmp=$_FILES['avatar']['tmp_name'];$info=@getimagesize($tmp);
-    if(!$info||!in_array(strtolower((string)$info['mime']),['image/jpeg','image/png','image/webp'],true)){http_response_code(415);echo json_encode(['ok'=>false,'message'=>'Desteklenmeyen profil fotoğrafı.']);exit;}
-    $dir=__DIR__.'/uploads/avatars';if(!is_dir($dir))mkdir($dir,0775,true);$name='u_'.$uid.'_'.bin2hex(random_bytes(8)).'.jpg';$target=$dir.'/'.$name;
+    $tmp=$_FILES['avatar']['tmp_name'];
+    $size=(int)($_FILES['avatar']['size']??0);
+    if(!is_uploaded_file($tmp)||$size<=0||$size>8*1024*1024){http_response_code(413);echo json_encode(['ok'=>false,'message'=>'Profil fotoğrafı en fazla 8 MB olabilir.']);exit;}
+    $info=@getimagesize($tmp);
+    $mime=strtolower((string)($info['mime']??''));
+    $extensions=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
+    if(!$info||!isset($extensions[$mime])){http_response_code(415);echo json_encode(['ok'=>false,'message'=>'Desteklenmeyen profil fotoğrafı.']);exit;}
+    $dir=__DIR__.'/uploads/avatars';
+    if(!is_dir($dir)&&!mkdir($dir,0775,true)&&!is_dir($dir)){http_response_code(500);echo json_encode(['ok'=>false,'message'=>'Yükleme klasörü oluşturulamadı.']);exit;}
+    $name='u_'.$uid.'_'.bin2hex(random_bytes(8)).'.'.$extensions[$mime];
+    $target=$dir.'/'.$name;
     if(!move_uploaded_file($tmp,$target)){http_response_code(500);echo json_encode(['ok'=>false,'message'=>'Profil fotoğrafı kaydedilemedi.']);exit;}
     $scheme=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http';$url=$scheme.'://'.($_SERVER['HTTP_HOST']??'localhost').'/uploads/avatars/'.rawurlencode($name);echo json_encode(['ok'=>true,'url'=>$url]);exit;
   }
@@ -43,9 +51,18 @@ try {
     $uid=0;$h=$_SERVER['HTTP_AUTHORIZATION']??'';if(preg_match('/Bearer\s+(.+)/i',$h,$mm)){ $st=$pdo->prepare('SELECT user_id FROM sessions WHERE token=? AND expires_at>CURRENT_TIMESTAMP');$st->execute([trim($mm[1])]);$uid=(int)$st->fetchColumn(); }
     if($uid<=0){http_response_code(401);echo json_encode(['ok'=>false,'message'=>'Oturum gerekli.']);exit;}
     if(!isset($_FILES['media'])||$_FILES['media']['error']!==UPLOAD_ERR_OK){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Medya alınamadı.']);exit;}
-    $tmp=$_FILES['media']['tmp_name'];$mime=@mime_content_type($tmp)?:'';$allowed=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp','video/mp4'=>'mp4','video/quicktime'=>'mov','video/webm'=>'webm'];
+    $tmp=$_FILES['media']['tmp_name'];
+    $size=(int)($_FILES['media']['size']??0);
+    if(!is_uploaded_file($tmp)||$size<=0||$size>100*1024*1024){http_response_code(413);echo json_encode(['ok'=>false,'message'=>'Medya dosyası en fazla 100 MB olabilir.']);exit;}
+    $mime=@mime_content_type($tmp)?:'';
+    $allowed=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp','video/mp4'=>'mp4','video/quicktime'=>'mov','video/webm'=>'webm'];
     if(!isset($allowed[$mime])){http_response_code(415);echo json_encode(['ok'=>false,'message'=>'Desteklenmeyen medya türü.']);exit;}
-    $dir=__DIR__.'/uploads/media';if(!is_dir($dir))mkdir($dir,0775,true);$name='u_'.$uid.'_'.bin2hex(random_bytes(10)).'.'.$allowed[$mime];$target=$dir.'/'.$name;if(!move_uploaded_file($tmp,$target)){http_response_code(500);echo json_encode(['ok'=>false,'message'=>'Medya kaydedilemedi.']);exit;}
+    if(str_starts_with($mime,'image/')&&$size>15*1024*1024){http_response_code(413);echo json_encode(['ok'=>false,'message'=>'Fotoğraf dosyası en fazla 15 MB olabilir.']);exit;}
+    $dir=__DIR__.'/uploads/media';
+    if(!is_dir($dir)&&!mkdir($dir,0775,true)&&!is_dir($dir)){http_response_code(500);echo json_encode(['ok'=>false,'message'=>'Yükleme klasörü oluşturulamadı.']);exit;}
+    $name='u_'.$uid.'_'.bin2hex(random_bytes(10)).'.'.$allowed[$mime];
+    $target=$dir.'/'.$name;
+    if(!move_uploaded_file($tmp,$target)){http_response_code(500);echo json_encode(['ok'=>false,'message'=>'Medya kaydedilemedi.']);exit;}
     $scheme=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http';$url=$scheme.'://'.($_SERVER['HTTP_HOST']??'localhost').'/uploads/media/'.rawurlencode($name);echo json_encode(['ok'=>true,'url'=>$url]);exit;
   }
   if ($path === 'auth/logout' && $method === 'POST') { $h=$_SERVER['HTTP_AUTHORIZATION']??''; if (preg_match('/Bearer\s+(.+)/i',$h,$mm)) { $pdo->prepare('DELETE FROM sessions WHERE token=?')->execute([trim($mm[1])]); } echo json_encode(['ok'=>true]); exit; }
@@ -78,14 +95,21 @@ try {
     $token=bin2hex(random_bytes(32)); $pdo->prepare("INSERT INTO sessions(token,user_id,expires_at) VALUES(?,?,datetime('now','+30 days'))")->execute([$token,(int)$u['id']]); echo json_encode(['ok'=>true,'token'=>$token,'user'=>$u]); exit;
   }
   if ($path === 'users' && $method === 'GET') {
-    $q=trim((string)($_GET['q']??'')); $s=$pdo->prepare('SELECT id,username,email,avatar_url,xp,coins,created_at FROM users WHERE username LIKE ? ORDER BY username LIMIT 30'); $s->execute(['%'.$q.'%']); echo json_encode($s->fetchAll()); exit;
+    $q=trim((string)($_GET['q']??''));
+    $s=$pdo->prepare('SELECT id,username,avatar_url,xp,coins,created_at FROM users WHERE username LIKE ? ORDER BY username LIMIT 30');
+    $s->execute(['%'.$q.'%']);
+    echo json_encode($s->fetchAll()); exit;
   }
   if (preg_match('#^users/(\d+)$#',$path,$m) && $method==='GET') {
-    $s=$pdo->prepare('SELECT id,username,email,xp,coins,bio,avatar_url,bio_font,bio_color,created_at FROM users WHERE id=?'); $s->execute([(int)$m[1]]); $u=$s->fetch();
+    $targetId=(int)$m[1];
+    $s=$pdo->prepare('SELECT id,username,xp,coins,bio,avatar_url,bio_font,bio_color,created_at FROM users WHERE id=?');
+    $s->execute([$targetId]); $u=$s->fetch();
     if (!$u) { http_response_code(404); echo json_encode(['ok'=>false,'message'=>'Kullanıcı bulunamadı']); exit; }
-    $f=$pdo->prepare('SELECT COUNT(*) FROM follows WHERE following_id=?'); $f->execute([(int)$m[1]]); $u['followers']=(int)$f->fetchColumn();
-    $f=$pdo->prepare('SELECT COUNT(*) FROM follows WHERE follower_id=?'); $f->execute([(int)$m[1]]); $u['following']=(int)$f->fetchColumn();
-    $viewer=ben_optional_user_id($pdo); $f=$pdo->prepare('SELECT 1 FROM follows WHERE follower_id=? AND following_id=?'); $f->execute([$viewer,(int)$m[1]]); $u['following_me']=(bool)$f->fetchColumn();
+    $f=$pdo->prepare('SELECT COUNT(*) FROM follows WHERE following_id=?'); $f->execute([$targetId]); $u['followers']=(int)$f->fetchColumn();
+    $f=$pdo->prepare('SELECT COUNT(*) FROM follows WHERE follower_id=?'); $f->execute([$targetId]); $u['following']=(int)$f->fetchColumn();
+    $viewer=ben_optional_user_id($pdo);
+    if($viewer===$targetId){$email=$pdo->prepare('SELECT email FROM users WHERE id=?');$email->execute([$targetId]);$u['email']=$email->fetchColumn()?:null;}
+    $f=$pdo->prepare('SELECT 1 FROM follows WHERE follower_id=? AND following_id=?'); $f->execute([$viewer,$targetId]); $u['following_me']=(bool)$f->fetchColumn();
     echo json_encode($u); exit;
   }
 
@@ -190,9 +214,23 @@ try {
     echo json_encode(['ok'=>true,'active'=>$active,'count'=>(int)$count->fetchColumn()]); exit;
   }
   if (preg_match('#^memories/(\d+)/comments$#',$path,$m) && $method==='GET') {
-    $s=$pdo->prepare('SELECT c.*, u.username, u.avatar_url FROM comments c LEFT JOIN users u ON u.id=c.user_id WHERE c.memory_id=? ORDER BY c.id ASC'); $s->execute([(int)$m[1]]); echo json_encode($s->fetchAll()); exit;
+    $mid=(int)$m[1]; $viewer=ben_optional_user_id($pdo);
+    $visible=$pdo->prepare("SELECT 1 FROM memories m WHERE m.id=? AND (m.expires_at IS NULL OR m.expires_at>CURRENT_TIMESTAMP) AND (m.privacy='public' OR m.user_id=? OR (m.privacy='followers' AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=m.user_id)))");
+    $visible->execute([$mid,$viewer,$viewer]);
+    if(!$visible->fetchColumn()){ben_error('Anı bulunamadı veya görüntüleme yetkin yok.',404,'MEMORY_NOT_FOUND');}
+    $s=$pdo->prepare('SELECT c.id,c.memory_id,c.user_id,c.body,c.updated_at,u.username,u.avatar_url FROM comments c LEFT JOIN users u ON u.id=c.user_id WHERE c.memory_id=? ORDER BY c.id ASC');
+    $s->execute([$mid]); echo json_encode($s->fetchAll()); exit;
   }
-  if ($path === 'comments' && $method === 'POST') { $mid=(int)$input['memory_id']; $uid=ben_require_user_id($pdo); $body=trim((string)$input['body']); if ($body==='') { http_response_code(422); echo json_encode(['ok'=>false,'message'=>'Yorum boş olamaz.']); exit; } $s=$pdo->prepare('INSERT INTO comments(memory_id,user_id,body) VALUES(?,?,?)'); $s->execute([$mid,$uid,$body]); $owner=$pdo->prepare('SELECT user_id FROM memories WHERE id=?'); $owner->execute([$mid]); $to=(int)$owner->fetchColumn(); if ($to && $to!==$uid) { $who=$pdo->prepare('SELECT username FROM users WHERE id=?'); $who->execute([$uid]); $name=(string)$who->fetchColumn(); $pdo->prepare("INSERT INTO notifications(user_id,type,text) VALUES(?,?,?)")->execute([$to,'comment',$name.' anına yorum yaptı.']); } echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]); exit; }
+  if ($path === 'comments' && $method === 'POST') {
+    $mid=(int)($input['memory_id']??0); $uid=ben_require_user_id($pdo); $body=trim((string)($input['body']??''));
+    if($mid<=0||$body===''||strlen($body)>5000){ben_error('Geçerli bir yorum gerekli (en fazla 5000 karakter).',422,'INVALID_COMMENT');}
+    $visible=$pdo->prepare("SELECT user_id FROM memories m WHERE m.id=? AND (m.expires_at IS NULL OR m.expires_at>CURRENT_TIMESTAMP) AND (m.privacy='public' OR m.user_id=? OR (m.privacy='followers' AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=m.user_id)))");
+    $visible->execute([$mid,$uid,$uid]); $to=(int)$visible->fetchColumn();
+    if($to<=0){ben_error('Anı bulunamadı veya yorum yapma yetkin yok.',404,'MEMORY_NOT_FOUND');}
+    $s=$pdo->prepare('INSERT INTO comments(memory_id,user_id,body) VALUES(?,?,?)'); $s->execute([$mid,$uid,$body]);
+    if($to!==$uid){$who=$pdo->prepare('SELECT username FROM users WHERE id=?');$who->execute([$uid]);$name=(string)$who->fetchColumn();$pdo->prepare("INSERT INTO notifications(user_id,type,text) VALUES(?,?,?)")->execute([$to,'comment',$name.' anına yorum yaptı.']);}
+    echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]); exit;
+  }
   if ($path === 'messages/conversations' && $method === 'GET') {
     $uid=ben_require_user_id($pdo);
     $sql="SELECT u.id,u.username,u.avatar_url,m.body AS preview,m.created_at,m.sender_id,m.is_read FROM users u JOIN (SELECT CASE WHEN sender_id=$uid THEN receiver_id ELSE sender_id END AS other_id,MAX(id) AS last_id FROM messages WHERE sender_id=$uid OR receiver_id=$uid GROUP BY other_id) x ON x.other_id=u.id JOIN messages m ON m.id=x.last_id ORDER BY m.id DESC";
@@ -201,11 +239,28 @@ try {
   if ($path === 'messages' && $method === 'GET') { $uid=ben_require_user_id($pdo);$other=(int)($_GET['with_user_id']??0);if($other>0){$s=$pdo->prepare('SELECT * FROM messages WHERE (sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?) ORDER BY id');$s->execute([$uid,$other,$other,$uid]);}else{$s=$pdo->prepare('SELECT * FROM messages WHERE sender_id=? OR receiver_id=? ORDER BY id');$s->execute([$uid,$uid]);}echo json_encode($s->fetchAll());exit; }
   if ($path === 'messages' && $method === 'POST') { $uid=ben_require_user_id($pdo); $receiver=(int)($input['receiver_id']??0); $body=trim((string)($input['body']??'')); if($receiver<=0||$body===''){ben_error('Geçerli alıcı ve mesaj gerekli.',422,'INVALID_MESSAGE');} $s=$pdo->prepare('INSERT INTO messages(sender_id,receiver_id,body) VALUES(?,?,?)'); $s->execute([$uid,(int)$input['receiver_id'],(string)$input['body']]); echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]); exit; }
   if (preg_match('#^messages/(\\d+)/edit$#',$path,$m) && $method==='POST') {
-    $uid=(int)($input['user_id']??0);$body=trim((string)($input['body']??''));if($uid<=0||$body===''){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Geçerli mesaj gerekli.']);exit;}
-    $s=$pdo->prepare('UPDATE messages SET body=?,edited_at=CURRENT_TIMESTAMP WHERE id=? AND sender_id=? AND deleted_at IS NULL');$s->execute([$body,(int)$m[1],$uid]);echo json_encode(['ok'=>true]);exit;
+    $uid=ben_require_user_id($pdo);
+    $body=trim((string)($input['body']??''));
+    if($body===''||strlen($body)>5000){ben_error('Mesaj 1-5000 karakter arasında olmalı.',422,'INVALID_MESSAGE');}
+    $s=$pdo->prepare('UPDATE messages SET body=?,edited_at=CURRENT_TIMESTAMP WHERE id=? AND sender_id=? AND deleted_at IS NULL');
+    $s->execute([$body,(int)$m[1],$uid]);
+    if($s->rowCount()===0){ben_error('Mesaj bulunamadı veya düzenleme yetkin yok.',404,'MESSAGE_NOT_FOUND');}
+    ben_ok();
   }
-  if (preg_match('#^messages/(\\d+)$#',$path,$m) && $method==='DELETE') { $s=$pdo->prepare('UPDATE messages SET deleted_at=CURRENT_TIMESTAMP, body=? WHERE id=?'); $s->execute(['Bu mesaj silindi',$m[1]]); echo json_encode(['ok'=>true]); exit; }
-  if ($path === 'messages/read' && $method === 'POST') { $uid=(int)($input['user_id']??1);$other=(int)($input['with_user_id']??0);if($other>0){$s=$pdo->prepare('UPDATE messages SET is_read=1 WHERE receiver_id=? AND sender_id=?');$s->execute([$uid,$other]);}else{$s=$pdo->prepare('UPDATE messages SET is_read=1 WHERE receiver_id=?');$s->execute([$uid]);}echo json_encode(['ok'=>true]);exit; }
+  if (preg_match('#^messages/(\\d+)$#',$path,$m) && $method==='DELETE') {
+    $uid=ben_require_user_id($pdo);
+    $s=$pdo->prepare('UPDATE messages SET deleted_at=CURRENT_TIMESTAMP, body=? WHERE id=? AND sender_id=? AND deleted_at IS NULL');
+    $s->execute(['Bu mesaj silindi',(int)$m[1],$uid]);
+    if($s->rowCount()===0){ben_error('Mesaj bulunamadı veya silme yetkin yok.',404,'MESSAGE_NOT_FOUND');}
+    ben_ok();
+  }
+  if ($path === 'messages/read' && $method === 'POST') {
+    $uid=ben_require_user_id($pdo);
+    $other=(int)($_POST['with_user_id']??$input['with_user_id']??0);
+    if($other>0){$s=$pdo->prepare('UPDATE messages SET is_read=1 WHERE receiver_id=? AND sender_id=?');$s->execute([$uid,$other]);}
+    else{$s=$pdo->prepare('UPDATE messages SET is_read=1 WHERE receiver_id=?');$s->execute([$uid]);}
+    ben_ok();
+  }
   if ($path === 'follow' && $method === 'POST') {
     $from=ben_require_user_id($pdo); $to=(int)($input['following_id']??0);
     if ($from === $to) { http_response_code(422); echo json_encode(['ok'=>false,'message'=>'Kendi hesabını takip edemezsin.']); exit; }
