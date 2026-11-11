@@ -11,7 +11,7 @@ Set the GitHub repository Actions secret:
 
 The iOS IPA workflow is started manually after the CI analysis and tests pass. It stops before building when `BEN_API_URL` is missing or is not HTTPS. Release builds no longer fall back to a private LAN address.
 
-For local Android development, the debug build retains the emulator URL `http://10.0.2.2:8080/api`. Set `BEN_API_URL` explicitly for a physical device on the local network.
+For local Android development, the debug build uses the emulator URL `http://10.0.2.2:8080/api`; the iOS simulator uses `http://127.0.0.1:8080/api`. Set `BEN_API_URL` explicitly to your computer's LAN address when testing on a physical Android or iPhone device.
 
 ## PHP storage permissions
 
@@ -55,3 +55,14 @@ flutter test
 ```
 
 The CI branch workflow runs analysis and tests on each push to `ui/ben-design-system-v1`. The iOS IPA workflow is manual and runs after the tests.
+
+## Rate limits
+
+The API stores only hashed rate-limit bucket keys and counters in SQLite. The current fixed windows are:
+
+- Login: 80 attempts per IP per hour and 10 attempts per account/email per 15 minutes.
+- Registration: 10 attempts per IP per hour and 3 attempts per email per day.
+- Avatar uploads: 12 per user per hour; memory media uploads: 20 per user per hour.
+- Comments: 80 per user per hour; messages: 120 per user per hour.
+
+The PHP rate limiter uses `REMOTE_ADDR`. When running behind a reverse proxy or load balancer, configure the web server's trusted client-IP handling so PHP receives the real client address. Do not blindly trust arbitrary `X-Forwarded-For` headers.
