@@ -1,12 +1,15 @@
-name: BENApp iOS IPA Build
+name: BENApp CI and iOS IPA Build
 
 on:
+  push:
+    branches:
+      - ui/ben-design-system-v1
   workflow_dispatch:
 
 jobs:
-  build-ios:
-    runs-on: macos-latest
-
+  test:
+    name: Analyze and test
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,6 +31,28 @@ jobs:
 
       - name: Tests
         run: flutter test
+
+  build-ios:
+    name: Build unsigned iOS IPA
+    if: github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Get dependencies
+        run: flutter pub get
 
       - name: Validate production API URL
         env:
