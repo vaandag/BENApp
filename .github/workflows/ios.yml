@@ -26,18 +26,30 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-fatal-infos
 
+      - name: Tests
+        run: flutter test
+
+      - name: Validate production API URL
+        env:
+          BEN_API_URL_SECRET: ${{ secrets.BEN_API_URL }}
+        run: |
+          if [ -z "$BEN_API_URL_SECRET" ]; then
+            echo "::error::Set the BEN_API_URL repository secret to the public HTTPS API endpoint."
+            exit 1
+          fi
+          case "$BEN_API_URL_SECRET" in
+            https://*) ;;
+            *) echo "::error::BEN_API_URL must use HTTPS for iOS release builds."; exit 1 ;;
+          esac
+
       - name: Build iOS
         shell: bash
         env:
           BEN_API_URL_SECRET: ${{ secrets.BEN_API_URL }}
           BEN_MAPTILER_KEY: ${{ secrets.BEN_MAPTILER_KEY }}
         run: |
-          API_URL="$BEN_API_URL_SECRET"
-          if [ -z "$API_URL" ]; then
-            API_URL="http://192.168.1.24:8080/api"
-          fi
           flutter build ios --release --no-codesign \
-            --dart-define=BEN_API_URL="$API_URL" \
+            --dart-define=BEN_API_URL="$BEN_API_URL_SECRET" \
             --dart-define=BEN_MAPTILER_KEY="$BEN_MAPTILER_KEY"
 
       - name: Create unsigned IPA
