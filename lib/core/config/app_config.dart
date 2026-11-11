@@ -7,8 +7,7 @@ class AppConfig {
       String.fromEnvironment('BEN_API_URL');
 
   static final String apiBaseUrl = _configuredApiUrl.trim().isNotEmpty
-      ? _configuredApiUrl.trim().replaceFirst(RegExp(r'/+
-), '')
+      ? _configuredApiUrl.trim().replaceFirst(RegExp(r'/+$'), '')
       : !kDebugMode
           ? ''
           : defaultTargetPlatform == TargetPlatform.android
