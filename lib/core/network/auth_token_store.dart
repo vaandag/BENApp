@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AuthTokenStore {
   static const tokenKey = 'ben_auth_token';
   static const _legacyTokenKey = 'ben_auth_token';
-  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  static final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   Future<String?> read() async {
     final secureValue = (await _secureStorage.read(key: tokenKey))?.trim();
