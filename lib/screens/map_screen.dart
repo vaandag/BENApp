@@ -146,9 +146,21 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   Future<void> _loadLocalState() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
+    final localDraftIds = widget.memories
+        .where((memory) => memory.ownerId == null)
+        .map((memory) => 'real-${memory.id}')
+        .toSet();
     setState(() {
-      _liked.addAll(prefs.getStringList('ben_map_liked_memories') ?? const []);
-      _saved.addAll(prefs.getStringList('ben_map_saved_memories') ?? const []);
+      // Server-owned pins take their state from the backend. Keep preference
+      // values only for debug/demo pins and drafts not uploaded yet.
+      _liked.addAll(
+        (prefs.getStringList('ben_map_liked_memories') ?? const [])
+            .where((id) => !id.startsWith('real-') || localDraftIds.contains(id)),
+      );
+      _saved.addAll(
+        (prefs.getStringList('ben_map_saved_memories') ?? const [])
+            .where((id) => !id.startsWith('real-') || localDraftIds.contains(id)),
+      );
       for (final memory in widget.memories) {
         if (memory.isFavorite) _liked.add('real-${memory.id}');
         if (memory.isPinned) _saved.add('real-${memory.id}');
