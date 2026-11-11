@@ -7,6 +7,7 @@ import 'package:video_player/video_player.dart';
 
 import '../models/memory.dart';
 import '../services/memory_repository.dart';
+import '../core/network/api_client.dart';
 import '../core/navigation/ben_routes.dart';
 
 class MemoryMapDetailScreen extends StatefulWidget {
@@ -31,6 +32,7 @@ class _MemoryMapDetailScreenState
 
   final MemoryRepository _repository =
       MemoryRepository();
+  final ApiClient _api = ApiClient();
 
   late Memory _memory;
 
@@ -57,7 +59,10 @@ class _MemoryMapDetailScreenState
       final file = File(videoPath);
       final controller = file.existsSync()
           ? VideoPlayerController.file(file)
-          : VideoPlayerController.networkUrl(Uri.parse(videoPath));
+          : VideoPlayerController.networkUrl(
+              Uri.parse(videoPath),
+              httpHeaders: _api.authorizationHeaders,
+            );
 
       await controller.initialize();
 
