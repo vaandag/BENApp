@@ -49,117 +49,96 @@ class MemoryStorageService {
   }
 
   Future<List<Memory>> loadMemories() async {
+    final file = await _getMemoriesFile();
+    final decoded = await _readJsonListWithBackup(file);
+    return decoded
+        .whereType<Map>()
+        .map((item) => _memoryFromJson(Map<String, dynamic>.from(item)))
+        .whereType<Memory>()
+        .toList();
+  }
+
+  Future<void> saveMemories(List<Memory> memories) async {
+    final file = await _getMemoriesFile();
+    final data = memories.map(_memoryToJson).toList();
+    await _writeJsonAtomically(file, jsonEncode(data));
+  }
+
+  Future<List<MemoryCollection>> loadCollections() async {
+    final file = await _getCollectionsFile();
+    final decoded = await _readJsonListWithBackup(file);
+    return decoded
+        .whereType<Map>()
+        .map((item) => MemoryCollection.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+  }
+
+  Future<void> saveCollections(List<MemoryCollection> collections) async {
+    final file = await _getCollectionsFile();
+    final data = collections.map((collection) => collection.toJson()).toList();
+    await _writeJsonAtomically(file, jsonEncode(data));
+  }
+
+  Future<List<dynamic>> _readJsonListWithBackup(File file) async {
+    final backup = File('${file.path}.bak');
+    if (!await file.exists() && !await backup.exists()) return <dynamic>[];
+
     try {
-      final file =
-          await _getMemoriesFile();
-
-      if (!await file.exists()) {
-        return [];
+      return await _decodeJsonList(file);
+    } catch (primaryError) {
+      if (!await backup.exists()) {
+        throw FormatException(
+          'BEN yerel kayıt dosyası okunamadı; kayıtların üzerine yazılmadı.',
+          primaryError,
+        );
       }
 
-      final content =
-          await file.readAsString();
-
-      if (content.trim().isEmpty) {
-        return [];
+      try {
+        final recovered = await _decodeJsonList(backup);
+        final restore = File('${file.path}.restore');
+        await backup.copy(restore.path);
+        if (await file.exists()) await file.delete();
+        await restore.rename(file.path);
+        return recovered;
+      } catch (backupError) {
+        throw FormatException(
+          'BEN yerel kayıt dosyası ve yedeği okunamadı.',
+          backupError,
+        );
       }
-
-      final decoded =
-          jsonDecode(content);
-
-      if (decoded is! List) {
-        return [];
-      }
-
-      return decoded
-          .whereType<Map>()
-          .map(
-            (item) => _memoryFromJson(
-              Map<String, dynamic>.from(
-                item,
-              ),
-            ),
-          )
-          .whereType<Memory>()
-          .toList();
-    } catch (_) {
-      return [];
     }
   }
 
-  Future<void> saveMemories(
-    List<Memory> memories,
-  ) async {
-    final file =
-        await _getMemoriesFile();
-
-    final data = memories
-        .map(_memoryToJson)
-        .toList();
-
-    await file.writeAsString(
-      jsonEncode(data),
-      flush: true,
-    );
-  }
-
-  Future<List<MemoryCollection>>
-      loadCollections() async {
-    try {
-      final file =
-          await _getCollectionsFile();
-
-      if (!await file.exists()) {
-        return [];
-      }
-
-      final content =
-          await file.readAsString();
-
-      if (content.trim().isEmpty) {
-        return [];
-      }
-
-      final decoded =
-          jsonDecode(content);
-
-      if (decoded is! List) {
-        return [];
-      }
-
-      return decoded
-          .whereType<Map>()
-          .map(
-            (item) =>
-                MemoryCollection.fromJson(
-              Map<String, dynamic>.from(
-                item,
-              ),
-            ),
-          )
-          .toList();
-    } catch (_) {
-      return [];
+  Future<List<dynamic>> _decodeJsonList(File file) async {
+    final content = await file.readAsString();
+    if (content.trim().isEmpty) {
+      throw const FormatException('Kayıt dosyası boş.');
     }
+    final decoded = jsonDecode(content);
+    if (decoded is! List) {
+      throw const FormatException('Kayıt dosyası beklenen liste biçiminde değil.');
+    }
+    return decoded;
   }
 
-  Future<void> saveCollections(
-    List<MemoryCollection> collections,
-  ) async {
-    final file =
-        await _getCollectionsFile();
+  Future<void> _writeJsonAtomically(File file, String content) async {
+    final temporary = File('${file.path}.tmp');
+    final backup = File('${file.path}.bak');
 
-    final data = collections
-        .map(
-          (collection) =>
-              collection.toJson(),
-        )
-        .toList();
+    await temporary.writeAsString(content, flush: true);
+    if (await file.exists()) {
+      await file.copy(backup.path);
+      await file.delete();
+    }
 
-    await file.writeAsString(
-      jsonEncode(data),
-      flush: true,
-    );
+    try {
+      await temporary.rename(file.path);
+    } catch (_) {
+      if (!await file.exists() && await backup.exists()) {
+        await backup.copy(file.path);
+      }
+      rethrow;
+    }
   }
 
   Map<String, dynamic> _memoryToJson(
