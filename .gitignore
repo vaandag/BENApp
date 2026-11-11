@@ -8,3 +8,8 @@ backend/public/uploads/avatars/*
 backend/public/uploads/media/*
 !backend/public/uploads/avatars/.gitkeep
 !backend/public/uploads/media/.gitkeep
+
+# Private Android release-signing material
+/android/key.properties
+/android/*.jks
+/android/*.keystore
