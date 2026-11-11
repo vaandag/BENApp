@@ -140,10 +140,11 @@ try {
     $name='u_'.$uid.'_'.bin2hex(random_bytes(10)).'.'.$allowed[$mime];
     $target=$dir.'/'.$name;
     if(!move_uploaded_file($tmp,$target)){http_response_code(500);echo json_encode(['ok'=>false,'message'=>'Medya kaydedilemedi.']);exit;}
-    $scheme=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http';
     $requestPath=parse_url($_SERVER['REQUEST_URI']??'/api/uploads/media',PHP_URL_PATH)?:'/api/uploads/media';
     $apiPrefix=preg_replace('#/uploads/media/?$#','',$requestPath)?:'/api';
-    $url=$scheme.'://'.($_SERVER['HTTP_HOST']??'localhost').rtrim($apiPrefix,'/').'/media/'.rawurlencode($name);
+    // Return a relative path so clients resolve it against their configured API
+    // origin; never trust the inbound Host header for an authenticated media URL.
+    $url=rtrim($apiPrefix,'/').'/media/'.rawurlencode($name);
     echo json_encode(['ok'=>true,'url'=>$url]);exit;
   }
   if ($path === 'auth/logout' && $method === 'POST') { $h=$_SERVER['HTTP_AUTHORIZATION']??''; if (preg_match('/Bearer\s+(.+)/i',$h,$mm)) { $pdo->prepare('DELETE FROM sessions WHERE token=?')->execute([trim($mm[1])]); } echo json_encode(['ok'=>true]); exit; }
