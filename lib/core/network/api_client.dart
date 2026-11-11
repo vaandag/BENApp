@@ -48,6 +48,12 @@ class ApiClient {
 
   String? get currentToken => token;
 
+  /// Bearer headers for protected media fetched outside the JSON request path.
+  Map<String, String> get authorizationHeaders => <String, String>{
+        'Accept': '*/*',
+        if (token?.isNotEmpty == true) 'Authorization': 'Bearer $token',
+      };
+
   Future<void> setToken(String? value) async {
     token = value?.trim().isEmpty == true ? null : value?.trim();
     final store = _tokenStore;
