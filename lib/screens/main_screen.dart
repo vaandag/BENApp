@@ -214,25 +214,44 @@ class _MainScreenState
 
   Future<Memory> _publishMemoryToServer(Memory memory) async {
     var remoteMemory = memory;
-    if (memory.photo != null && await memory.photo!.exists()) {
+    final hasRemoteMedia = memory.mediaUrl?.trim().isNotEmpty == true;
+
+    // A successful upload is persisted on the draft before the create call.
+    // On a retry, reuse that URL instead of uploading the same file again.
+    if (!hasRemoteMedia && memory.type == MemoryType.photo) {
+      final photo = memory.photo;
+      if (photo == null || !await photo.exists()) {
+        throw const ApiException(
+          'Fotoğraf dosyası bulunamadı. Anın yerel kaydı korunuyor; fotoğraf kurtarılmadan yüklenmeyecek.',
+        );
+      }
       final url = await _api.uploadFile(
-        memory.photo!.path,
+        photo.path,
         field: 'media',
         endpoint: 'uploads/media',
       );
       remoteMemory = memory.copyWith(mediaUrl: url);
       await _repository.replace(remoteMemory);
-    } else if (memory.video != null) {
-      final file = File(memory.video!);
-      if (await file.exists()) {
-        final url = await _api.uploadFile(
-          file.path,
-          field: 'media',
-          endpoint: 'uploads/media',
+    } else if (!hasRemoteMedia && memory.type == MemoryType.video) {
+      final videoPath = memory.video;
+      if (videoPath == null || videoPath.trim().isEmpty) {
+        throw const ApiException(
+          'Video dosyasının yolu bulunamadı. Anının yerel kaydı korunuyor.',
         );
-        remoteMemory = memory.copyWith(mediaUrl: url);
-        await _repository.replace(remoteMemory);
       }
+      final file = File(videoPath);
+      if (!await file.exists()) {
+        throw const ApiException(
+          'Video dosyası bulunamadı. Anının yerel kaydı korunuyor; video kurtarılmadan yüklenmeyecek.',
+        );
+      }
+      final url = await _api.uploadFile(
+        file.path,
+        field: 'media',
+        endpoint: 'uploads/media',
+      );
+      remoteMemory = memory.copyWith(mediaUrl: url);
+      await _repository.replace(remoteMemory);
     }
 
     final remoteId = await _phpRepository.create(
