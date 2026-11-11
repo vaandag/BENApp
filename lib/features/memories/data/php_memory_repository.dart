@@ -42,9 +42,13 @@ class PhpMemoryRepository {
     final type = MemoryType.values.where((e) => e.name == rawType).firstOrNull ?? MemoryType.text;
     final lat = _number(row['lat']);
     final lng = _number(row['lng']);
+    final mediaUrl = row['media_url']?.toString();
     return Memory(
       id: row['id'].toString(), ownerId: int.tryParse('${row['user_id'] ?? row['owner_id'] ?? ''}'), ownerUsername: row['username']?.toString(), ownerAvatarUrl: row['avatar_url']?.toString(), type: type,
-      title: row['title']?.toString(), mediaUrl: row['media_url']?.toString(), text: row['body']?.toString(),
+      title: row['title']?.toString(),
+      mediaUrl: mediaUrl,
+      video: type == MemoryType.video ? mediaUrl : null,
+      text: row['body']?.toString(),
       description: row['place']?.toString(),
       privacy: row['privacy']?.toString() ?? 'public',
       postType: row['post_type']?.toString() ?? 'memory',
