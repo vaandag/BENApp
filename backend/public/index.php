@@ -28,7 +28,15 @@ try {
     foreach (new DirectoryIterator($legacyMediaDir) as $legacyFile) {
       if ($legacyFile->isDot() || !$legacyFile->isFile()) continue;
       $destination = $privateMediaDir . '/' . basename($legacyFile->getFilename());
-      if (!is_file($destination)) @rename($legacyFile->getPathname(), $destination);
+      if (!is_file($destination)) {
+        @rename($legacyFile->getPathname(), $destination);
+        if (!is_file($destination) && @copy($legacyFile->getPathname(), $destination)) {
+          if (filesize($destination) === $legacyFile->getSize()) @unlink($legacyFile->getPathname());
+        }
+      } else {
+        // Remove duplicate public copies after the private copy is confirmed.
+        if (filesize($destination) === $legacyFile->getSize()) @unlink($legacyFile->getPathname());
+      }
     }
   }
   // Old app versions persisted public upload URLs in the memories table.
