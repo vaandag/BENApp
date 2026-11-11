@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -7,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../core/theme/app_tokens.dart';
 import '../core/config/map_config.dart';
+import '../core/network/api_client.dart';
 import '../core/navigation/ben_routes.dart';
 import 'memory_fullscreen_viewer.dart';
 import 'ben_3d_map_screen.dart';
@@ -46,6 +48,7 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   final MapController _controller = MapController();
+  final ApiClient _api = ApiClient();
   final LocationService _locationService = LocationService();
   late final AnimationController _pulse;
 
@@ -117,20 +120,24 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   List<_MapPin> get _pins {
+    // Real memory pins stay available in every map filter.
     final real = widget.memories
         .where((m) =>
             m.hasLocation &&
             !m.isExpired &&
-            (_filter == 0 || _filter == 1) &&
             m.latitude!.isFinite &&
             m.longitude!.isFinite)
         .map(_MapPin.fromMemory);
-    final demo = _demoPins.where((p) {
-      if (_filter == 1) return p.kind == _MapPinKind.memory;
-      if (_filter == 2) return p.kind == _MapPinKind.person;
-      if (_filter == 3) return p.kind == _MapPinKind.place;
-      return true;
-    });
+
+    // Sample names and locations must never appear in release builds.
+    final demo = kDebugMode
+        ? _demoPins.where((p) {
+            if (_filter == 1) return p.kind == _MapPinKind.memory;
+            if (_filter == 2) return p.kind == _MapPinKind.person;
+            if (_filter == 3) return p.kind == _MapPinKind.place;
+            return true;
+          })
+        : const <_MapPin>[];
     return [...real, ...demo];
   }
 
@@ -142,6 +149,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     setState(() {
       _liked.addAll(prefs.getStringList('ben_map_liked_memories') ?? const []);
       _saved.addAll(prefs.getStringList('ben_map_saved_memories') ?? const []);
+      for (final memory in widget.memories) {
+        if (memory.isFavorite) _liked.add('real-${memory.id}');
+        if (memory.isPinned) _saved.add('real-${memory.id}');
+      }
       _seen.addAll(prefs.getStringList('ben_memory_seen') ?? const []);
     });
   }
@@ -324,19 +335,69 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   int _commentCount(_MapPin pin) => pin.comments + (_comments[pin.id]?.length ?? 0);
 
   Future<void> _toggleLike(_MapPin pin) async {
+    final wasLiked = _liked.contains(pin.id);
     setState(() {
-      if (!_liked.add(pin.id)) _liked.remove(pin.id);
+      if (wasLiked) {
+        _liked.remove(pin.id);
+      } else {
+        _liked.add(pin.id);
+      }
     });
-    await _persistLocalState();
+    try {
+      final id = int.tryParse(pin.memory?.id ?? '');
+      if (id != null && pin.memory?.ownerId != null) {
+        await _api.post('memories/$id/like');
+      }
+      await _persistLocalState();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        if (wasLiked) {
+          _liked.add(pin.id);
+        } else {
+          _liked.remove(pin.id);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Beğeni kaydedilemedi. Tekrar dene.')),
+      );
+    }
   }
 
   Future<void> _toggleSave(_MapPin pin) async {
+    final wasSaved = _saved.contains(pin.id);
     setState(() {
-      if (!_saved.add(pin.id)) _saved.remove(pin.id);
+      if (wasSaved) {
+        _saved.remove(pin.id);
+      } else {
+        _saved.add(pin.id);
+      }
     });
-    await _persistLocalState();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_saved.contains(pin.id) ? 'BEN izi kaydedildi.' : 'BEN izi kayıtlardan çıkarıldı.')));
+    try {
+      final id = int.tryParse(pin.memory?.id ?? '');
+      if (id != null && pin.memory?.ownerId != null) {
+        await _api.post('memories/$id/save');
+      }
+      await _persistLocalState();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_saved.contains(pin.id)
+            ? 'BEN izi kaydedildi.'
+            : 'BEN izi kayıtlardan çıkarıldı.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        if (wasSaved) {
+          _saved.add(pin.id);
+        } else {
+          _saved.remove(pin.id);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kayıt işlemi tamamlanamadı. Tekrar dene.')),
+      );
+    }
   }
 
   Future<void> _showComments(_MapPin pin) async {
