@@ -109,6 +109,7 @@ try {
     $uid=0; $h=$_SERVER['HTTP_AUTHORIZATION']??'';
     if(preg_match('/Bearer\s+(.+)/i',$h,$mm)){ $st=$pdo->prepare('SELECT user_id FROM sessions WHERE token=? AND expires_at>CURRENT_TIMESTAMP');$st->execute([trim($mm[1])]);$uid=(int)$st->fetchColumn(); }
     if($uid<=0){http_response_code(401);echo json_encode(['ok'=>false,'message'=>'Oturum gerekli.']);exit;}
+    ben_enforce_rate_limit($pdo, 'avatar-upload-user:'.$uid, 12, 3600);
     if(!isset($_FILES['avatar'])||$_FILES['avatar']['error']!==UPLOAD_ERR_OK){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Profil fotoğrafı alınamadı.']);exit;}
     $tmp=$_FILES['avatar']['tmp_name'];
     $size=(int)($_FILES['avatar']['size']??0);
@@ -127,6 +128,7 @@ try {
   if ($path === 'uploads/media' && $method === 'POST') {
     $uid=0;$h=$_SERVER['HTTP_AUTHORIZATION']??'';if(preg_match('/Bearer\s+(.+)/i',$h,$mm)){ $st=$pdo->prepare('SELECT user_id FROM sessions WHERE token=? AND expires_at>CURRENT_TIMESTAMP');$st->execute([trim($mm[1])]);$uid=(int)$st->fetchColumn(); }
     if($uid<=0){http_response_code(401);echo json_encode(['ok'=>false,'message'=>'Oturum gerekli.']);exit;}
+    ben_enforce_rate_limit($pdo, 'media-upload-user:'.$uid, 20, 3600);
     if(!isset($_FILES['media'])||$_FILES['media']['error']!==UPLOAD_ERR_OK){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Medya alınamadı.']);exit;}
     $tmp=$_FILES['media']['tmp_name'];
     $size=(int)($_FILES['media']['size']??0);
@@ -160,6 +162,11 @@ try {
     $username = trim((string)($input['username'] ?? ''));
     $email = strtolower(trim((string)($input['email'] ?? '')));
     $password = (string)($input['password'] ?? '');
+    $ipHash = hash('sha256', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+    ben_enforce_rate_limit($pdo, 'register-ip:'.$ipHash, 10, 3600);
+    if ($email !== '') {
+      ben_enforce_rate_limit($pdo, 'register-email:'.hash('sha256', $email), 3, 86400);
+    }
     if (strlen($username) < 3) { http_response_code(422); echo json_encode(['ok'=>false,'message'=>'Kullanıcı adı en az 3 karakter olmalı.']); exit; }
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { http_response_code(422); echo json_encode(['ok'=>false,'message'=>'Geçerli bir e-posta gir.']); exit; }
     if (strlen($password) < 6) { http_response_code(422); echo json_encode(['ok'=>false,'message'=>'Şifre en az 6 karakter olmalı.']); exit; }
@@ -171,6 +178,9 @@ try {
   }
   if ($path === 'auth/login' && $method === 'POST') {
     $email = strtolower(trim((string)($input['email'] ?? ''))); $password=(string)($input['password'] ?? '');
+    $ipHash = hash('sha256', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+    ben_enforce_rate_limit($pdo, 'login-ip:'.$ipHash, 80, 3600);
+    ben_enforce_rate_limit($pdo, 'login-email:'.hash('sha256', $email), 10, 900);
     $s=$pdo->prepare('SELECT id,username,email,password_hash,xp,coins,bio,avatar_url,bio_font,bio_color FROM users WHERE email=?'); $s->execute([$email]); $u=$s->fetch();
     if (!$u || !password_verify($password,$u['password_hash'])) { http_response_code(401); echo json_encode(['ok'=>false,'message'=>'E-posta veya şifre hatalı.']); exit; }
     unset($u['password_hash']);
@@ -343,7 +353,9 @@ try {
     $s->execute([$mid]); echo json_encode($s->fetchAll()); exit;
   }
   if ($path === 'comments' && $method === 'POST') {
-    $mid=(int)($input['memory_id']??0); $uid=ben_require_user_id($pdo); $body=trim((string)($input['body']??''));
+    $mid=(int)($input['memory_id']??0); $uid=ben_require_user_id($pdo);
+    ben_enforce_rate_limit($pdo, 'comments-user:'.$uid, 80, 3600);
+    $body=trim((string)($input['body']??''));
     if($mid<=0||$body===''||strlen($body)>5000){ben_error('Geçerli bir yorum gerekli (en fazla 5000 karakter).',422,'INVALID_COMMENT');}
     $visible=$pdo->prepare("SELECT user_id FROM memories m WHERE m.id=? AND (m.expires_at IS NULL OR m.expires_at>CURRENT_TIMESTAMP) AND (m.privacy='public' OR m.user_id=? OR (m.privacy='followers' AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=m.user_id)))");
     $visible->execute([$mid,$uid,$uid]); $to=(int)$visible->fetchColumn();
@@ -360,6 +372,7 @@ try {
   if ($path === 'messages' && $method === 'GET') { $uid=ben_require_user_id($pdo);$other=(int)($_GET['with_user_id']??0);if($other>0){$s=$pdo->prepare('SELECT * FROM messages WHERE (sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?) ORDER BY id');$s->execute([$uid,$other,$other,$uid]);}else{$s=$pdo->prepare('SELECT * FROM messages WHERE sender_id=? OR receiver_id=? ORDER BY id');$s->execute([$uid,$uid]);}echo json_encode($s->fetchAll());exit; }
   if ($path === 'messages' && $method === 'POST') {
     $uid=ben_require_user_id($pdo);
+    ben_enforce_rate_limit($pdo, 'messages-user:'.$uid, 120, 3600);
     $receiver=(int)($input['receiver_id']??0);
     $body=trim((string)($input['body']??''));
     if($receiver<=0||$receiver===$uid||$body===''||strlen($body)>5000){
