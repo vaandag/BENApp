@@ -163,6 +163,24 @@ class _MainScreenState
 
         try {
           final storedMemory = await _publishMemoryToServer(memory);
+
+          // A user may delete a draft while its upload is in flight. If the
+          // queue entry or local record disappeared, remove the server copy
+          // instead of resurrecting the deleted memory.
+          final stillQueued = (await _pendingMemorySync.ids()).contains(id);
+          final stillStored = await _repository.getById(id);
+          if (!stillQueued || stillStored == null) {
+            final remoteId = int.tryParse(storedMemory.id);
+            if (remoteId != null) {
+              try {
+                await _api.delete('memories/$remoteId');
+              } catch (_) {
+                // A later reconciliation can clean up a failed compensating delete.
+              }
+            }
+            continue;
+          }
+
           await _pendingMemorySync.remove(id);
           await _repository.remove(memory.id);
           await _repository.add(storedMemory);
@@ -285,9 +303,12 @@ class _MainScreenState
   Future<void> _deleteMemory(
     Memory memory,
   ) async {
+    final pendingIds = await _pendingMemorySync.ids();
+    final isPendingLocal = pendingIds.contains(memory.id);
+
     try {
       final id = int.tryParse(memory.id);
-      if (id != null && id > 0) {
+      if (!isPendingLocal && id != null && id > 0 && memory.ownerId != null) {
         await _api.delete('memories/$id');
       }
     } catch (_) {
