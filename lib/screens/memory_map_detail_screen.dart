@@ -60,7 +60,7 @@ class _MemoryMapDetailScreenState
       final controller = file.existsSync()
           ? VideoPlayerController.file(file)
           : VideoPlayerController.networkUrl(
-              Uri.parse(videoPath),
+              _api.resolveMediaUri(videoPath),
               httpHeaders: _api.authorizationHeaders,
             );
 
