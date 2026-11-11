@@ -241,7 +241,7 @@ class _StartPanelState extends State<_StartPanel> {
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-        decoration: BoxDecoration(color: const Color(0xE9081117), borderRadius: BorderRadius.circular(26), border: Border.all(color: BenTokens.cyan.withValues(alpha: .24))),
+        decoration: BoxDecoration(color: const Color(0xE90E211E), borderRadius: BorderRadius.circular(26), border: Border.all(color: BenTokens.cyan.withValues(alpha: .24))),
         child: Column(children: [
           TextField(controller: _controller, onChanged: widget.onTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800), textInputAction: TextInputAction.done, decoration: const InputDecoration(labelText: 'Yayın başlığı', labelStyle: TextStyle(color: Colors.white70), hintText: 'BEN CANLI', hintStyle: TextStyle(color: Colors.white38), border: InputBorder.none)),
           Text(widget.status, style: TextStyle(color: Colors.white.withValues(alpha: .56), fontSize: 10, fontWeight: FontWeight.w700)),

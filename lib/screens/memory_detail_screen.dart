@@ -269,7 +269,7 @@ class _MemoryDetailScreenState
           decoration:
               BoxDecoration(
             color:
-                const Color(0xFF172033),
+                const Color(0xFF142D28),
             borderRadius:
                 BorderRadius.circular(
               26,
@@ -289,7 +289,7 @@ class _MemoryDetailScreenState
             BorderRadius.circular(26),
         child: Container(
           color:
-              const Color(0xFF172033),
+              const Color(0xFF142D28),
           child: Stack(
             alignment:
                 Alignment.center,
@@ -356,7 +356,7 @@ class _MemoryDetailScreenState
             const EdgeInsets.all(28),
         decoration: BoxDecoration(
           color:
-              const Color(0xFFF0F0EC),
+              const Color(0xFFF1F6F3),
           borderRadius:
               BorderRadius.circular(26),
         ),
@@ -383,7 +383,7 @@ class _MemoryDetailScreenState
                 fontWeight:
                     FontWeight.w500,
                 color:
-                    Color(0xFF172033),
+                    Color(0xFF142D28),
               ),
             ),
           ],
@@ -398,7 +398,7 @@ class _MemoryDetailScreenState
         height: 320,
         decoration: BoxDecoration(
           color:
-              const Color(0xFFECEDE9),
+              const Color(0xFFEAF2EF),
           borderRadius:
               BorderRadius.circular(26),
         ),
@@ -412,7 +412,7 @@ class _MemoryDetailScreenState
               decoration:
                   const BoxDecoration(
                 color:
-                    Color(0xFF172033),
+                    Color(0xFF142D28),
                 shape:
                     BoxShape.circle,
               ),
@@ -456,7 +456,7 @@ class _MemoryDetailScreenState
           _typeIcon(memory.type),
           size: 64,
           color:
-              const Color(0xFF172033),
+              const Color(0xFF142D28),
         ),
       ),
     );
@@ -641,7 +641,7 @@ class _ErrorContent
       height: 320,
       decoration: BoxDecoration(
         color:
-            const Color(0xFFF0F1EE),
+            const Color(0xFFF1F6F3),
         borderRadius:
             BorderRadius.circular(26),
       ),
@@ -653,7 +653,7 @@ class _ErrorContent
             icon,
             size: 54,
             color:
-                const Color(0xFF172033),
+                const Color(0xFF142D28),
           ),
           const SizedBox(height: 14),
           Text(
@@ -700,7 +700,7 @@ class _InfoRow
             icon,
             size: 19,
             color:
-                const Color(0xFF172033),
+                const Color(0xFF142D28),
           ),
         ),
         const SizedBox(

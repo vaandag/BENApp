@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../models/memory.dart';
 import '../../../services/auth_service.dart';
 import '../../../widgets/ben_button.dart';
@@ -356,7 +357,7 @@ class _ChatTile extends StatelessWidget {
             const Text(
               '●',
               style: TextStyle(
-                color: Color(0xFFFFD200),
+                color: BenTokens.cyan,
               ),
             ),
         ],
@@ -386,8 +387,8 @@ class _Avatar extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFFFFD200),
-            Color(0xFFFF8A00),
+            BenTokens.cyanBright,
+            BenTokens.cyan,
           ],
         ),
       ),
@@ -403,7 +404,7 @@ class _Avatar extends StatelessWidget {
 
   Widget _i() {
     return Container(
-      color: const Color(0xFF1A2435),
+      color: BenTokens.panel2,
       alignment: Alignment.center,
       child: Text(
         chat.initials,
@@ -731,7 +732,7 @@ class _ChatScreenState extends State<_ChatScreen> {
                             ),
                             decoration: BoxDecoration(
                               color: m.mine
-                                  ? const Color(0xFFFFD200)
+                                  ? BenTokens.cyan
                                   : Theme.of(c)
                                       .colorScheme
                                       .surface,
@@ -749,9 +750,7 @@ class _ChatScreenState extends State<_ChatScreen> {
                                     fontWeight:
                                         FontWeight.w600,
                                     color: m.mine
-                                        ? const Color(
-                                            0xFF101217,
-                                          )
+                                        ? BenTokens.ink
                                         : null,
                                   ),
                                 ),
@@ -762,9 +761,7 @@ class _ChatScreenState extends State<_ChatScreen> {
                                         : 'Gönderildi ✓',
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: const Color(
-                                        0xFF101217,
-                                      ).withValues(alpha: .65),
+                                      color: BenTokens.ink.withValues(alpha: .65),
                                     ),
                                   ),
                               ],

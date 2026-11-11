@@ -426,8 +426,8 @@ class _MainScreenState
                   end: Alignment.bottomRight,
                   colors: dark
                       ? const [
-                          Color(0xEE0C1923),
-                          Color(0xE5081119),
+                          Color(0xEE0E211E),
+                          Color(0xE607110F),
                         ]
                       : const [
                           Color(0xF7FFFFFF),
@@ -501,7 +501,7 @@ class _MainScreenState
             height: 64,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: dark ? const Color(0xAA0B1721) : const Color(0xEFFFFFFF),
+              color: dark ? const Color(0xAA0E211E) : const Color(0xEFFFFFFF),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: BenTokens.cyan.withValues(alpha: .14)),
               boxShadow: [
@@ -623,7 +623,7 @@ class _MainScreenState
   Widget _navigationItem(BENNavIconType type, String label, int index) {
     final selected = _selectedIndex == index;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final selectedColor = dark ? BenTokens.cyan : const Color(0xFF0E1014);
+    final selectedColor = dark ? BenTokens.cyan : const Color(0xFF07110F);
     final mutedColor = dark
         ? Colors.white.withValues(alpha: .48)
         : Colors.black.withValues(alpha: .42);

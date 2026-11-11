@@ -102,7 +102,7 @@ class _MemoryFullscreenViewerState extends State<MemoryFullscreenViewer> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      backgroundColor: const Color(0xFF0A131B),
+      backgroundColor: const Color(0xFF091A17),
       builder: (sheetContext) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),

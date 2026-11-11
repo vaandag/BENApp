@@ -9,21 +9,22 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/network/api_client.dart';
+import '../core/theme/app_tokens.dart';
 import '../models/memory.dart';
 import '../services/auth_service.dart';
 import 'community_screen.dart';
 import 'memory_detail_screen.dart';
 import 'notifications_screen.dart';
 
-const _night = Color(0xFF07110F);
-const _panel = Color(0xFF0E211E);
-const _panelRaised = Color(0xFF142D28);
-const _line = Color(0xFF205D53);
-const _teal = Color(0xFF31D5C3);
-const _tealSoft = Color(0xFF85C8BD);
-const _gold = Color(0xFFE6C45D);
-const _white = Color(0xFFE8F5F1);
-const _muted = Color(0xFF9ABBB3);
+const _night = BenTokens.night;
+const _panel = BenTokens.panel;
+const _panelRaised = BenTokens.panel2;
+const _line = BenTokens.line;
+const _teal = BenTokens.cyan;
+const _tealSoft = BenTokens.cyanSoft;
+const _gold = BenTokens.gold;
+const _white = BenTokens.white;
+const _muted = BenTokens.muted;
 
 class ProfileScreen extends StatefulWidget {
   final List<Memory> memories;

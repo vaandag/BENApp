@@ -129,7 +129,7 @@ class _CreateMemoryScreenState extends State<CreateMemoryScreen> {
           child: Container(
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 22),
             decoration: BoxDecoration(
-              color: dark ? const Color(0xFF101A27) : Colors.white,
+              color: dark ? const Color(0xFF142D28) : Colors.white,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
               border: Border.all(color: BenTokens.cyan.withValues(alpha: .16)),
             ),

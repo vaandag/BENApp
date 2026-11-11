@@ -29,7 +29,7 @@ class BenSurface extends StatelessWidget {
 
     final surfaceColor = glass
         ? (dark
-            ? const Color(0x99101F2A)
+            ? const Color(0x99142D28)
             : const Color(0xE6FFFFFF))
         : (dark ? BenTokens.panel : Colors.white);
 

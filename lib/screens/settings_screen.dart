@@ -59,7 +59,7 @@ class SettingsScreen extends StatelessWidget {
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: dark
-                  ? const Color(0xFF111A25)
+                  ? const Color(0xFF0E211E)
                   : const Color(0xFFFFF6C9),
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
@@ -78,7 +78,7 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   child: const Icon(
                     Icons.auto_awesome_rounded,
-                    color: Color(0xFF0E1014),
+                    color: Color(0xFF07110F),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -166,7 +166,7 @@ class _ThemeChoice extends StatelessWidget {
                   ),
                   child: Icon(
                     icon,
-                    color: const Color(0xFF0E1014),
+                    color: const Color(0xFF07110F),
                   ),
                 ),
                 const SizedBox(width: 12),

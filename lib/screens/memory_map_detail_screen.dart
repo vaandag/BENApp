@@ -172,7 +172,7 @@ class _MemoryMapDetailScreenState
 
     return Scaffold(
       backgroundColor:
-          const Color(0xFF0B1118),
+          const Color(0xFF07110F),
       body: Stack(
         children: [
           Positioned.fill(
@@ -368,7 +368,7 @@ class _MemoryMapMarker
               shape: BoxShape.circle,
               border: Border.all(
                 color:
-                    const Color(0xFF172033),
+                    const Color(0xFF142D28),
                 width: selected ? 3 : 2,
               ),
               boxShadow: const [
@@ -388,7 +388,7 @@ class _MemoryMapMarker
                   : Container(
                       color:
                           const Color(
-                        0xFF172033,
+                        0xFF142D28,
                       ),
                       child: Icon(
                         _typeIcon(
@@ -407,7 +407,7 @@ class _MemoryMapMarker
               width: 3,
               height: 18,
               color:
-                  const Color(0xFF172033),
+                  const Color(0xFF142D28),
             ),
           if (selected)
             Container(
@@ -416,7 +416,7 @@ class _MemoryMapMarker
               decoration:
                   const BoxDecoration(
                 color:
-                    Color(0xFF172033),
+                    Color(0xFF142D28),
                 shape: BoxShape.circle,
               ),
             ),
@@ -645,7 +645,7 @@ class _Preview
       height: 92,
       decoration: BoxDecoration(
         color:
-            const Color(0xFFF0F1EE),
+            const Color(0xFFF1F6F3),
         borderRadius:
             BorderRadius.circular(18),
       ),
@@ -654,7 +654,7 @@ class _Preview
           _typeIcon(memory.type),
           size: 34,
           color:
-              const Color(0xFF172033),
+              const Color(0xFF142D28),
         ),
       ),
     );
@@ -697,7 +697,7 @@ class _ActionButton
     return Expanded(
       child: Material(
         color: active
-            ? const Color(0xFF172033)
+            ? const Color(0xFF142D28)
             : const Color(0xFFF2F3F0),
         borderRadius:
             BorderRadius.circular(15),
@@ -718,7 +718,7 @@ class _ActionButton
                   color: active
                       ? Colors.white
                       : const Color(
-                          0xFF172033,
+                          0xFF142D28,
                         ),
                 ),
                 const SizedBox(height: 3),
@@ -731,7 +731,7 @@ class _ActionButton
                     color: active
                         ? Colors.white
                         : const Color(
-                            0xFF172033,
+                            0xFF142D28,
                           ),
                   ),
                 ),

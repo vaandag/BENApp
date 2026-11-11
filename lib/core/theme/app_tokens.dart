@@ -1,25 +1,28 @@
 import 'package:flutter/material.dart';
 
 /// BEN görsel sisteminin tek kaynağı.
-/// Görsel dil: gece / cam / cyan ışık / ince çizgiler.
+/// Görsel dil: koyu petrol / teal ışık / ince çerçeveler.
 class BenTokens {
   BenTokens._();
 
-  static const cyan = Color(0xFF63F3FF);
-  static const cyanBright = Color(0xFFC9FBFF);
-  static const gold = cyan;
-  static const goldBright = cyanBright;
+  // Profil ekranındaki koyu petrol / teal dili tüm uygulamanın ortak paletidir.
+  static const cyan = Color(0xFF31D5C3);
+  static const cyanBright = Color(0xFFB7F5EA);
+  static const cyanSoft = Color(0xFF85C8BD);
+  static const cyanDeep = Color(0xFF1D9F92);
+  static const gold = Color(0xFFE6C45D);
+  static const goldBright = Color(0xFFF1D987);
 
-  static const cyanDeep = Color(0xFF17B9C8);
-  static const ink = Color(0xFF061017);
-  static const night = Color(0xFF05090F);
-  static const night2 = Color(0xFF08131C);
-  static const navy = Color(0xFF0B1B27);
-  static const panel = Color(0xFF0C1A25);
-  static const panel2 = Color(0xFF102431);
-  static const paper = Color(0xFFF3F8F9);
-  static const white = Color(0xFFF7FEFF);
-  static const muted = Color(0xFF8FA9B2);
+  static const ink = Color(0xFF07110F);
+  static const night = Color(0xFF07110F);
+  static const night2 = Color(0xFF091A17);
+  static const navy = Color(0xFF0E211E);
+  static const panel = Color(0xFF0E211E);
+  static const panel2 = Color(0xFF142D28);
+  static const line = Color(0xFF205D53);
+  static const paper = Color(0xFFF1F6F3);
+  static const white = Color(0xFFE8F5F1);
+  static const muted = Color(0xFF9ABBB3);
   static const danger = Color(0xFFFF6B7A);
   static const success = Color(0xFF67F5B2);
 

@@ -238,7 +238,7 @@ class _CollectionsScreenState
       floatingActionButton:
           FloatingActionButton(
         backgroundColor:
-            const Color(0xFF172033),
+            const Color(0xFF142D28),
         foregroundColor:
             Colors.white,
         onPressed:
@@ -317,7 +317,7 @@ class _EmptyCollections
               decoration:
                   BoxDecoration(
                 color:
-                    const Color(0xFFF0F1EE),
+                    const Color(0xFFF1F6F3),
                 borderRadius:
                     BorderRadius.circular(
                   26,
@@ -327,7 +327,7 @@ class _EmptyCollections
                 Icons.folder_outlined,
                 size: 38,
                 color:
-                    Color(0xFF172033),
+                    Color(0xFF142D28),
               ),
             ),
             const SizedBox(

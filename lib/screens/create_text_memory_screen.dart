@@ -82,7 +82,7 @@ class _CreateTextMemoryScreenState
               child: const Text(
                 'Kaydet',
                 style: TextStyle(
-                  color: Color(0xFF172033),
+                  color: Color(0xFF142D28),
                   fontWeight:
                       FontWeight.w700,
                 ),
@@ -133,7 +133,7 @@ class _CreateTextMemoryScreenState
               fontSize: 19,
               height: 1.55,
               color:
-                  Color(0xFF172033),
+                  Color(0xFF142D28),
             ),
           ),
         ),

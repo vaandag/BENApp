@@ -337,10 +337,10 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: BenTokens.cyan,
-                    border: Border.all(color: const Color(0xFF061116), width: 2.4),
+                    border: Border.all(color: const Color(0xFF07110F), width: 2.4),
                     boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 14, offset: Offset(0, 6))],
                   ),
-                  child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF061116), size: 20),
+                  child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF07110F), size: 20),
                 ),
               ),
               const SizedBox(height: 2),
@@ -791,7 +791,7 @@ class _WalkPad extends StatelessWidget {
         width: 132,
         height: 132,
         decoration: BoxDecoration(
-          color: const Color(0xCC081117),
+          color: const Color(0xCC0E211E),
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white.withValues(alpha: .12)),
           boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 20, offset: Offset(0, 8))],
@@ -976,7 +976,7 @@ class _MemoryThumb extends StatelessWidget {
       width: 78,
       height: 92,
       decoration: BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [BenTokens.cyan.withValues(alpha: .24), const Color(0xFF10242C)]),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [BenTokens.cyan.withValues(alpha: .24), const Color(0xFF142D28)]),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: BenTokens.cyan.withValues(alpha: .18)),
       ),

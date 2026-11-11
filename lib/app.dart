@@ -67,7 +67,7 @@ class _BENAppState extends State<BENApp> {
     final Widget home;
     if (_booting) {
       home = const ColoredBox(
-        color: Color(0xFF080B12),
+        color: Color(0xFF07110F),
         child: SizedBox.expand(),
       );
     } else if (!_authenticated || _user == null) {

@@ -188,11 +188,11 @@ class MemoryCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       height: 180,
-      color: const Color(0xFFF0F1EE),
+      color: const Color(0xFFF1F6F3),
       child: Icon(
         _typeIcon(memory.type),
         size: 48,
-        color: const Color(0xFF172033),
+        color: const Color(0xFF142D28),
       ),
     );
   }
@@ -347,7 +347,7 @@ class _VideoPreviewState
       return Container(
         width: double.infinity,
         height: 205,
-        color: const Color(0xFF172033),
+        color: const Color(0xFF142D28),
         child: const Center(
           child: CircularProgressIndicator(
             color: Colors.white,
@@ -359,7 +359,7 @@ class _VideoPreviewState
     return Container(
       width: double.infinity,
       height: 205,
-      color: const Color(0xFF172033),
+      color: const Color(0xFF142D28),
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -427,7 +427,7 @@ class _VideoPreviewState
                       ? Icons.pause_rounded
                       : Icons.play_arrow_rounded,
                   color:
-                      const Color(0xFF172033),
+                      const Color(0xFF142D28),
                   size: 34,
                 ),
               ),
@@ -558,7 +558,7 @@ class _TextMemoryPreview
       ),
       decoration:
           const BoxDecoration(
-        color: Color(0xFFF0F0EC),
+        color: Color(0xFFF1F6F3),
       ),
       child: Column(
         crossAxisAlignment:
@@ -583,7 +583,7 @@ class _TextMemoryPreview
                   FontWeight.w500,
               letterSpacing: -0.2,
               color:
-                  Color(0xFF172033),
+                  Color(0xFF142D28),
             ),
           ),
         ],
@@ -612,7 +612,7 @@ class _LocationPreview
       height: 190,
       decoration:
           const BoxDecoration(
-        color: Color(0xFFECEDE9),
+        color: Color(0xFFEAF2EF),
       ),
       child: Center(
         child: Column(
@@ -625,7 +625,7 @@ class _LocationPreview
               decoration:
                   const BoxDecoration(
                 color:
-                    Color(0xFF172033),
+                    Color(0xFF142D28),
                 shape:
                     BoxShape.circle,
               ),
@@ -682,7 +682,7 @@ class _TypeIcon
         MemoryCard._typeIcon(type),
         size: 18,
         color:
-            const Color(0xFF172033),
+            const Color(0xFF142D28),
       ),
     );
   }
@@ -707,12 +707,12 @@ class _ErrorPreview
       width: double.infinity,
       height: 205,
       color:
-          const Color(0xFFF0F1EE),
+          const Color(0xFFF1F6F3),
       child: Icon(
         icon,
         size: 48,
         color:
-            const Color(0xFF172033),
+            const Color(0xFF142D28),
       ),
     );
   }

@@ -110,11 +110,11 @@ class _BENParticleSplashScreenState extends State<BENParticleSplashScreen>
   @override
   Widget build(BuildContext context) {
     if (!_ready) {
-      return const Scaffold(backgroundColor: Color(0xFF05070A));
+      return const Scaffold(backgroundColor: Color(0xFF07110F));
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF05070A),
+      backgroundColor: const Color(0xFF07110F),
       body: RepaintBoundary(
         child: AnimatedBuilder(
           animation: _controller,
@@ -180,7 +180,7 @@ class _BENLogoParticlePainter extends CustomPainter {
   final double progress;
   final List<Offset> maskPoints;
 
-  static const _bg = Color(0xFF05070A);
+  static const _bg = Color(0xFF07110F);
   static const _gold = Color(0xFFFFD21A);
   static const _hot = Color(0xFFFFF3A0);
 

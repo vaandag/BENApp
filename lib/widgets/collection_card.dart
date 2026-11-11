@@ -44,7 +44,7 @@ class CollectionCard
                 decoration:
                     BoxDecoration(
                   color:
-                      const Color(0xFFF0F1EE),
+                      const Color(0xFFF1F6F3),
                   borderRadius:
                       BorderRadius.circular(
                     18,
@@ -54,7 +54,7 @@ class CollectionCard
                   Icons.folder_rounded,
                   size: 32,
                   color:
-                      Color(0xFF172033),
+                      Color(0xFF142D28),
                 ),
               ),
               const SizedBox(

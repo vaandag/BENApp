@@ -553,7 +553,7 @@ class _SquareButton
           child: Icon(
             icon,
             color: active
-                ? const Color(0xFF0E1014)
+                ? const Color(0xFF07110F)
                 : theme.colorScheme.onSurface,
           ),
         ),
@@ -621,7 +621,7 @@ class _MiniAction
             icon,
             size: 19,
             color:
-                const Color(0xFF172033),
+                const Color(0xFF142D28),
           ),
         ),
       ),

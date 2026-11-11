@@ -163,7 +163,7 @@ class _MemoryOption extends StatelessWidget {
               width: 50,
               height: 50,
               decoration: const BoxDecoration(
-                color: Color(0xFF172033),
+                color: Color(0xFF142D28),
                 shape: BoxShape.circle,
               ),
               child: Icon(

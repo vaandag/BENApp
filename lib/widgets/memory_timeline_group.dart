@@ -255,7 +255,7 @@ class _TimelineMemoryCard
       height: 74,
       decoration: BoxDecoration(
         color:
-            const Color(0xFFF0F1EE),
+            const Color(0xFFF1F6F3),
         borderRadius:
             BorderRadius.circular(14),
       ),
@@ -263,7 +263,7 @@ class _TimelineMemoryCard
         icon,
         size: 30,
         color:
-            const Color(0xFF172033),
+            const Color(0xFF142D28),
       ),
     );
   }

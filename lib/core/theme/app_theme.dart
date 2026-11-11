@@ -7,7 +7,7 @@ class AppTheme {
   static const Color navy = BenTokens.navy;
   static const Color paper = BenTokens.paper;
   static const Color gold = BenTokens.gold;
-  static const Color goldSoft = BenTokens.cyanBright;
+  static const Color goldSoft = BenTokens.goldBright;
 
   AppTheme._();
 
@@ -122,7 +122,7 @@ class AppTheme {
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFFEAF2F4),
+        fillColor: const Color(0xFFEAF2EF),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(BenTokens.radiusMd),
           borderSide: BorderSide.none,
@@ -241,7 +241,7 @@ class AppTheme {
       ),
 
       chipTheme: ChipThemeData(
-        backgroundColor: const Color(0xFFEAF2F4),
+        backgroundColor: const Color(0xFFEAF2EF),
         selectedColor: BenTokens.cyan.withValues(alpha: .18),
         side: BorderSide.none,
         shape: RoundedRectangleBorder(
@@ -366,13 +366,13 @@ class AppTheme {
             BenTokens.radiusLg,
           ),
           side: BorderSide(
-            color: Colors.white.withValues(alpha: .055),
+            color: BenTokens.line.withValues(alpha: .58),
           ),
         ),
       ),
 
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: const Color(0xE6091118),
+        backgroundColor: const Color(0xE6091A17),
         surfaceTintColor: Colors.transparent,
         indicatorColor: BenTokens.cyan.withValues(alpha: .15),
         height: 72,
@@ -386,7 +386,7 @@ class AppTheme {
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF0A1822),
+        fillColor: const Color(0xFF0A1B17),
         hintStyle: const TextStyle(
           color: BenTokens.muted,
         ),

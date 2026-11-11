@@ -110,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen>
     final dark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: dark ? BenTokens.night : const Color(0xFFF1F5F6),
+      backgroundColor: dark ? BenTokens.night : const Color(0xFFF1F6F3),
       body: Stack(
         children: [
           Positioned.fill(
@@ -233,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen>
                     child: Container(
                       width: 54,
                       height: 54,
-                      decoration: BoxDecoration(color: const Color(0xFF151C2C), shape: BoxShape.circle, border: Border.all(color: Colors.black, width: 2)),
+                      decoration: BoxDecoration(color: BenTokens.panel2, shape: BoxShape.circle, border: Border.all(color: Colors.black, width: 2)),
                       child: Icon(p.icon, color: BenTokens.gold, size: 23),
                     ),
                   ),
@@ -538,7 +538,7 @@ class _StoryViewerState extends State<_StoryViewer> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            const Color(0xFF111B2A),
+                            BenTokens.panel,
                             Color.lerp(BenTokens.ink, BenTokens.gold, (index + 1) / (widget.people.length + 1))!,
                           ],
                         ),
@@ -547,7 +547,7 @@ class _StoryViewerState extends State<_StoryViewer> {
                       child: story.memory?.photo != null && story.memory!.photo!.existsSync()
                           ? Image.file(story.memory!.photo!, fit: BoxFit.cover)
                           : story.memory?.hasVideo == true && story.memory!.video != null
-                              ? _LocalVideoPreview(path: story.memory!.video!, fallbackColor: const Color(0xFF111B2A), icon: story.icon)
+                              ? _LocalVideoPreview(path: story.memory!.video!, fallbackColor: BenTokens.panel, icon: story.icon)
                               : Stack(
                                   alignment: Alignment.center,
                                   children: [
@@ -659,7 +659,7 @@ class _FeedMemory {
 
   const _FeedMemory({required this.id, required this.user, required this.avatarUrl, required this.place, required this.text, required this.kind, required this.visualIcon, required this.visualColor, required this.likes, required this.comments, required this.saves, required this.time, this.memory});
 
-  factory _FeedMemory.fromReal(Memory memory) => _FeedMemory(id: memory.id, user: memory.ownerUsername ?? AuthService.currentUser?.username ?? 'BEN', avatarUrl: memory.ownerAvatarUrl ?? AuthService.currentUser?.avatarUrl ?? '', place: memory.hasLocation ? 'Konumlu anı' : 'BEN', text: memory.hasText ? memory.text! : 'Yeni bir an bıraktım.', kind: memory.type, visualIcon: switch (memory.type) { MemoryType.photo => Icons.photo_rounded, MemoryType.video => Icons.play_circle_fill_rounded, MemoryType.music => Icons.music_note_rounded, MemoryType.location => Icons.location_on_rounded, MemoryType.text => Icons.notes_rounded }, visualColor: const Color(0xFF27344D), likes: memory.isFavorite ? 1 : 0, comments: 0, saves: memory.isPinned ? 1 : 0, time: _relative(memory.createdAt), memory: memory);
+  factory _FeedMemory.fromReal(Memory memory) => _FeedMemory(id: memory.id, user: memory.ownerUsername ?? AuthService.currentUser?.username ?? 'BEN', avatarUrl: memory.ownerAvatarUrl ?? AuthService.currentUser?.avatarUrl ?? '', place: memory.hasLocation ? 'Konumlu anı' : 'BEN', text: memory.hasText ? memory.text! : 'Yeni bir an bıraktım.', kind: memory.type, visualIcon: switch (memory.type) { MemoryType.photo => Icons.photo_rounded, MemoryType.video => Icons.play_circle_fill_rounded, MemoryType.music => Icons.music_note_rounded, MemoryType.location => Icons.location_on_rounded, MemoryType.text => Icons.notes_rounded }, visualColor: const Color(0xFF203B35), likes: memory.isFavorite ? 1 : 0, comments: 0, saves: memory.isPinned ? 1 : 0, time: _relative(memory.createdAt), memory: memory);
 
   static String _relative(DateTime value) {
     final d = DateTime.now().difference(value);
@@ -796,7 +796,7 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
     return Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: dark ? const Color(0xFF0C151E) : Colors.white,
+          color: dark ? BenTokens.panel : Colors.white,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: BenTokens.cyan.withValues(alpha: dark ? .09 : .10)),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? .34 : .10), blurRadius: 28, offset: const Offset(0, 14))],
@@ -967,8 +967,8 @@ class _LiveBackdropPainter extends CustomPainter {
     final t = phase * math.pi * 2;
     final spots = [
       (Offset(size.width * (.10 + .025 * math.sin(t)), size.height * .18), 105.0, BenTokens.gold.withValues(alpha: dark ? .055 : .09)),
-      (Offset(size.width * (.88 + .03 * math.cos(t)), size.height * .48), 145.0, const Color(0xFF5B6DFF).withValues(alpha: dark ? .05 : .045)),
-      (Offset(size.width * (.55 + .04 * math.sin(t * .7)), size.height * .86), 120.0, const Color(0xFF35D8A0).withValues(alpha: dark ? .035 : .04)),
+      (Offset(size.width * (.88 + .03 * math.cos(t)), size.height * .48), 145.0, BenTokens.cyan.withValues(alpha: dark ? .055 : .045)),
+      (Offset(size.width * (.55 + .04 * math.sin(t * .7)), size.height * .86), 120.0, BenTokens.cyanSoft.withValues(alpha: dark ? .045 : .04)),
     ];
     for (final spot in spots) {
       p.color = spot.$3;

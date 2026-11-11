@@ -288,7 +288,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: dark ? const Color(0xFF061018) : const Color(0xFFF4F8F8),
+      backgroundColor: dark ? const Color(0xFF07110F) : const Color(0xFFF1F6F3),
       appBar: AppBar(
         leading: IconButton(onPressed: _close, icon: const Icon(Icons.arrow_back_rounded)),
         backgroundColor: Colors.transparent,
@@ -397,7 +397,7 @@ class _CommentCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: dark ? const [Color(0xFF142631), Color(0xFF0A151D)] : const [Colors.white, Color(0xFFF1F8F8)],
+          colors: dark ? const [Color(0xFF142D28), Color(0xFF091A17)] : const [Colors.white, Color(0xFFEAF2EF)],
         ),
         border: Border.all(color: BenTokens.cyan.withValues(alpha: dark ? .24 : .13)),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? .24 : .07), blurRadius: 26, offset: const Offset(0, 12))],
@@ -502,7 +502,7 @@ class _Composer extends StatelessWidget {
                 decoration: InputDecoration(
                   hintText: 'Yorumunu bırak...',
                   filled: true,
-                  fillColor: dark ? const Color(0xFF101F28) : const Color(0xFFF1F5F5),
+                  fillColor: dark ? const Color(0xFF0E211E) : const Color(0xFFEAF2EF),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                 ),

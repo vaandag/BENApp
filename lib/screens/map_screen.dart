@@ -684,10 +684,10 @@ class _MapHeader extends StatelessWidget {
         ),
         if (show3D) ...[
           const SizedBox(width: 8),
-          Material(color: BenTokens.cyan.withValues(alpha: .96), shape: const CircleBorder(), child: IconButton(tooltip: '3D Dünya', onPressed: onOpen3D, icon: const Icon(Icons.threed_rotation_rounded, color: Color(0xFF061116)))),
+          Material(color: BenTokens.cyan.withValues(alpha: .96), shape: const CircleBorder(), child: IconButton(tooltip: '3D Dünya', onPressed: onOpen3D, icon: const Icon(Icons.threed_rotation_rounded, color: Color(0xFF07110F)))),
         ],
         const SizedBox(width: 6),
-        Material(color: const Color(0xE90B171B), shape: const CircleBorder(), child: IconButton(color: BenTokens.cyan, onPressed: locating ? null : onLocate, icon: locating ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: BenTokens.cyan)) : const Icon(Icons.my_location_rounded))),
+        Material(color: const Color(0xE90E211E), shape: const CircleBorder(), child: IconButton(color: BenTokens.cyan, onPressed: locating ? null : onLocate, icon: locating ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: BenTokens.cyan)) : const Icon(Icons.my_location_rounded))),
       ],
     );
   }
@@ -699,7 +699,7 @@ class _MapGlass extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        decoration: BoxDecoration(color: const Color(0xE90B171B), borderRadius: BorderRadius.circular(18), border: Border.all(color: BenTokens.cyan.withValues(alpha: .22)), boxShadow: BenTokens.softShadow(true)),
+        decoration: BoxDecoration(color: const Color(0xE90E211E), borderRadius: BorderRadius.circular(18), border: Border.all(color: BenTokens.cyan.withValues(alpha: .22)), boxShadow: BenTokens.softShadow(true)),
         child: DefaultTextStyle.merge(style: const TextStyle(color: Colors.white), child: IconTheme(data: const IconThemeData(color: BenTokens.cyan), child: child)),
       );
 }
@@ -723,7 +723,7 @@ class _MapFilters extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             padding: const EdgeInsets.symmetric(horizontal: 15),
-            decoration: BoxDecoration(color: selected == index ? BenTokens.gold : const Color(0xE90B171B), borderRadius: BorderRadius.circular(99), border: Border.all(color: selected == index ? Colors.transparent : BenTokens.cyan.withValues(alpha: .24))),
+            decoration: BoxDecoration(color: selected == index ? BenTokens.gold : const Color(0xE90E211E), borderRadius: BorderRadius.circular(99), border: Border.all(color: selected == index ? Colors.transparent : BenTokens.cyan.withValues(alpha: .24))),
             child: Center(child: Text(labels[index], style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: selected == index ? BenTokens.ink : Colors.white))),
           ),
         ),
@@ -744,7 +744,7 @@ class _ExploreChip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-        decoration: BoxDecoration(color: const Color(0xEA081117), borderRadius: BorderRadius.circular(18), border: Border.all(color: BenTokens.cyan.withValues(alpha: .22)), boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 18, offset: Offset(0, 8))]),
+        decoration: BoxDecoration(color: const Color(0xEA0E211E), borderRadius: BorderRadius.circular(18), border: Border.all(color: BenTokens.cyan.withValues(alpha: .22)), boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 18, offset: Offset(0, 8))]),
         child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.explore_rounded, color: BenTokens.cyan, size: 18), const SizedBox(width: 8), Text('Yakın keşif', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 11)), const SizedBox(width: 6), Text(next!.place, style: TextStyle(color: Colors.white.withValues(alpha: .58), fontWeight: FontWeight.w700, fontSize: 10))]),
       ),
     );
@@ -760,7 +760,7 @@ class _ExploreBottomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: const Color(0xF20B171B),
+        color: const Color(0xF20E211E),
         borderRadius: BorderRadius.circular(24),
         elevation: 12,
         child: DefaultTextStyle.merge(
@@ -803,7 +803,7 @@ class _SelectedMapPinCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xF20B171B),
+      color: const Color(0xF20E211E),
       borderRadius: BorderRadius.circular(24),
       elevation: 10,
       clipBehavior: Clip.antiAlias,
@@ -859,7 +859,7 @@ class _MapDemoSheetState extends State<_MapDemoSheet> {
   Widget build(BuildContext context) => SafeArea(
         child: Container(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
-          decoration: BoxDecoration(color: const Color(0xF20B171B), borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
+          decoration: BoxDecoration(color: const Color(0xF20E211E), borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
           child: DefaultTextStyle.merge(
             style: const TextStyle(color: Colors.white),
             child: IconTheme(
