@@ -49,7 +49,7 @@ class _MemoryFullscreenViewerState extends State<MemoryFullscreenViewer> {
       final controller = file.existsSync()
           ? VideoPlayerController.file(file)
           : VideoPlayerController.networkUrl(
-              Uri.parse(source),
+              _api.resolveMediaUri(source),
               httpHeaders: _api.authorizationHeaders,
             );
       await controller.initialize();
@@ -145,7 +145,7 @@ class _MemoryFullscreenViewerState extends State<MemoryFullscreenViewer> {
     }
     if (memory.mediaUrl?.startsWith('http') == true && memory.type == MemoryType.photo) {
       return InteractiveViewer(minScale: .75, maxScale: 4, child: Image.network(
-        memory.mediaUrl!,
+        _api.resolveMediaUri(memory.mediaUrl!).toString(),
         headers: _api.authorizationHeaders,
         fit: BoxFit.contain,
         filterQuality: FilterQuality.high,
