@@ -171,6 +171,9 @@ class MemoryStorageService {
           memory.isFavorite,
       'isPinned':
           memory.isPinned,
+      'likesCount': memory.likesCount,
+      'commentsCount': memory.commentsCount,
+      'savesCount': memory.savesCount,
 
       'collectionIds':
           memory.collectionIds,
@@ -286,6 +289,9 @@ class MemoryStorageService {
             json['isPinned']
                     as bool? ??
                 false,
+        likesCount: (json['likesCount'] as num?)?.toInt() ?? 0,
+        commentsCount: (json['commentsCount'] as num?)?.toInt() ?? 0,
+        savesCount: (json['savesCount'] as num?)?.toInt() ?? 0,
 
         collectionIds:
             collectionIds,

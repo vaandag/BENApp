@@ -29,5 +29,6 @@ void main() {
     expect(app.title, 'BEN');
 
     expect(find.byType(BENParticleSplashScreen), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
 }

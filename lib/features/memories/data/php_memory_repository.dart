@@ -55,9 +55,14 @@ class PhpMemoryRepository {
       expiresAt: DateTime.tryParse(row['expires_at']?.toString() ?? ''),
       latitude: lat, longitude: lng, locationAccuracy: _number(row['location_accuracy']),
       isFavorite: row['liked'] == true || row['liked'] == 1, isPinned: row['saved'] == true || row['saved'] == 1,
-      createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '') ?? DateTime.now(),
+      likesCount: _integer(row['likes_count']),
+      commentsCount: _integer(row['comments_count']),
+      savesCount: _integer(row['saves_count']),
+      createdAt:
+ DateTime.tryParse(row['created_at']?.toString() ?? '') ?? DateTime.now(),
     );
   }
+  int _integer(Object? value) => value is num ? value.toInt() : int.tryParse(value?.toString() ?? '') ?? 0;
   double? _number(Object? value) => value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '');
   String _typeTitle(MemoryType type) => '${type.name[0].toUpperCase()}${type.name.substring(1)} anısı';
 }

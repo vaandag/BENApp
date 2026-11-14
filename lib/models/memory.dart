@@ -37,6 +37,9 @@ class Memory {
 
   final bool isFavorite;
   final bool isPinned;
+  final int likesCount;
+  final int commentsCount;
+  final int savesCount;
 
   final List<String> collectionIds;
 
@@ -65,6 +68,9 @@ class Memory {
     this.expiresAt,
     this.isFavorite = false,
     this.isPinned = false,
+    this.likesCount = 0,
+    this.commentsCount = 0,
+    this.savesCount = 0,
     this.collectionIds = const [],
     required this.createdAt,
     DateTime? updatedAt,
@@ -211,6 +217,9 @@ class Memory {
     DateTime? expiresAt,
     bool? isFavorite,
     bool? isPinned,
+    int? likesCount,
+    int? commentsCount,
+    int? savesCount,
     List<String>? collectionIds,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -241,6 +250,9 @@ class Memory {
           isFavorite ?? this.isFavorite,
       isPinned:
           isPinned ?? this.isPinned,
+      likesCount: likesCount ?? this.likesCount,
+      commentsCount: commentsCount ?? this.commentsCount,
+      savesCount: savesCount ?? this.savesCount,
       collectionIds: List.unmodifiable(
         collectionIds ?? this.collectionIds,
       ),

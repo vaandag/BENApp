@@ -79,13 +79,41 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _loadSocialState() async {
     final prefs = await SharedPreferences.getInstance();
     final savedLikes = prefs.getStringList('ben_liked_memories') ?? const <String>[];
+    final savedItems = prefs.getStringList('ben_saved_memories') ?? const <String>[];
     if (!mounted) return;
-    setState(() => _liked.addAll(savedLikes));
+    setState(() {
+      _liked.addAll(savedLikes);
+      _saved.addAll(savedItems);
+      _syncServerSocialState();
+    });
   }
 
   Future<void> _persistLikes() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('ben_liked_memories', _liked.toList());
+    await prefs.setStringList('ben_saved_memories', _saved.toList());
+  }
+
+  void _syncServerSocialState() {
+    for (final memory in [...widget.memories, ...widget.connectionMemories]) {
+      if (memory.ownerId == null) continue;
+      if (memory.isFavorite) {
+        _liked.add(memory.id);
+      } else {
+        _liked.remove(memory.id);
+      }
+      if (memory.isPinned) {
+        _saved.add(memory.id);
+      } else {
+        _saved.remove(memory.id);
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncServerSocialState();
   }
 
   @override
@@ -659,7 +687,7 @@ class _FeedMemory {
 
   const _FeedMemory({required this.id, required this.user, required this.avatarUrl, required this.place, required this.text, required this.kind, required this.visualIcon, required this.visualColor, required this.likes, required this.comments, required this.saves, required this.time, this.memory});
 
-  factory _FeedMemory.fromReal(Memory memory) => _FeedMemory(id: memory.id, user: memory.ownerUsername ?? AuthService.currentUser?.username ?? 'BEN', avatarUrl: memory.ownerAvatarUrl ?? AuthService.currentUser?.avatarUrl ?? '', place: memory.hasLocation ? 'Konumlu anı' : 'BEN', text: memory.hasText ? memory.text! : 'Yeni bir an bıraktım.', kind: memory.type, visualIcon: switch (memory.type) { MemoryType.photo => Icons.photo_rounded, MemoryType.video => Icons.play_circle_fill_rounded, MemoryType.music => Icons.music_note_rounded, MemoryType.location => Icons.location_on_rounded, MemoryType.text => Icons.notes_rounded }, visualColor: const Color(0xFF203B35), likes: memory.isFavorite ? 1 : 0, comments: 0, saves: memory.isPinned ? 1 : 0, time: _relative(memory.createdAt), memory: memory);
+  factory _FeedMemory.fromReal(Memory memory) => _FeedMemory(id: memory.id, user: memory.ownerUsername ?? AuthService.currentUser?.username ?? 'BEN', avatarUrl: memory.ownerAvatarUrl ?? AuthService.currentUser?.avatarUrl ?? '', place: memory.hasLocation ? 'Konumlu anı' : 'BEN', text: memory.hasText ? memory.text! : 'Yeni bir an bıraktım.', kind: memory.type, visualIcon: switch (memory.type) { MemoryType.photo => Icons.photo_rounded, MemoryType.video => Icons.play_circle_fill_rounded, MemoryType.music => Icons.music_note_rounded, MemoryType.location => Icons.location_on_rounded, MemoryType.text => Icons.notes_rounded }, visualColor: const Color(0xFF203B35), likes: memory.likesCount, comments: memory.commentsCount, saves: memory.savesCount, time: _relative(memory.createdAt), memory: memory);
 
   static String _relative(DateTime value) {
     final d = DateTime.now().difference(value);
@@ -793,6 +821,14 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final commentCount = widget.item.comments > _comments.length ? widget.item.comments : _comments.length;
+    final serverLiked = widget.item.memory?.isFavorite ?? false;
+    final serverSaved = widget.item.memory?.isPinned ?? false;
+    final likeCount = (widget.item.likes +
+            (widget.liked == serverLiked ? 0 : (widget.liked ? 1 : -1)))
+        .clamp(0, 0x7fffffff);
+    final saveCount = (widget.item.saves +
+            (widget.saved == serverSaved ? 0 : (widget.saved ? 1 : -1)))
+        .clamp(0, 0x7fffffff);
     return Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
@@ -837,9 +873,9 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
               child: Row(children: [
-                _ActionButton(iconWidget: BENDartIcon(active: widget.liked), label: '${widget.item.likes + (widget.liked ? 1 : 0)}', active: widget.liked, onTap: widget.onLike),
+                _ActionButton(iconWidget: BENDartIcon(active: widget.liked), label: '$likeCount', active: widget.liked, onTap: widget.onLike),
                 _ActionButton(iconWidget: const BENFeatherIcon(), label: '$commentCount', onTap: _toggleComments),
-                _ActionButton(icon: widget.saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, label: '${widget.item.saves + (widget.saved ? 1 : 0)}', active: widget.saved, onTap: widget.onSave),
+                _ActionButton(icon: widget.saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, label: '$saveCount', active: widget.saved, onTap: widget.onSave),
                 _ActionButton(icon: Icons.ios_share_rounded, label: 'Paylaş', onTap: widget.onShare),
                 const Spacer(),
                 _MapMemoryButton(onTap: widget.onOpenMap),

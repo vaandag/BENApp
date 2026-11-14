@@ -86,6 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onThemeChanged: widget.onThemeChanged,
       onLogout: widget.onLogout,
       username: widget.currentUser?.username ?? 'Bican',
+      currentUserId: widget.currentUser?.id,
     );
   }
 }
@@ -98,6 +99,7 @@ class _ProfileExperience extends StatefulWidget {
   final ValueChanged<ThemeMode> onThemeChanged;
   final VoidCallback onLogout;
   final String username;
+  final int? currentUserId;
 
   const _ProfileExperience({
     required this.memories,
@@ -107,6 +109,7 @@ class _ProfileExperience extends StatefulWidget {
     required this.onThemeChanged,
     required this.onLogout,
     required this.username,
+    required this.currentUserId,
   });
 
   @override
@@ -148,9 +151,18 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
     _bioColor = user?.bioColor ?? 0xFFB9F7FF;
   }
 
-  List<Memory> get _pins =>
-      widget.memories.where((m) => m.hasLocation).toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  List<Memory> get _pins => widget.memories.where((memory) {
+    if (!memory.hasLocation ||
+        !memory.latitude!.isFinite ||
+        !memory.longitude!.isFinite ||
+        memory.latitude!.abs() > 90 ||
+        memory.longitude!.abs() > 180) {
+      return false;
+    }
+    // The profile receives the discover feed too. Keep other people's pins
+    // off this personal map while retaining unsynced local drafts.
+    return memory.ownerId == null || memory.ownerId == widget.currentUserId;
+  }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   List<_RouteGroup> get _routes {
     final groups = <String, List<Memory>>{};
@@ -601,6 +613,10 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
     final routes = _makeRoutes();
     final photoCount = widget.memories.where((m) => m.type == MemoryType.photo).length;
     final visibleMarkers = pins.take(120).toList();
+    final mapCenter = pins.isNotEmpty
+        ? LatLng(pins.first.latitude!, pins.first.longitude!)
+        : const LatLng(41.0082, 28.9784);
+    final mapZoom = pins.isEmpty ? 4.2 : (pins.length == 1 ? 10.0 : 4.0);
 
     return ColoredBox(
       color: _night,
@@ -609,10 +625,10 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
         children: [
           // Darkened OSM tiles keep the map real and do not require a map API key.
           FlutterMap(
-            options: const MapOptions(
-              initialCenter: LatLng(45.5, 15.0),
-              initialZoom: 2.65,
-              interactionOptions: InteractionOptions(flags: InteractiveFlag.all),
+            options: MapOptions(
+              initialCenter: mapCenter,
+              initialZoom: mapZoom,
+              interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
             ),
             children: [
               TileLayer(
@@ -620,9 +636,9 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
                 userAgentPackageName: 'com.benapp.mobile',
                 tileBuilder: (context, tileWidget, _) => ColorFiltered(
                   colorFilter: const ColorFilter.matrix(<double>[
-                    0.02, 0.01, 0.005, 0, 1,
-                    0.005, 0.06, 0.015, 0, 3,
-                    0.005, 0.025, 0.07, 0, 6,
+                    0.72, 0.035, 0.01, 0, 18,
+                    0.02, 0.78, 0.03, 0, 20,
+                    0.01, 0.06, 0.82, 0, 22,
                     0, 0, 0, 1, 0,
                   ]),
                   child: tileWidget,
@@ -992,10 +1008,10 @@ class _MapAtmosphere extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              _night.withValues(alpha: .42),
-              _night.withValues(alpha: .27),
-              _night.withValues(alpha: .44),
-              _night.withValues(alpha: .68),
+              _night.withValues(alpha: .12),
+              _night.withValues(alpha: .08),
+              _night.withValues(alpha: .14),
+              _night.withValues(alpha: .30),
             ],
             stops: const [0, .28, .62, 1],
           ),
