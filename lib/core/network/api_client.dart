@@ -94,8 +94,11 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, String>? query}) =>
       _request('GET', path, query: query, retrySafe: true);
 
-  Future<dynamic> post(String path, {Object? body}) =>
-      _request('POST', path, body: body);
+  Future<dynamic> post(
+    String path, {
+    Object? body,
+    bool retrySafe = false,
+  }) => _request('POST', path, body: body, retrySafe: retrySafe);
 
   Future<dynamic> delete(String path) => _request('DELETE', path);
 
@@ -121,6 +124,8 @@ class ApiClient {
       return url;
     } on AppException {
       rethrow;
+    } on SocketException catch (error) {
+      throw NetworkException('Medya sunucusuna bağlanılamadı.', cause: error);
     } on TimeoutException catch (error) {
       throw ApiException('Dosya yükleme zaman aşımına uğradı.', cause: error);
     } on http.ClientException catch (error) {

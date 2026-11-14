@@ -722,9 +722,16 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
   bool _commentsOpen = false;
   bool _loadingComments = false;
   bool _sending = false;
+  int _commentCount = 0;
 
   String get _key => 'ben_comments_memory_${widget.item.id}';
   String get _name => AuthService.currentUser?.username.trim().isNotEmpty == true ? AuthService.currentUser!.username : 'BEN';
+
+  @override
+  void initState() {
+    super.initState();
+    _commentCount = widget.item.comments;
+  }
 
   @override
   void didUpdateWidget(covariant _LiveMemoryCard oldWidget) {
@@ -737,6 +744,9 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
       _loadingComments = false;
       _sending = false;
       _commentController.clear();
+      _commentCount = widget.item.comments;
+    } else if (oldWidget.item.comments != widget.item.comments) {
+      _commentCount = widget.item.comments;
     }
   }
 
@@ -752,42 +762,66 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
   }
 
   Future<void> _loadComments() async {
+    if (_loadingComments) return;
     setState(() => _loadingComments = true);
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    final list = <_InlineComment>[];
-    if (raw != null) {
-      try {
-        final decoded = jsonDecode(raw);
-        if (decoded is List) {
-          for (final rawComment in decoded.whereType<Map>()) {
-            final comment = _InlineComment.fromJson(Map<String, dynamic>.from(rawComment));
-            if (comment.memoryId != widget.item.id) continue;
-            if (comment.text.trim().isEmpty) continue;
-            list.add(comment);
-          }
-        }
-      } catch (_) {}
-    }
     final id = int.tryParse(widget.item.id);
+    final list = <_InlineComment>[];
+    var loadedFromServer = false;
+
+    // Published memories use server comments as the single source of truth.
+    // Merging the phone cache with the response counted the same sent comment
+    // twice when local and server timestamps differed.
     if (id != null) {
       try {
         final json = await _api.get('memories/$id/comments');
-        final rows = json is List ? json : (json is Map && json['data'] is List ? json['data'] as List : const []);
+        final rows = json is List
+            ? json
+            : (json is Map && json['data'] is List
+                ? json['data'] as List
+                : const []);
         for (final rawRow in rows.whereType<Map>()) {
           final row = Map<String, dynamic>.from(rawRow);
           final rawMemoryId = row['memory_id'] ?? row['memoryId'];
-          if (rawMemoryId == null || '$rawMemoryId' != widget.item.id) continue;
-          final c = _InlineComment.fromJson(row);
-          if (c.text.trim().isEmpty) continue;
-          if (!list.any((x) => x.text == c.text && x.username == c.username && x.createdAt == c.createdAt)) list.add(c);
+          if (rawMemoryId != null && '$rawMemoryId' != widget.item.id) {
+            continue;
+          }
+          final comment = _InlineComment.fromJson(row);
+          if (comment.text.trim().isEmpty) continue;
+          list.add(comment);
         }
-      } catch (_) {}
+        loadedFromServer = true;
+      } catch (_) {
+        // Keep local comments as an offline fallback.
+      }
     }
+
+    if (!loadedFromServer) {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_key);
+      if (raw != null) {
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is List) {
+            for (final rawComment in decoded.whereType<Map>()) {
+              final comment = _InlineComment.fromJson(
+                Map<String, dynamic>.from(rawComment),
+              );
+              if (comment.memoryId != widget.item.id) continue;
+              if (comment.text.trim().isEmpty) continue;
+              list.add(comment);
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
     if (!mounted) return;
     setState(() {
       _comments = list;
       _loadingComments = false;
+      if (id == null || loadedFromServer) {
+        _commentCount = list.length;
+      }
     });
     await _persistComments();
   }
@@ -803,6 +837,7 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
     final c = _InlineComment(text, memoryId: widget.item.id, username: _name, createdAt: DateTime.now());
     setState(() {
       _comments.add(c);
+      _commentCount++;
       _commentController.clear();
       _sending = true;
     });
@@ -820,7 +855,7 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final commentCount = widget.item.comments > _comments.length ? widget.item.comments : _comments.length;
+    final commentCount = _commentCount;
     final serverLiked = widget.item.memory?.isFavorite ?? false;
     final serverSaved = widget.item.memory?.isPinned ?? false;
     final likeCount = (widget.item.likes +
@@ -957,7 +992,7 @@ class _InlineComment {
         '${json['body'] ?? ''}',
         memoryId: '${json['memory_id'] ?? json['memoryId'] ?? ''}'.trim().isEmpty ? null : '${json['memory_id'] ?? json['memoryId']}',
         username: '${json['username'] ?? 'BEN'}',
-        createdAt: DateTime.tryParse('${json['created_at'] ?? ''}') ?? DateTime.now(),
+        createdAt: DateTime.tryParse('${json['created_at'] ?? json['updated_at'] ?? ''}') ?? DateTime.now(),
       );
 }
 

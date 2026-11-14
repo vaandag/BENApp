@@ -199,11 +199,10 @@ class _MainScreenState
           if (id == feedbackId) {
             _showMessage('Anın BEN dünyasına bırakıldı.');
           }
-        } catch (_) {
-          // Keep the ID in the persistent queue. The next app resume or
-          // explicit refresh will try the server again.
+        } catch (error) {
+          // Keep the ID in the persistent queue and show the actual failure.
           if (id == feedbackId && mounted) {
-            _showMessage('Anın kaydedildi. Sunucu eşitlemesi yeniden denenecek.');
+            _showSyncFailure(id, error);
           }
         }
       }
@@ -355,6 +354,31 @@ class _MainScreenState
     );
   }
 
+  void _showSyncFailure(String memoryId, Object error) {
+    if (!mounted) return;
+    final detail = error.toString().trim();
+    final reason = detail.isEmpty
+        ? 'Nedeni belirlenemeyen bir hata oluştu.'
+        : detail.length > 140
+            ? '${detail.substring(0, 137)}…'
+            : detail;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 10),
+          content: Text('Anı telefona kaydedildi; sunucuya gönderilemedi: $reason'),
+          action: SnackBarAction(
+            label: 'Tekrar dene',
+            onPressed: () => unawaited(
+              _syncPendingMemories(feedbackId: memoryId),
+            ),
+          ),
+        ),
+      );
+  }
+
   void _showMessage(
     String message,
   ) {
@@ -472,12 +496,12 @@ class _MainScreenState
                   end: Alignment.bottomRight,
                   colors: dark
                       ? const [
-                          Color(0xEE0E211E),
-                          Color(0xE607110F),
+                          Color(0xEE101010),
+                          Color(0xE6000000),
                         ]
                       : const [
                           Color(0xF7FFFFFF),
-                          Color(0xEEF1F6F7),
+                          Color(0xFFEEEEEE),
                         ],
                 ),
                 borderRadius: BorderRadius.circular(
@@ -547,7 +571,7 @@ class _MainScreenState
             height: 64,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: dark ? const Color(0xAA0E211E) : const Color(0xEFFFFFFF),
+              color: dark ? const Color(0xAA161616) : const Color(0xEFFFFFFF),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: BenTokens.cyan.withValues(alpha: .14)),
               boxShadow: [
@@ -669,7 +693,7 @@ class _MainScreenState
   Widget _navigationItem(BENNavIconType type, String label, int index) {
     final selected = _selectedIndex == index;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final selectedColor = dark ? BenTokens.cyan : const Color(0xFF07110F);
+    final selectedColor = dark ? BenTokens.cyan : const Color(0xFF000000);
     final mutedColor = dark
         ? Colors.white.withValues(alpha: .48)
         : Colors.black.withValues(alpha: .42);

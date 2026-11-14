@@ -122,7 +122,7 @@ class AppTheme {
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFFEAF2EF),
+        fillColor: const Color(0xFFECECEC),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(BenTokens.radiusMd),
           borderSide: BorderSide.none,
@@ -241,7 +241,7 @@ class AppTheme {
       ),
 
       chipTheme: ChipThemeData(
-        backgroundColor: const Color(0xFFEAF2EF),
+        backgroundColor: const Color(0xFFECECEC),
         selectedColor: BenTokens.cyan.withValues(alpha: .18),
         side: BorderSide.none,
         shape: RoundedRectangleBorder(
@@ -372,7 +372,7 @@ class AppTheme {
       ),
 
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: const Color(0xE6091A17),
+        backgroundColor: const Color(0xE6101010),
         surfaceTintColor: Colors.transparent,
         indicatorColor: BenTokens.cyan.withValues(alpha: .15),
         height: 72,
@@ -386,7 +386,7 @@ class AppTheme {
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF0A1B17),
+        fillColor: const Color(0xFF111111),
         hintStyle: const TextStyle(
           color: BenTokens.muted,
         ),

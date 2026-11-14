@@ -18,7 +18,7 @@ class PhpMemoryRepository {
   }
 
   Future<int?> create(Memory memory, {int? userId, String? clientId}) async {
-    final result = await _api.post('memories', body: {
+    final result = await _api.post('memories', retrySafe: clientId != null, body: {
         if (userId != null) 'user_id': userId,
         if (clientId != null && clientId.trim().isNotEmpty) 'client_id': clientId.trim(),
         'title': memory.title ?? _typeTitle(memory.type),

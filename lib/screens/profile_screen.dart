@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/network/api_client.dart';
+import '../core/config/map_config.dart';
 import '../core/theme/app_tokens.dart';
 import '../models/memory.dart';
 import '../services/auth_service.dart';
@@ -128,7 +129,7 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
   String _avatarPath = '';
   String _bio = '';
   String _bioFont = 'default';
-  int _bioColor = 0xFFB9F7FF;
+  int _bioColor = 0xFFF4F4F4;
 
   @override
   void initState() {
@@ -148,7 +149,7 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
     _avatarPath = user?.avatarUrl ?? '';
     _bio = user?.bio ?? 'Anılar biriktikçe büyüyen kendi dünyam. 🌍';
     _bioFont = user?.bioFont ?? 'default';
-    _bioColor = user?.bioColor ?? 0xFFB9F7FF;
+    _bioColor = user?.bioColor ?? 0xFFF4F4F4;
   }
 
   List<Memory> get _pins => widget.memories.where((memory) {
@@ -586,7 +587,7 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF24584F), Color(0xFF07110F)],
+          colors: [Color(0xFF242424), Color(0xFF000000)],
         ),
         image: provider == null
             ? null
@@ -658,13 +659,13 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: BenMapConfig.tileUrlTemplate,
                 userAgentPackageName: 'com.benapp.mobile',
                 tileBuilder: (context, tileWidget, _) => ColorFiltered(
                   colorFilter: const ColorFilter.matrix(<double>[
-                    0.72, 0.035, 0.01, 0, 18,
-                    0.02, 0.78, 0.03, 0, 20,
-                    0.01, 0.06, 0.82, 0, 22,
+                    -0.22, -0.08, -0.08, 0, 72,
+                    -0.08, -0.18, -0.08, 0, 92,
+                    -0.06, -0.08, -0.20, 0, 112,
                     0, 0, 0, 1, 0,
                   ]),
                   child: tileWidget,
@@ -682,7 +683,7 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
               ),
               RichAttributionWidget(
                 attributions: const [
-                  TextSourceAttribution('© OpenStreetMap contributors'),
+                  TextSourceAttribution(BenMapConfig.attribution),
                 ],
               ),
             ],
@@ -694,7 +695,7 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
             child: Text(
               '© OpenStreetMap contributors',
               style: TextStyle(
-                color: Color(0x997FC1B5),
+                color: Color(0x99B0B0B0),
                 fontSize: 8,
                 fontWeight: FontWeight.w600,
               ),
@@ -713,7 +714,7 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
                         height: 62,
                         padding: const EdgeInsets.symmetric(horizontal: 9),
                         decoration: BoxDecoration(
-                          color: const Color(0xE9081715),
+                          color: const Color(0xE90F0F0F),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(color: _line.withValues(alpha: .85)),
                         ),
@@ -1059,7 +1060,7 @@ class _ProfileMapPin extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: _teal.withValues(alpha: .25),
-          boxShadow: const [BoxShadow(color: Color(0x5531D5C3), blurRadius: 14)],
+          boxShadow: const [BoxShadow(color: Color(0x55FFFFFF), blurRadius: 14)],
           border: Border.all(color: _teal.withValues(alpha: .8), width: 1),
         ),
         child: Center(
@@ -1091,7 +1092,7 @@ class _RoundAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xE8081715),
+      color: const Color(0xE8101010),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -1131,13 +1132,13 @@ class _PinDensityLegend extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              _DensityEntry(color: Color(0xFF16483F), label: '1'),
+              _DensityEntry(color: Color(0xFF333333), label: '1'),
               SizedBox(width: 6),
-              _DensityEntry(color: Color(0xFF258D7C), label: '2–4'),
+              _DensityEntry(color: Color(0xFF777777), label: '2–4'),
               SizedBox(width: 6),
-              _DensityEntry(color: Color(0xFF2CC5B2), label: '5–10'),
+              _DensityEntry(color: Color(0xFFB8B8B8), label: '5–10'),
               SizedBox(width: 6),
-              _DensityEntry(color: Color(0xFF61E9D8), label: '11+'),
+              _DensityEntry(color: Color(0xFFF0F0F0), label: '11+'),
             ],
           ),
         ),
@@ -1193,7 +1194,7 @@ class _StatsPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(5, 18, 5, 17),
       decoration: BoxDecoration(
-        color: const Color(0xFF102823),
+        color: const Color(0xFF171717),
         borderRadius: BorderRadius.circular(23),
         border: Border.all(color: _line),
       ),
@@ -1253,7 +1254,7 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
       decoration: BoxDecoration(
-        color: const Color(0xFF18352E),
+        color: const Color(0xFF222222),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: _line),
       ),
@@ -1368,7 +1369,7 @@ class _RouteCard extends StatelessWidget {
     return SizedBox(
       width: 208,
       child: Material(
-        color: const Color(0xFF122923),
+        color: const Color(0xFF191919),
         borderRadius: BorderRadius.circular(19),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -1454,7 +1455,7 @@ class _PinCard extends StatelessWidget {
     return SizedBox(
       width: 165,
       child: Material(
-        color: const Color(0xFF142D28),
+        color: const Color(0xFF202020),
         borderRadius: BorderRadius.circular(17),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -1525,7 +1526,7 @@ class _ScenicFallback extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF173D36), Color(0xFF07110F), Color(0xFF24584D)],
+          colors: [Color(0xFF222222), Color(0xFF000000), Color(0xFF292929)],
         ),
       ),
       child: Center(
@@ -1544,7 +1545,7 @@ class _MiniTag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xCC07110F),
+        color: const Color(0xCC000000),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _teal.withValues(alpha: .35)),
       ),
@@ -1573,7 +1574,7 @@ class _EmptyFeature extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 21),
       decoration: BoxDecoration(
-        color: const Color(0xFF102823),
+        color: const Color(0xFF171717),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: _line),
       ),
@@ -1611,7 +1612,7 @@ class _BadgePreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF102823),
+      color: const Color(0xFF171717),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -1685,7 +1686,7 @@ class _ProfileEditPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFF102823),
+        color: const Color(0xFF171717),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _line),
       ),
@@ -1772,7 +1773,7 @@ class _ThemeChip extends StatelessWidget {
       selected: selected,
       onSelected: (_) => onTap(),
       selectedColor: _teal.withValues(alpha: .17),
-      backgroundColor: const Color(0xFF142D28),
+      backgroundColor: const Color(0xFF202020),
       labelStyle: TextStyle(
         color: selected ? _teal : _white,
         fontWeight: FontWeight.w800,
@@ -1846,13 +1847,13 @@ class _BioEditorPageState extends State<_BioEditorPage> {
   @override
   Widget build(BuildContext context) {
     const colors = <int>[
-      0xFFB9F7FF,
+      0xFFF4F4F4,
       0xFFFFFFFF,
-      0xFF7BE7FF,
-      0xFFB7FF9B,
-      0xFFFFD36E,
-      0xFFFF8FB3,
-      0xFFD5B4FF,
+      0xFFDADADA,
+      0xFFBDBDBD,
+      0xFFA6A6A6,
+      0xFF888888,
+      0xFF606060,
     ];
 
     return Scaffold(
@@ -1998,7 +1999,7 @@ class _BadgesTab extends StatelessWidget {
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
-              color: const Color(0xFF142D28),
+              color: const Color(0xFF202020),
               border: Border.all(color: _line),
             ),
             child: const Row(
@@ -2045,7 +2046,7 @@ class _BadgesTab extends StatelessWidget {
                     height: 54,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFF142D28),
+                      color: const Color(0xFF202020),
                       border: Border.all(color: _teal.withValues(alpha: .65)),
                     ),
                     child: Icon(badge.$2, color: _teal),
