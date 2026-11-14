@@ -529,5 +529,5 @@ try {
 } catch (Throwable $e) {
   error_log(sprintf('[BEN API %s] %s', $requestId, $e->getMessage()));
   if (ben_env('BEN_DEBUG','0') === '1') ben_error($e->getMessage(),500,'INTERNAL_ERROR');
-  ben_error('Beklenmeyen bir sunucu hatası oluştu.',500,'INTERNAL_ERROR');
+  ben_error('Beklenmeyen bir sunucu hatası oluştu. Referans: ' . $requestId,500,'INTERNAL_ERROR');
 }
