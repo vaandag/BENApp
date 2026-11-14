@@ -682,7 +682,7 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
                 }).toList(),
               ),
               RichAttributionWidget(
-                attributions: const [
+                attributions: [
                   TextSourceAttribution(BenMapConfig.attribution),
                 ],
               ),

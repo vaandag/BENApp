@@ -78,7 +78,7 @@ class _AccountEntryScreenState extends State<AccountEntryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Colors.black,
+      backgroundColor: Colors.black,
       appBar: _showForm
           ? AppBar(
               backgroundColor: Colors.transparent,
@@ -213,7 +213,7 @@ class _EntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: const const Color(0xFF222222),
+        color: const Color(0xFF222222),
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           onTap: onTap,
@@ -222,7 +222,7 @@ class _EntryCard extends StatelessWidget {
             padding: const EdgeInsets.all(17),
             child: Row(
               children: [
-                Container(width: 50, height: 50, decoration: const BoxDecoration(color: BenTokens.gold, shape: BoxShape.circle), child: Icon(icon, color: const Colors.black, size: 25)),
+                Container(width: 50, height: 50, decoration: const BoxDecoration(color: BenTokens.gold, shape: BoxShape.circle), child: Icon(icon, color: Colors.black, size: 25)),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
