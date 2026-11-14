@@ -613,10 +613,36 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
     final routes = _makeRoutes();
     final photoCount = widget.memories.where((m) => m.type == MemoryType.photo).length;
     final visibleMarkers = pins.take(120).toList();
-    final mapCenter = pins.isNotEmpty
-        ? LatLng(pins.first.latitude!, pins.first.longitude!)
-        : const LatLng(41.0082, 28.9784);
-    final mapZoom = pins.isEmpty ? 4.2 : (pins.length == 1 ? 10.0 : 4.0);
+    final mapCenter = pins.isEmpty
+        ? const LatLng(41.0082, 28.9784)
+        : LatLng(
+            pins.map((m) => m.latitude!).reduce((a, b) => a + b) / pins.length,
+            pins.map((m) => m.longitude!).reduce((a, b) => a + b) / pins.length,
+          );
+    final latitudes = pins.map((m) => m.latitude!).toList();
+    final longitudes = pins.map((m) => m.longitude!).toList();
+    final latSpan = pins.isEmpty
+        ? 0.0
+        : latitudes.reduce((a, b) => a > b ? a : b) -
+            latitudes.reduce((a, b) => a < b ? a : b);
+    final lonSpan = pins.isEmpty
+        ? 0.0
+        : longitudes.reduce((a, b) => a > b ? a : b) -
+            longitudes.reduce((a, b) => a < b ? a : b);
+    final span = latSpan > lonSpan ? latSpan : lonSpan;
+    final mapZoom = pins.isEmpty
+        ? 4.2
+        : span > 35
+            ? 2.0
+            : span > 15
+                ? 3.0
+                : span > 5
+                    ? 4.5
+                    : span > 1.5
+                        ? 6.5
+                        : span > .25
+                            ? 8.0
+                            : 10.0;
 
     return ColoredBox(
       color: _night,

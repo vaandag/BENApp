@@ -417,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen>
         final set = like ? _liked : _saved;
         if (!set.add(item.id)) set.remove(item.id);
       });
-      if (like) await _persistSocialState();
+      await _persistSocialState();
       return;
     }
     try {
@@ -427,14 +427,14 @@ class _HomeScreenState extends State<HomeScreen>
         final set = like ? _liked : _saved;
         if (!set.add(item.id)) set.remove(item.id);
       });
-      if (like) await _persistSocialState();
+      await _persistSocialState();
     } catch (_) {
       if (!mounted) return;
       setState(() {
         final set = like ? _liked : _saved;
         if (!set.add(item.id)) set.remove(item.id);
       });
-      if (like) await _persistSocialState();
+      await _persistSocialState();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sunucuya ulaşılamadı; değişiklik bu oturumda gösteriliyor.')));
     }
