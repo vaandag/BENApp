@@ -88,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  Future<void> _persistLikes() async {
+  Future<void> _persistSocialState() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('ben_liked_memories', _liked.toList());
     await prefs.setStringList('ben_saved_memories', _saved.toList());
@@ -417,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen>
         final set = like ? _liked : _saved;
         if (!set.add(item.id)) set.remove(item.id);
       });
-      if (like) await _persistLikes();
+      if (like) await _persistSocialState();
       return;
     }
     try {
@@ -427,14 +427,14 @@ class _HomeScreenState extends State<HomeScreen>
         final set = like ? _liked : _saved;
         if (!set.add(item.id)) set.remove(item.id);
       });
-      if (like) await _persistLikes();
+      if (like) await _persistSocialState();
     } catch (_) {
       if (!mounted) return;
       setState(() {
         final set = like ? _liked : _saved;
         if (!set.add(item.id)) set.remove(item.id);
       });
-      if (like) await _persistLikes();
+      if (like) await _persistSocialState();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sunucuya ulaşılamadı; değişiklik bu oturumda gösteriliyor.')));
     }

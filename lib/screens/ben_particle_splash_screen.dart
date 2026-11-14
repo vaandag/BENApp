@@ -46,7 +46,7 @@ class _BENParticleSplashScreenState extends State<BENParticleSplashScreen>
       body: SafeArea(
         child: Center(
           child: SizedBox(
-            width: barWidth.clamp(180.0, 380.0),
+            width: barWidth.clamp(180.0, 380.0).toDouble(),
             child: AnimatedBuilder(
               animation: _controller,
               builder: (context, _) {
