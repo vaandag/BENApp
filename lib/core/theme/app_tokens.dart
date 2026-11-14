@@ -10,8 +10,8 @@ class BenTokens {
   static const cyanBright = Color(0xFFFFFFFF);
   static const cyanSoft = Color(0xFFD0D0D0);
   static const cyanDeep = Color(0xFFB8B8B8);
-  static const gold = Color(0xFFBDBDBD);
-  static const goldBright = Color(0xFFEAEAEA);
+  static const gold = Color(0xFFFFD200);
+  static const goldBright = Color(0xFFFFF3A1);
 
   static const ink = Color(0xFF000000);
   static const night = Color(0xFF000000);
@@ -23,7 +23,7 @@ class BenTokens {
   static const paper = Color(0xFFF1F1F1);
   static const white = Color(0xFFF4F4F4);
   static const muted = Color(0xFFA5A5A5);
-  static const danger = Color(0xFFFF6B7A);
+  static const danger = Color(0xFFFF453A);
   static const success = Color(0xFFD5D5D5);
 
   static const radiusSm = 12.0;
