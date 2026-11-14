@@ -908,9 +908,9 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
               child: Row(children: [
-                _ActionButton(iconWidget: BENDartIcon(active: widget.liked), label: '$likeCount', active: widget.liked, onTap: widget.onLike),
-                _ActionButton(iconWidget: const BENFeatherIcon(), label: '$commentCount', onTap: _toggleComments),
-                _ActionButton(icon: widget.saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, label: '$saveCount', active: widget.saved, onTap: widget.onSave),
+                _ActionButton(iconWidget: BENDartIcon(active: widget.liked), label: '$likeCount', active: widget.liked, activeColor: BenTokens.danger, onTap: widget.onLike),
+                _ActionButton(iconWidget: BENFeatherIcon(active: _commentsOpen), label: '$commentCount', active: _commentsOpen, activeColor: BenTokens.gold, onTap: _toggleComments),
+                _ActionButton(icon: widget.saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, label: '$saveCount', active: widget.saved, activeColor: BenTokens.gold, onTap: widget.onSave),
                 _ActionButton(icon: Icons.ios_share_rounded, label: 'Paylaş', onTap: widget.onShare),
                 const Spacer(),
                 _MapMemoryButton(onTap: widget.onOpenMap),
@@ -1137,7 +1137,7 @@ class _BENDartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final color = active ? BenTokens.gold : const Color(0xFFB8C0CC);
+    final color = active ? BenTokens.danger : const Color(0xFFB8C0CC);
     final paint = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1.7;
     final center = Offset(size.width / 2, size.height / 2);
     canvas.drawCircle(center, size.width * .34, paint);
@@ -1153,13 +1153,20 @@ class _BENDartPainter extends CustomPainter {
 }
 
 class BENFeatherIcon extends StatelessWidget {
-  const BENFeatherIcon({super.key});
+  final bool active;
+  const BENFeatherIcon({super.key, this.active = false});
 
   @override
   Widget build(BuildContext context) => SizedBox(
         width: 22,
         height: 22,
-        child: CustomPaint(painter: _BENFeatherPainter(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .72))),
+        child: CustomPaint(
+          painter: _BENFeatherPainter(
+            color: active
+                ? BenTokens.gold
+                : Theme.of(context).colorScheme.onSurface.withValues(alpha: .72),
+          ),
+        ),
       );
 }
 
@@ -1199,13 +1206,13 @@ class _MapMemoryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = onTap != null;
     return Material(
-      color: enabled ? BenTokens.cyan.withValues(alpha: .10) : Theme.of(context).colorScheme.onSurface.withValues(alpha: .035),
+      color: enabled ? BenTokens.gold.withValues(alpha: .12) : Theme.of(context).colorScheme.onSurface.withValues(alpha: .035),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: SizedBox(width: 38, height: 38, child: Stack(alignment: Alignment.center, children: [
-          Icon(Icons.map_outlined, size: 22, color: enabled ? BenTokens.cyan : Theme.of(context).colorScheme.onSurface.withValues(alpha: .25)),
+          Icon(Icons.map_outlined, size: 22, color: enabled ? BenTokens.gold : Theme.of(context).colorScheme.onSurface.withValues(alpha: .25)),
           Positioned(right: 6, top: 6, child: Container(width: 12, height: 12, padding: const EdgeInsets.all(2), decoration: const BoxDecoration(color: BenTokens.gold, shape: BoxShape.circle), child: Image(image: AssetImage('assets/branding/ben_master_logo.png'), fit: BoxFit.contain))),
         ])),
       ),
@@ -1218,11 +1225,13 @@ class _ActionButton extends StatelessWidget {
   final Widget? iconWidget;
   final String label;
   final bool active;
+  final Color? activeColor;
   final VoidCallback onTap;
-  const _ActionButton({this.icon, this.iconWidget, required this.label, required this.onTap, this.active = false});
+  const _ActionButton({this.icon, this.iconWidget, required this.label, required this.onTap, this.active = false, this.activeColor});
   @override
   Widget build(BuildContext context) {
-    final color = active ? BenTokens.cyan : Theme.of(context).colorScheme.onSurface.withValues(alpha: .60);
+    final selectedColor = activeColor ?? BenTokens.cyan;
+    final color = active ? selectedColor : Theme.of(context).colorScheme.onSurface.withValues(alpha: .60);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1230,7 +1239,7 @@ class _ActionButton extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(children: [iconWidget ?? Icon(icon, size: 18, color: color), const SizedBox(width: 4), Text(label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: active ? BenTokens.cyan : null))]),
+          child: Row(children: [iconWidget ?? Icon(icon, size: 18, color: color), const SizedBox(width: 4), Text(label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: active ? selectedColor : null))]),
         ),
       ),
     );
