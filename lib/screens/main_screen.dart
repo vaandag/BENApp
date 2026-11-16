@@ -16,6 +16,7 @@ import '../services/pending_memory_sync.dart';
 import '../widgets/memory_menu.dart';
 import '../widgets/ben_nav_icons.dart';
 import '../widgets/ben_brand_header.dart';
+import '../widgets/ben_header_action.dart';
 import 'create_memory_screen.dart';
 import 'home_screen.dart';
 import 'map_screen.dart';
@@ -589,13 +590,13 @@ class _MainScreenState
                 const Spacer(),
                 if (showNotifications)
                   _topAction(
-                    Icons.notifications_none_rounded,
+                    BenHeaderActionType.notifications,
                     () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
                   ),
                 if (showSearch)
-                  _topAction(Icons.search_rounded, () => _showGlobalSearch(context)),
+                  _topAction(BenHeaderActionType.search, () => _showGlobalSearch(context)),
                 if (showMenu)
-                  _topAction(Icons.more_horiz_rounded, () => _showGlobalMenu(context)),
+                  _topAction(BenHeaderActionType.more, () => _showGlobalMenu(context)),
               ],
             ),
           ),
@@ -604,13 +605,8 @@ class _MainScreenState
     );
   }
 
-  Widget _topAction(IconData icon, VoidCallback onTap) {
-    return IconButton(
-      tooltip: 'Menü',
-      visualDensity: VisualDensity.compact,
-      onPressed: onTap,
-      icon: Icon(icon),
-    );
+  Widget _topAction(BenHeaderActionType type, VoidCallback onTap) {
+    return BenHeaderAction(type: type, onTap: onTap);
   }
 
   void _showGlobalSearch(BuildContext context) {
