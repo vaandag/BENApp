@@ -52,7 +52,7 @@ try {
 
     $mediaFile = $privateMediaDir . '/' . $filename;
     if (!is_file($mediaFile) || !is_readable($mediaFile)) ben_error('Medya dosyası bulunamadı.',404,'MEDIA_NOT_FOUND');
-    $mime = mime_content_type($mediaFile) ?: 'application/octet-stream';
+    $mime = ben_detect_mime($mediaFile) ?: 'application/octet-stream';
     $size = filesize($mediaFile);
     if ($size === false) ben_error('Medya dosyası okunamadı.',500,'MEDIA_READ_FAILED');
 
@@ -133,7 +133,7 @@ try {
     $tmp=$_FILES['media']['tmp_name'];
     $size=(int)($_FILES['media']['size']??0);
     if(!is_uploaded_file($tmp)||$size<=0||$size>100*1024*1024){http_response_code(413);echo json_encode(['ok'=>false,'message'=>'Medya dosyası en fazla 100 MB olabilir.']);exit;}
-    $mime=@mime_content_type($tmp)?:'';
+    $mime=ben_detect_mime($tmp);
     $allowed=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp','video/mp4'=>'mp4','video/quicktime'=>'mov','video/webm'=>'webm'];
     if(!isset($allowed[$mime])){http_response_code(415);echo json_encode(['ok'=>false,'message'=>'Desteklenmeyen medya türü.']);exit;}
     if(str_starts_with($mime,'image/')&&$size>15*1024*1024){http_response_code(413);echo json_encode(['ok'=>false,'message'=>'Fotoğraf dosyası en fazla 15 MB olabilir.']);exit;}
