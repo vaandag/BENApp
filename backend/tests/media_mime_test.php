@@ -4,10 +4,10 @@ declare(strict_types=1);
 require __DIR__ . '/../public/lib/http.php';
 
 $cases = [
-  'jpeg' => ["\\xFF\\xD8\\xFF\\xE0BEN", 'image/jpeg'],
-  'png' => ["\\x89PNG\\r\\n\\x1A\\nBEN", 'image/png'],
+  'jpeg' => ["\xFF\xD8\xFF\xE0BEN", 'image/jpeg'],
+  'png' => ["\x89PNG\r\n\x1A\nBEN", 'image/png'],
   'webp' => ['RIFF' . pack('V', 4) . 'WEBP', 'image/webp'],
-  'webm' => ["\\x1A\\x45\\xDF\\xA3BEN", 'video/webm'],
+  'webm' => ["\x1A\x45\xDF\xA3BEN", 'video/webm'],
   'mp4' => [pack('N', 16) . 'ftypisom', 'video/mp4'],
   'quicktime' => [pack('N', 16) . 'ftypqt  ', 'video/quicktime'],
 ];
