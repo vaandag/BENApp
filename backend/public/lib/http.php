@@ -26,14 +26,14 @@ function ben_detect_mime(string $path): string {
     'video/webm',
   ];
 
-  if (class_exists(\\finfo::class)) {
+  if (class_exists(\finfo::class)) {
     try {
-      $finfo = new \\finfo(FILEINFO_MIME_TYPE);
+      $finfo = new \finfo(FILEINFO_MIME_TYPE);
       $detected = $finfo->file($path);
       if (is_string($detected) && in_array($detected, $allowed, true)) {
         return $detected;
       }
-    } catch (\\Throwable $error) {
+    } catch (\Throwable $error) {
       // Continue with signature detection if fileinfo is unavailable or fails.
     }
   }
@@ -53,10 +53,10 @@ function ben_detect_mime(string $path): string {
     return '';
   }
 
-  if (substr($header, 0, 3) === "\\xFF\\xD8\\xFF") {
+  if (substr($header, 0, 3) === "\xFF\xD8\xFF") {
     return 'image/jpeg';
   }
-  if (substr($header, 0, 8) === "\\x89PNG\\r\\n\\x1A\\n") {
+  if (substr($header, 0, 8) === "\x89PNG\r\n\x1A\n") {
     return 'image/png';
   }
   if (
@@ -65,7 +65,7 @@ function ben_detect_mime(string $path): string {
   ) {
     return 'image/webp';
   }
-  if (substr($header, 0, 4) === "\\x1A\\x45\\xDF\\xA3") {
+  if (substr($header, 0, 4) === "\x1A\x45\xDF\\xA3") {
     return 'video/webm';
   }
   if (strlen($header) >= 12 && substr($header, 4, 4) === 'ftyp') {
