@@ -38,7 +38,9 @@ class PhpMemoryRepository {
   }
 
   Memory _memoryFromJson(Map row) {
-    final rawType = (row['type'] ?? 'text').toString();
+    // The PHP API's SELECT m.* response exposes the database column as
+    // `media_type`; accept `type` too for older/alternate API responses.
+    final rawType = (row['type'] ?? row['media_type'] ?? 'text').toString();
     final type = MemoryType.values.where((e) => e.name == rawType).firstOrNull ?? MemoryType.text;
     final lat = _number(row['lat']);
     final lng = _number(row['lng']);
