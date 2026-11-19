@@ -6,6 +6,77 @@ function ben_env(string $key, ?string $default = null): ?string {
   return $value === false || $value === '' ? $default : $value;
 }
 
+/**
+ * Detect an upload's MIME type without requiring PHP's optional fileinfo
+ * extension. Prefer fileinfo when available, then verify common media
+ * signatures so the local Windows development server works even when the
+ * extension is not enabled.
+ */
+function ben_detect_mime(string $path): string {
+  if (!is_file($path) || !is_readable($path)) {
+    return '';
+  }
+
+  $allowed = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'video/mp4',
+    'video/quicktime',
+    'video/webm',
+  ];
+
+  if (class_exists(\\finfo::class)) {
+    try {
+      $finfo = new \\finfo(FILEINFO_MIME_TYPE);
+      $detected = $finfo->file($path);
+      if (is_string($detected) && in_array($detected, $allowed, true)) {
+        return $detected;
+      }
+    } catch (\\Throwable $error) {
+      // Continue with signature detection if fileinfo is unavailable or fails.
+    }
+  }
+
+  $handle = @fopen($path, 'rb');
+  if ($handle === false) {
+    return '';
+  }
+
+  try {
+    $header = fread($handle, 64);
+  } finally {
+    fclose($handle);
+  }
+
+  if (!is_string($header)) {
+    return '';
+  }
+
+  if (substr($header, 0, 3) === "\\xFF\\xD8\\xFF") {
+    return 'image/jpeg';
+  }
+  if (substr($header, 0, 8) === "\\x89PNG\\r\\n\\x1A\\n") {
+    return 'image/png';
+  }
+  if (
+    substr($header, 0, 4) === 'RIFF'
+    && substr($header, 8, 4) === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+  if (substr($header, 0, 4) === "\\x1A\\x45\\xDF\\xA3") {
+    return 'video/webm';
+  }
+  if (strlen($header) >= 12 && substr($header, 4, 4) === 'ftyp') {
+    return substr($header, 8, 4) === 'qt  '
+      ? 'video/quicktime'
+      : 'video/mp4';
+  }
+
+  return '';
+}
+
 function ben_request_id(): string {
   $incoming = trim((string)($_SERVER['HTTP_X_REQUEST_ID'] ?? ''));
   if ($incoming !== '' && preg_match('/^[A-Za-z0-9._:-]{1,128}$/', $incoming)) {
