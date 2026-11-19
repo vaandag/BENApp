@@ -65,7 +65,7 @@ function ben_detect_mime(string $path): string {
   ) {
     return 'image/webp';
   }
-  if (substr($header, 0, 4) === "\x1A\x45\xDF\\xA3") {
+  if (substr($header, 0, 4) === "\x1A\x45\xDF\xA3") {
     return 'video/webm';
   }
   if (strlen($header) >= 12 && substr($header, 4, 4) === 'ftyp') {
