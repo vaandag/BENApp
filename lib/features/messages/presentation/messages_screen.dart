@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -57,6 +59,69 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void initState() {
     super.initState();
     _load();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _pollMessages(),
+    );
+  }
+
+  Future<void> _pollMessages() async {
+    final uid = AuthService.currentUser?.id;
+    if (!mounted || _loading || _sending || uid == null) return;
+
+    try {
+      final raw = await _api.get(
+        'messages',
+        query: {'with_user_id': '${widget.chat.id}'},
+      );
+      final rows = raw is List ? raw : const <dynamic>[];
+      final loaded = rows.whereType<Map>().map((row) {
+        final sender = int.tryParse('${row['sender_id']}') ?? 0;
+        return _Message(
+          int.tryParse('${row['id']}') ?? 0,
+          '${row['body'] ?? ''}',
+          mine: sender == uid,
+          read: row['is_read'] == 1 || row['is_read'] == true,
+        );
+      }).where((message) => message.id > 0 && message.text.isNotEmpty).toList();
+
+      if (!mounted) return;
+      var changed = loaded.length != _messages.length;
+      if (!changed) {
+        for (var i = 0; i < loaded.length; i++) {
+          final incoming = loaded[i];
+          final current = _messages[i];
+          if (incoming.id != current.id ||
+              incoming.text != current.text ||
+              incoming.read != current.read) {
+            changed = true;
+            break;
+          }
+        }
+      }
+      if (changed) {
+        setState(() => _messages = loaded);
+        _scrollToLatest();
+      }
+
+      await _api.post(
+        'messages/read',
+        body: {'with_user_id': widget.chat.id},
+      );
+    } catch (_) {
+      // A temporary network failure must not interrupt the open conversation.
+    }
+  }
+
+  void _scrollToLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   Future<void> _load() async {
@@ -447,6 +512,8 @@ class _ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<_ChatScreen> {
   final _controller = TextEditingController();
   final _api = ApiClient();
+  final ScrollController _scrollController = ScrollController();
+  Timer? _pollTimer;
 
   List<_Message> _messages = [];
   bool _loading = true;
@@ -507,6 +574,7 @@ class _ChatScreenState extends State<_ChatScreen> {
 
     if (mounted) {
       setState(() => _loading = false);
+      _scrollToLatest();
     }
 
     if (widget.sharedText != null &&
@@ -552,6 +620,7 @@ class _ChatScreenState extends State<_ChatScreen> {
         });
 
         _controller.clear();
+        _scrollToLatest();
       }
     } catch (e) {
       if (mounted) {
@@ -676,6 +745,8 @@ class _ChatScreenState extends State<_ChatScreen> {
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
+    _scrollController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -709,6 +780,7 @@ class _ChatScreenState extends State<_ChatScreen> {
                     child: CircularProgressIndicator(),
                   )
                 : ListView.builder(
+                    controller: _scrollController,
                     padding: const EdgeInsets.all(18),
                     itemCount: _messages.length,
                     itemBuilder: (_, i) {
