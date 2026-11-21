@@ -527,7 +527,15 @@ try {
  && $method === 'POST') { $from=ben_require_user_id($pdo); $to=(int)($input['to_user']??0); $amount=(int)($input['amount']??0); if($to<=0||$to===$from||$amount<=0||$amount>100000){ben_error('Geçerli hediye bilgisi gerekli.',422,'INVALID_GIFT');} $pdo->beginTransaction(); try { $balance=$pdo->prepare('SELECT coins FROM users WHERE id=?'); $balance->execute([$from]); $coins=(int)$balance->fetchColumn(); if($coins<$amount){throw new RuntimeException('Yetersiz coin.');} $pdo->prepare('UPDATE users SET coins=coins-? WHERE id=?')->execute([$amount,$from]); $pdo->prepare('UPDATE users SET coins=coins+? WHERE id=?')->execute([$amount,$to]); $s=$pdo->prepare('INSERT INTO coin_transactions(from_user,to_user,amount,type) VALUES(?,?,?,?)'); $s->execute([$from,$to,$amount,'gift']); $pdo->commit(); ben_ok(); } catch(Throwable $e) { if($pdo->inTransaction())$pdo->rollBack(); ben_error($e instanceof RuntimeException?$e->getMessage():'Hediye gönderilemedi.',422,'GIFT_FAILED'); } }
   http_response_code(404); echo json_encode(['ok'=>false,'message'=>'Endpoint bulunamadı']);
 } catch (Throwable $e) {
-  error_log(sprintf('[BEN API %s] %s', $requestId, $e->getMessage()));
+  error_log(sprintf(
+    '[BEN API %s] %s %s: %s at %s:%d',
+    $requestId,
+    $method,
+    $path,
+    get_class($e) . ': ' . $e->getMessage(),
+    $e->getFile(),
+    $e->getLine()
+  ));
   if (ben_env('BEN_DEBUG','0') === '1') ben_error($e->getMessage(),500,'INTERNAL_ERROR');
   ben_error('Beklenmeyen bir sunucu hatası oluştu. Referans: ' . $requestId,500,'INTERNAL_ERROR');
 }
