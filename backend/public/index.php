@@ -452,8 +452,8 @@ try {
     $visible=$pdo->prepare("SELECT 1 FROM memories m WHERE m.id=? AND (m.expires_at IS NULL OR m.expires_at>CURRENT_TIMESTAMP) AND (m.privacy='public' OR m.user_id=? OR (m.privacy='followers' AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=m.user_id)))");
     $visible->execute([$mid,$viewer,$viewer]);
     if(!$visible->fetchColumn()){ben_error('Anı bulunamadı veya görüntüleme yetkin yok.',404,'MEMORY_NOT_FOUND');}
-    $s=$pdo->prepare('SELECT c.id,c.memory_id,c.user_id,c.body,c.updated_at,u.username,u.avatar_url FROM comments c LEFT JOIN users u ON u.id=c.user_id WHERE c.memory_id=? ORDER BY c.id ASC');
-    $s->execute([$mid]); echo json_encode($s->fetchAll()); exit;
+    $s=$pdo->prepare('SELECT c.id,c.memory_id,c.user_id,c.body,c.updated_at,u.username,u.avatar_url FROM comments c LEFT JOIN users u ON u.id=c.user_id WHERE c.memory_id=? AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=? AND b.blocked_id=c.user_id) OR (b.blocker_id=c.user_id AND b.blocked_id=?)) ORDER BY c.id ASC');
+    $s->execute([$mid,$viewer,$viewer]); echo json_encode($s->fetchAll()); exit;
   }
   if ($path === 'comments' && $method === 'POST') {
     $mid=(int)($input['memory_id']??0); $uid=ben_require_user_id($pdo);
@@ -600,7 +600,7 @@ try {
     $owner=$pdo->prepare("SELECT user_id,host_peer_id FROM lives WHERE id=? AND status='live'");$owner->execute([$liveId]);$row=$owner->fetch();
     if(!$row || (int)$row['user_id']!==$uid){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Canlı izleyici listesine erişim yok.']);exit;}
     $pdo->prepare("DELETE FROM live_peers WHERE last_seen_at < datetime('now','-90 seconds')")->execute();
-    $q=$pdo->prepare("SELECT p.peer_id,p.user_id,p.joined_at FROM live_peers p WHERE p.live_id=? AND p.role='viewer' AND p.last_seen_at > datetime('now','-30 seconds') AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=? AND b.blocked_id=p.user_id) OR (b.blocker_id=p.user_id AND b.blocked_id=?)) ORDER BY p.joined_at");$q->execute([$liveId]);
+    $q=$pdo->prepare("SELECT p.peer_id,p.user_id,p.joined_at FROM live_peers p WHERE p.live_id=? AND p.role='viewer' AND p.last_seen_at > datetime('now','-30 seconds') AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=? AND b.blocked_id=p.user_id) OR (b.blocker_id=p.user_id AND b.blocked_id=?)) ORDER BY p.joined_at");$q->execute([$liveId,$uid,$uid]);
     echo json_encode(['ok'=>true,'peers'=>$q->fetchAll(),'host_peer_id'=>$row['host_peer_id']]); exit;
   }
   if (preg_match('#^live/(\d+)/signals$#',$path,$m) && $method==='GET') {
