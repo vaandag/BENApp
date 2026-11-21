@@ -410,7 +410,7 @@ class _MemoryDetailScreenState
                 Icons
                     .location_on_rounded,
                 size: 42,
-                color: BenTokens.gold,
+                color: BenTokens.ink,
               ),
             ),
             const SizedBox(
@@ -642,12 +642,13 @@ class _ErrorContent
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       height: 320,
       decoration: BoxDecoration(
-        color:
-            BenTokens.panel2,
+        color: dark ? BenTokens.panel2 : BenTokens.paper,
         borderRadius:
             BorderRadius.circular(26),
       ),
@@ -658,7 +659,7 @@ class _ErrorContent
           Icon(
             icon,
             size: 54,
-            color: dark ? BenTokens.panel2 : BenTokens.paper,
+            color: BenTokens.gold,
           ),
           const SizedBox(height: 14),
           Text(
@@ -689,22 +690,21 @@ class _InfoRow
   Widget build(
     BuildContext context,
   ) {
+    final theme = Theme.of(context);
     return Row(
       children: [
         Container(
           width: 38,
           height: 38,
-          decoration:
-              BoxDecoration(
-            color:
-                Colors.grey.shade100,
-            shape:
-                BoxShape.circle,
+          decoration: BoxDecoration(
+            color: BenTokens.gold.withValues(alpha: .12),
+            border: Border.all(color: BenTokens.gold.withValues(alpha: .24)),
+            shape: BoxShape.circle,
           ),
           child: Icon(
             icon,
             size: 19,
-            color: dark ? BenTokens.panel2 : BenTokens.paper,
+            color: BenTokens.gold,
           ),
         ),
         const SizedBox(
