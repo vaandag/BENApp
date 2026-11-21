@@ -110,6 +110,12 @@ try {
     try {
       $pdo->prepare('DELETE FROM live_signals WHERE live_id IN (SELECT id FROM lives WHERE user_id=?) OR from_peer IN (SELECT peer_id FROM live_peers WHERE user_id=?) OR to_peer IN (SELECT peer_id FROM live_peers WHERE user_id=?)')->execute([$uid,$uid,$uid]);
       $pdo->prepare('DELETE FROM live_peers WHERE user_id=? OR live_id IN (SELECT id FROM lives WHERE user_id=?)')->execute([$uid,$uid]);
+      $pdo->prepare("DELETE FROM content_reports
+        WHERE reporter_id=?
+          OR (target_type='user' AND target_id=?)
+          OR (target_type='memory' AND target_id IN (SELECT id FROM memories WHERE user_id=?))
+          OR (target_type='comment' AND target_id IN (SELECT id FROM comments WHERE user_id=? OR memory_id IN (SELECT id FROM memories WHERE user_id=?)))
+          OR (target_type='live' AND target_id IN (SELECT id FROM lives WHERE user_id=?))")->execute([$uid,$uid,$uid,$uid,$uid,$uid]);
       $pdo->prepare('DELETE FROM comments WHERE user_id=? OR memory_id IN (SELECT id FROM memories WHERE user_id=?)')->execute([$uid,$uid]);
       $pdo->prepare('DELETE FROM memory_likes WHERE user_id=? OR memory_id IN (SELECT id FROM memories WHERE user_id=?)')->execute([$uid,$uid]);
       $pdo->prepare('DELETE FROM memory_saves WHERE user_id=? OR memory_id IN (SELECT id FROM memories WHERE user_id=?)')->execute([$uid,$uid]);
@@ -121,7 +127,7 @@ try {
       $pdo->prepare('DELETE FROM lives WHERE user_id=?')->execute([$uid]);
       $pdo->prepare('DELETE FROM coin_transactions WHERE from_user=? OR to_user=?')->execute([$uid,$uid]);
       $pdo->prepare('DELETE FROM user_blocks WHERE blocker_id=? OR blocked_id=?')->execute([$uid,$uid]);
-      $pdo->prepare('DELETE FROM content_reports WHERE reporter_id=? OR (target_type=\'user\' AND target_id=?)')->execute([$uid,$uid]);
+      
       $pdo->prepare('DELETE FROM sessions WHERE user_id=?')->execute([$uid]);
       $pdo->prepare('DELETE FROM users WHERE id=?')->execute([$uid]);
       $pdo->commit();
