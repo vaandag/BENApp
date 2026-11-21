@@ -67,7 +67,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   Future<void> _pollMessages() async {
     final uid = AuthService.currentUser?.id;
-    if (!mounted || _loading || _sending || uid == null) return;
+    if (!mounted || _loading || _sending || _polling || uid == null) return;
+    _polling = true;
 
     try {
       final raw = await _api.get(
@@ -110,6 +111,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
       );
     } catch (_) {
       // A temporary network failure must not interrupt the open conversation.
+    } finally {
+      _polling = false;
     }
   }
 
@@ -518,6 +521,7 @@ class _ChatScreenState extends State<_ChatScreen> {
   List<_Message> _messages = [];
   bool _loading = true;
   bool _sending = false;
+  bool _polling = false;
 
   @override
   void initState() {
