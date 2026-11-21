@@ -51,20 +51,103 @@ class _HomeScreenState extends State<HomeScreen>
   final ApiClient _api = ApiClient();
 
   List<_DemoPerson> get _people {
-    if (widget.currentUser == null) return const <_DemoPerson>[];
-    final ownMemories = widget.memories.where((memory) => memory.isStory && !memory.isExpired).take(6).toList();
-    if (ownMemories.isEmpty) return const [];
-    final stories = ownMemories.map((memory) => _DemoStory(
-      memory.text?.isNotEmpty == true ? memory.text! : 'Yeni bir an bıraktım.',
-      memory.title ?? (memory.latitude != null && memory.longitude != null ? 'Konumlu anı' : 'Konum eklenmedi'),
-      memory.type == MemoryType.video ? Icons.play_circle_fill_rounded : Icons.photo_camera_rounded,
-      memory: memory,
-    )).toList();
-    return [
-      _DemoPerson(widget.currentUser!.username, 'Şimdi', Icons.person_rounded, stories),
+    final user = widget.currentUser;
+    if (user == null) return const <_DemoPerson>[];
+
+    // Following scope contains the signed-in user's own stories and stories
+    // from followed accounts. Add only the current user's local/discover
+    // stories from the general feed.
+    final candidates = <Memory>[
+      ...widget.connectionMemories,
+      ...widget.memories.where((memory) =>
+          memory.ownerId == user.id ||
+          (memory.ownerId == null &&
+              (memory.ownerUsername == null ||
+                  memory.ownerUsername == user.username))),
     ];
+    final unique = <String, Memory>{};
+    for (final memory in candidates) {
+      if (memory.isStory && !memory.isExpired) {
+        unique.putIfAbsent(memory.id, () => memory);
+      }
+    }
+
+    final grouped = <String, List<Memory>>{};
+    for (final memory in unique.values) {
+      final isMine = memory.ownerId == user.id ||
+          (memory.ownerId == null &&
+              (memory.ownerUsername == null ||
+                  memory.ownerUsername == user.username));
+      final ownerKey = isMine
+          ? 'me'
+          : 'user:${memory.ownerId ?? memory.ownerUsername ?? 'unknown'}';
+      grouped.putIfAbsent(ownerKey, () => <Memory>[]).add(memory);
+    }
+
+    final keys = grouped.keys.toList()
+      ..sort((a, b) {
+        if (a == 'me') return -1;
+        if (b == 'me') return 1;
+        final aLatest = grouped[a]!
+            .map((memory) => memory.createdAt)
+            .reduce((x, y) => x.isAfter(y) ? x : y);
+        final bLatest = grouped[b]!
+            .map((memory) => memory.createdAt)
+            .reduce((x, y) => x.isAfter(y) ? x : y);
+        return bLatest.compareTo(aLatest);
+      });
+
+    return keys.map((key) {
+      final memories = grouped[key]!
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final latest = memories.last;
+      final isMine = key == 'me';
+      final stories = memories.map((memory) {
+        final title = memory.title?.trim();
+        final place = title != null && title.isNotEmpty
+            ? title
+            : memory.hasLocation
+                ? 'Konumlu anı'
+                : 'Konum eklenmedi';
+        final text = memory.text?.trim();
+        final storyText = text != null && text.isNotEmpty
+            ? text
+            : 'Yeni bir an bıraktım.';
+        final icon = switch (memory.type) {
+          MemoryType.video => Icons.play_circle_fill_rounded,
+          MemoryType.photo => Icons.photo_camera_rounded,
+          MemoryType.location => Icons.location_on_rounded,
+          MemoryType.music => Icons.music_note_rounded,
+          MemoryType.text => Icons.notes_rounded,
+        };
+        return _DemoStory(storyText, place, icon, memory: memory);
+      }).toList();
+      final name = isMine
+          ? user.username
+          : (latest.ownerUsername?.trim().isNotEmpty == true
+              ? latest.ownerUsername!.trim()
+              : 'BEN kullanıcısı');
+      final avatar = latest.ownerAvatarUrl?.trim().isNotEmpty == true
+          ? latest.ownerAvatarUrl!.trim()
+          : (isMine ? user.avatarUrl : '');
+      return _DemoPerson(
+        name,
+        _storyAge(latest.createdAt),
+        Icons.person_rounded,
+        stories,
+        avatarUrl: avatar,
+      );
+    }).toList();
   }
 
+  String _storyAge(DateTime createdAt) {
+    final age = DateTime.now().difference(createdAt);
+    if (age.inMinutes < 1) return 'Şimdi';
+    if (age.inMinutes < 60) return '${age.inMinutes} dk';
+    if (age.inHours < 24) return '${age.inHours} sa';
+    if (age.inDays == 1) return 'Dün';
+    return '${age.inDays} gün';
+  }
   @override
   void initState() {
     super.initState();
@@ -262,7 +345,21 @@ class _HomeScreenState extends State<HomeScreen>
                       width: 54,
                       height: 54,
                       decoration: BoxDecoration(color: BenTokens.panel2, shape: BoxShape.circle, border: Border.all(color: Colors.black, width: 2)),
-                      child: Icon(p.icon, color: BenTokens.gold, size: 23),
+                      child: p.avatarUrl.trim().isNotEmpty
+                           ? ClipOval(
+                               child: Image.network(
+                                 p.avatarUrl,
+                                 width: 54,
+                                 height: 54,
+                                 fit: BoxFit.cover,
+                                 errorBuilder: (_, _, _) => Icon(
+                                   p.icon,
+                                   color: BenTokens.gold,
+                                   size: 23,
+                                 ),
+                               ),
+                             )
+                           : Icon(p.icon, color: BenTokens.gold, size: 23),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -471,7 +568,14 @@ class _DemoPerson {
   final String time;
   final IconData icon;
   final List<_DemoStory> stories;
-  const _DemoPerson(this.name, this.time, this.icon, this.stories);
+  final String avatarUrl;
+  const _DemoPerson(
+    this.name,
+    this.time,
+    this.icon,
+    this.stories, {
+    this.avatarUrl = '',
+  });
 }
 
 class _StoryViewer extends StatefulWidget {
@@ -574,8 +678,23 @@ class _StoryViewerState extends State<_StoryViewer> {
                       ),
                       child: story.memory?.photo != null && story.memory!.photo!.existsSync()
                           ? Image.file(story.memory!.photo!, fit: BoxFit.cover)
-                          : story.memory?.hasVideo == true && story.memory!.video != null
-                              ? _LocalVideoPreview(path: story.memory!.video!, fallbackColor: BenTokens.panel, icon: story.icon)
+                          : story.memory?.type == MemoryType.photo &&
+                                   story.memory?.mediaUrl?.contains('/media/') == true
+                               ? Image.network(
+                                   ApiClient().resolveMediaUri(story.memory!.mediaUrl!).toString(),
+                                   headers: ApiClient().authorizationHeaders,
+                                   fit: BoxFit.cover,
+                                   errorBuilder: (_, _, _) => CustomPaint(
+                                     painter: _MemoryVisualPainter(
+                                       base: BenTokens.panel,
+                                       icon: story.icon,
+                                     ),
+                                   ),
+                                 )
+                               : story.memory?.hasVideo == true &&
+                                       (story.memory!.video != null ||
+                                           story.memory!.mediaUrl?.contains('/media/') == true)
+                              ? _LocalVideoPreview(path: story.memory!.video ?? story.memory!.mediaUrl!, fallbackColor: BenTokens.panel, icon: story.icon)
                               : Stack(
                                   alignment: Alignment.center,
                                   children: [
@@ -627,7 +746,25 @@ class _StoryViewerState extends State<_StoryViewer> {
                     top: 65,
                     child: Row(
                       children: [
-                        Container(width: 42, height: 42, decoration: const BoxDecoration(color: BenTokens.gold, shape: BoxShape.circle), child: Icon(person.icon, color: BenTokens.ink)),
+                        Container(
+                           width: 42,
+                           height: 42,
+                           decoration: const BoxDecoration(
+                             color: BenTokens.gold,
+                             shape: BoxShape.circle,
+                           ),
+                           clipBehavior: Clip.antiAlias,
+                           child: person.avatarUrl.trim().isNotEmpty
+                               ? Image.network(
+                                   person.avatarUrl,
+                                   fit: BoxFit.cover,
+                                   errorBuilder: (_, _, _) => Icon(
+                                     person.icon,
+                                     color: BenTokens.ink,
+                                   ),
+                                 )
+                               : Icon(person.icon, color: BenTokens.ink),
+                         ),
                         const SizedBox(width: 10),
                         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text(person.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
