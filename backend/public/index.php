@@ -477,6 +477,30 @@ try {
     if($to!==$uid){$who=$pdo->prepare('SELECT username FROM users WHERE id=?');$who->execute([$uid]);$name=(string)$who->fetchColumn();$pdo->prepare("INSERT INTO notifications(user_id,type,text) VALUES(?,?,?)")->execute([$to,'comment',$name.' anına yorum yaptı.']);}
     echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]); exit;
   }
+  if (preg_match('#^comments/(\\d+)/edit$#', $path, $m) && $method === 'POST') {
+    $uid = ben_require_user_id($pdo);
+    $commentId = (int)$m[1];
+    $body = trim((string)($input['body'] ?? ''));
+    if ($body === '' || strlen($body) > 5000) {
+      ben_error('Yorum 1-5000 karakter arasında olmalı.', 422, 'INVALID_COMMENT');
+    }
+    $owner = $pdo->prepare('SELECT user_id FROM comments WHERE id=?');
+    $owner->execute([$commentId]);
+    $ownerId = $owner->fetchColumn();
+    if ($ownerId === false) ben_error('Yorum bulunamadı.', 404, 'COMMENT_NOT_FOUND');
+    if ((int)$ownerId !== $uid) ben_error('Bu yorumu düzenleme yetkin yok.', 403, 'COMMENT_FORBIDDEN');
+    $pdo->prepare('UPDATE comments SET body=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?')
+      ->execute([$body,$commentId,$uid]);
+    ben_ok();
+  }
+  if (preg_match('#^comments/(\\d+)$#', $path, $m) && $method === 'DELETE') {
+    $uid = ben_require_user_id($pdo);
+    $commentId = (int)$m[1];
+    $q = $pdo->prepare('DELETE FROM comments WHERE id=? AND user_id=?');
+    $q->execute([$commentId,$uid]);
+    if ($q->rowCount() === 0) ben_error('Yorum bulunamadı veya silme yetkin yok.', 404, 'COMMENT_NOT_FOUND');
+    ben_ok();
+  }
   if ($path === 'messages/conversations' && $method === 'GET') {
     $uid=ben_require_user_id($pdo);
     $sql="SELECT u.id,u.username,u.avatar_url,m.body AS preview,m.created_at,m.sender_id,m.is_read FROM users u JOIN (SELECT CASE WHEN sender_id=$uid THEN receiver_id ELSE sender_id END AS other_id,MAX(id) AS last_id FROM messages WHERE sender_id=$uid OR receiver_id=$uid GROUP BY other_id) x ON x.other_id=u.id JOIN messages m ON m.id=x.last_id AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=$uid AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=$uid)) ORDER BY m.id DESC";

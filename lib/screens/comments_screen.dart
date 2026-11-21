@@ -11,7 +11,7 @@ import '../services/trust_safety_actions.dart';
 class _Comment {
   String text;
   String username;
-  final int? id;
+  int? id;
   final int? userId;
   final int? memoryId;
   DateTime createdAt;
@@ -165,8 +165,32 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
     final editingIndex = _editingIndex;
     final comment = editingIndex == null
-        ? _Comment(text, memoryId: widget.memoryId, username: _currentName, userId: AuthService.currentUser?.id)
+        ? _Comment(
+            text,
+            memoryId: widget.memoryId,
+            username: _currentName,
+            userId: AuthService.currentUser?.id,
+          )
         : _comments[editingIndex];
+
+    // Persisted comments are edited on the server before the local copy changes.
+    if (editingIndex != null && comment.id != null) {
+      setState(() => _sending = true);
+      try {
+        await _api.post(
+          'comments/${comment.id}/edit',
+          body: {'body': text},
+        );
+      } catch (error) {
+        if (mounted) {
+          setState(() => _sending = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Yorum düzenlenemedi: $error')),
+          );
+        }
+        return;
+      }
+    }
 
     setState(() {
       if (editingIndex == null) {
@@ -183,18 +207,30 @@ class _CommentsScreenState extends State<CommentsScreen> {
     FocusManager.instance.primaryFocus?.unfocus();
     await _persistLocal();
 
-    // Sunucu erişimi varsa kalıcı API kaydı da oluştur. Yerel kayıt, ağ
-    // başarısız olsa bile yorumun uygulamada kaybolmasını engeller.
     if (widget.memoryId != null && editingIndex == null) {
       try {
-        await _api.post('comments', body: {
+        final response = await _api.post('comments', body: {
           'memory_id': widget.memoryId,
-          'user_id': AuthService.currentUser?.id ?? 1,
           'body': text,
         });
-      } catch (_) {
-        // Yerel kalıcı kayıt zaten mevcut.
+        if (response is Map) {
+          comment.id = int.tryParse('${response['id']}');
+          await _persistLocal();
+        }
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Yorum cihazında saklandı ancak sunucuya gönderilemedi: $error',
+              ),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _sending = false);
       }
+    } else if (editingIndex != null && comment.id != null) {
       if (mounted) setState(() => _sending = false);
     }
   }
@@ -225,23 +261,48 @@ class _CommentsScreenState extends State<CommentsScreen> {
   }
 
   Future<void> _delete(int index) async {
+    final comment = _comments[index];
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Yorumu sil?'),
-        content: const Text('Bu yorum bu cihazdaki BEN kayıtlarından silinecek.'),
+        content: const Text(
+          'Sunucuya kaydedilen yorumun herkes için silinecek. Yerel yorumlar bu cihazdan kaldırılır.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Vazgeç')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Sil')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sil'),
+          ),
         ],
       ),
     );
     if (ok != true || !mounted) return;
+
+    if (comment.id != null) {
+      try {
+        await _api.delete('comments/${comment.id}');
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Yorum silinemedi: $error')),
+        );
+        return;
+      }
+    }
+
+    if (!mounted) return;
     setState(() {
       _comments.removeAt(index);
       if (_editingIndex == index) {
         _editingIndex = null;
         _controller.clear();
+      } else if (_editingIndex != null && _editingIndex! > index) {
+        _editingIndex = _editingIndex! - 1;
       }
     });
     await _persistLocal();
