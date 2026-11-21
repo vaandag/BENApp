@@ -481,6 +481,9 @@ try {
     $recipient=$pdo->prepare('SELECT 1 FROM users WHERE id=?');
     $recipient->execute([$receiver]);
     if(!$recipient->fetchColumn()){ben_error('Alıcı bulunamadı.',404,'RECIPIENT_NOT_FOUND');}
+    $blocked=$pdo->prepare('SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)');
+    $blocked->execute([$uid,$receiver,$receiver,$uid]);
+    if($blocked->fetchColumn()){ben_error('Bu kullanıcıyla mesajlaşma engellendi.',403,'USER_BLOCKED');}
     $s=$pdo->prepare('INSERT INTO messages(sender_id,receiver_id,body) VALUES(?,?,?)');
     $s->execute([$uid,$receiver,$body]);
     echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]); exit;
@@ -580,6 +583,9 @@ try {
     if($uid<=0||$liveId<=0||$peerId===''||strlen($peerId)>100){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Canlı katılım bilgisi eksik.']);exit;}
     $q=$pdo->prepare("SELECT id,user_id,host_peer_id,title FROM lives WHERE id=? AND status='live'");$q->execute([$liveId]);$live=$q->fetch();
     if(!$live){http_response_code(404);echo json_encode(['ok'=>false,'message'=>'Canlı yayın bulunamadı.']);exit;}
+    $blocked=$pdo->prepare('SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)');
+    $blocked->execute([$uid,(int)$live['user_id'],(int)$live['user_id'],$uid]);
+    if($blocked->fetchColumn()){ben_error('Engelleme nedeniyle bu canlı yayına katılamazsın.',403,'USER_BLOCKED');}
     $pdo->prepare('DELETE FROM live_peers WHERE peer_id=?')->execute([$peerId]);
     $pdo->prepare('INSERT INTO live_peers(peer_id,live_id,user_id,role) VALUES(?,?,?,?)')->execute([$peerId,$liveId,$uid,'viewer']);
     echo json_encode(['ok'=>true,'live_id'=>$liveId,'host_peer_id'=>$live['host_peer_id'],'title'=>$live['title']]); exit;
@@ -589,7 +595,7 @@ try {
     $owner=$pdo->prepare("SELECT user_id,host_peer_id FROM lives WHERE id=? AND status='live'");$owner->execute([$liveId]);$row=$owner->fetch();
     if(!$row || (int)$row['user_id']!==$uid){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Canlı izleyici listesine erişim yok.']);exit;}
     $pdo->prepare("DELETE FROM live_peers WHERE last_seen_at < datetime('now','-90 seconds')")->execute();
-    $q=$pdo->prepare("SELECT peer_id,user_id,joined_at FROM live_peers WHERE live_id=? AND role='viewer' AND last_seen_at > datetime('now','-30 seconds') ORDER BY joined_at");$q->execute([$liveId]);
+    $q=$pdo->prepare("SELECT p.peer_id,p.user_id,p.joined_at FROM live_peers p WHERE p.live_id=? AND p.role='viewer' AND p.last_seen_at > datetime('now','-30 seconds') AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=? AND b.blocked_id=p.user_id) OR (b.blocker_id=p.user_id AND b.blocked_id=?)) ORDER BY p.joined_at");$q->execute([$liveId]);
     echo json_encode(['ok'=>true,'peers'=>$q->fetchAll(),'host_peer_id'=>$row['host_peer_id']]); exit;
   }
   if (preg_match('#^live/(\d+)/signals$#',$path,$m) && $method==='GET') {
