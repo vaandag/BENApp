@@ -48,7 +48,7 @@ class MemoryCard extends StatelessWidget {
             crossAxisAlignment:
                 CrossAxisAlignment.start,
             children: [
-              _buildPreview(),
+              _buildPreview(context),
               _buildFooter(context),
             ],
           ),
