@@ -5,6 +5,7 @@ require __DIR__ . '/lib/http.php';
 require __DIR__ . '/db.php';
 require __DIR__ . '/lib/auth.php';
 require __DIR__ . '/lib/schema.php';
+require __DIR__ . '/lib/account_deletion.php';
 
 $requestId = ben_bootstrap_http();
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -104,41 +105,16 @@ try {
     $check = $pdo->prepare('SELECT password_hash FROM users WHERE id=?');
     $check->execute([$uid]);
     $hash = $check->fetchColumn();
-    if (!is_string($hash) || !password_verify($password, $hash)) ben_error('Şifren doğru değil.', 403, 'PASSWORD_CONFIRMATION_FAILED');
-
-    $pdo->beginTransaction();
-    try {
-      $pdo->prepare('DELETE FROM live_signals WHERE live_id IN (SELECT id FROM lives WHERE user_id=?) OR from_peer IN (SELECT peer_id FROM live_peers WHERE user_id=?) OR to_peer IN (SELECT peer_id FROM live_peers WHERE user_id=?)')->execute([$uid,$uid,$uid]);
-      $pdo->prepare('DELETE FROM live_peers WHERE user_id=? OR live_id IN (SELECT id FROM lives WHERE user_id=?)')->execute([$uid,$uid]);
-      $pdo->prepare("DELETE FROM content_reports
-        WHERE reporter_id=?
-          OR (target_type='user' AND target_id=?)
-          OR (target_type='memory' AND target_id IN (SELECT id FROM memories WHERE user_id=?))
-          OR (target_type='comment' AND target_id IN (SELECT id FROM comments WHERE user_id=? OR memory_id IN (SELECT id FROM memories WHERE user_id=?)))
-          OR (target_type='live' AND target_id IN (SELECT id FROM lives WHERE user_id=?))")->execute([$uid,$uid,$uid,$uid,$uid,$uid]);
-      $pdo->prepare('DELETE FROM comments WHERE user_id=? OR memory_id IN (SELECT id FROM memories WHERE user_id=?)')->execute([$uid,$uid]);
-      $pdo->prepare('DELETE FROM memory_likes WHERE user_id=? OR memory_id IN (SELECT id FROM memories WHERE user_id=?)')->execute([$uid,$uid]);
-      $pdo->prepare('DELETE FROM memory_saves WHERE user_id=? OR memory_id IN (SELECT id FROM memories WHERE user_id=?)')->execute([$uid,$uid]);
-      $pdo->prepare('DELETE FROM memories WHERE user_id=?')->execute([$uid]);
-      $pdo->prepare('DELETE FROM messages WHERE sender_id=? OR receiver_id=?')->execute([$uid,$uid]);
-      $pdo->prepare('DELETE FROM follows WHERE follower_id=? OR following_id=?')->execute([$uid,$uid]);
-      $pdo->prepare('DELETE FROM notifications WHERE user_id=?')->execute([$uid]);
-      $pdo->prepare('DELETE FROM regional_messages WHERE user_id=?')->execute([$uid]);
-      $pdo->prepare('DELETE FROM lives WHERE user_id=?')->execute([$uid]);
-      $pdo->prepare('DELETE FROM coin_transactions WHERE from_user=? OR to_user=?')->execute([$uid,$uid]);
-      $pdo->prepare('DELETE FROM user_blocks WHERE blocker_id=? OR blocked_id=?')->execute([$uid,$uid]);
-      
-      $pdo->prepare('DELETE FROM sessions WHERE user_id=?')->execute([$uid]);
-      $pdo->prepare('DELETE FROM users WHERE id=?')->execute([$uid]);
-      $pdo->commit();
-    } catch (Throwable $e) {
-      if ($pdo->inTransaction()) $pdo->rollBack();
-      throw $e;
+    if (!is_string($hash) || !password_verify($password, $hash)) {
+      ben_error('Şifren doğru değil.', 403, 'PASSWORD_CONFIRMATION_FAILED');
     }
 
-    foreach ([__DIR__.'/uploads/avatars/u_'.$uid.'_*', dirname(__DIR__).'/storage/media/u_'.$uid.'_*'] as $pattern) {
-      foreach (glob($pattern) ?: [] as $file) if (is_file($file)) @unlink($file);
-    }
+    ben_delete_account_data(
+      $pdo,
+      $uid,
+      __DIR__ . '/uploads/avatars',
+      dirname(__DIR__) . '/storage/media'
+    );
     ben_ok(['deleted'=>true]);
   }
   if (preg_match('#^users/(\\d+)/block$#', $path, $m) && in_array($method, ['POST','DELETE'], true)) {
