@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../models/memory.dart';
+import '../core/theme/app_tokens.dart';
 import '../core/navigation/ben_routes.dart';
 
 class MemoryDetailScreen
@@ -77,8 +78,7 @@ class _MemoryDetailScreenState
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor:
-            const Color(0xFFFAFAF8),
+        backgroundColor: Colors.transparent,
         surfaceTintColor:
             Colors.transparent,
         elevation: 0,
@@ -127,12 +127,11 @@ class _MemoryDetailScreenState
             padding:
                 const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius:
                   BorderRadius.circular(22),
               border: Border.all(
-                color:
-                    Colors.grey.shade200,
+                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .55),
               ),
             ),
             child: Column(
@@ -225,6 +224,8 @@ class _MemoryDetailScreenState
 
   Widget _buildMainContent() {
     final memory = widget.memory;
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
 
     if (memory.hasPhoto) {
       return ClipRRect(
@@ -268,8 +269,7 @@ class _MemoryDetailScreenState
           height: 430,
           decoration:
               BoxDecoration(
-            color:
-                const Color(0xFF142D28),
+            color: dark ? BenTokens.panel2 : BenTokens.paper,
             borderRadius:
                 BorderRadius.circular(
               26,
@@ -288,8 +288,7 @@ class _MemoryDetailScreenState
         borderRadius:
             BorderRadius.circular(26),
         child: Container(
-          color:
-              const Color(0xFF142D28),
+          color: dark ? BenTokens.panel2 : BenTokens.paper,
           child: Stack(
             alignment:
                 Alignment.center,
@@ -355,8 +354,7 @@ class _MemoryDetailScreenState
         padding:
             const EdgeInsets.all(28),
         decoration: BoxDecoration(
-          color:
-              const Color(0xFFF1F6F3),
+          color: dark ? BenTokens.panel2 : BenTokens.paper,
           borderRadius:
               BorderRadius.circular(26),
         ),
@@ -368,8 +366,7 @@ class _MemoryDetailScreenState
               Icons
                   .format_quote_rounded,
               size: 40,
-              color:
-                  Colors.grey.shade400,
+              color: BenTokens.gold,
             ),
             const SizedBox(
               height: 28,
@@ -397,8 +394,7 @@ class _MemoryDetailScreenState
         width: double.infinity,
         height: 320,
         decoration: BoxDecoration(
-          color:
-              const Color(0xFFEAF2EF),
+          color: dark ? BenTokens.panel2 : BenTokens.paper,
           borderRadius:
               BorderRadius.circular(26),
         ),
@@ -420,8 +416,7 @@ class _MemoryDetailScreenState
                 Icons
                     .location_on_rounded,
                 size: 42,
-                color:
-                    Colors.white,
+                color: BenTokens.gold,
               ),
             ),
             const SizedBox(
@@ -455,8 +450,7 @@ class _MemoryDetailScreenState
         child: Icon(
           _typeIcon(memory.type),
           size: 64,
-          color:
-              const Color(0xFF142D28),
+          color: dark ? BenTokens.panel2 : BenTokens.paper,
         ),
       ),
     );
@@ -529,28 +523,21 @@ class _SocialActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
         color: scheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: scheme.outlineVariant,
-        ),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .55)),
       ),
       child: Row(
         children: [
           Expanded(
             child: _ActionButton(
-              icon: liked
-                  ? Icons.favorite_rounded
-                  : Icons.favorite_border_rounded,
+              icon: liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
               label: 'Beğen',
               active: liked,
+              activeColor: BenTokens.danger,
               onPressed: onLike,
             ),
           ),
@@ -558,16 +545,16 @@ class _SocialActions extends StatelessWidget {
             child: _ActionButton(
               icon: Icons.chat_bubble_outline_rounded,
               label: comments > 0 ? 'Yorum $comments' : 'Yorum',
+              activeColor: BenTokens.gold,
               onPressed: onComment,
             ),
           ),
           Expanded(
             child: _ActionButton(
-              icon: pinned
-                  ? Icons.push_pin_rounded
-                  : Icons.push_pin_outlined,
+              icon: pinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
               label: 'Sabitle',
               active: pinned,
+              activeColor: BenTokens.gold,
               onPressed: onPin,
             ),
           ),
@@ -581,42 +568,67 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool active;
+  final Color activeColor;
   final VoidCallback onPressed;
 
   const _ActionButton({
     required this.icon,
     required this.label,
     this.active = false,
+    this.activeColor = BenTokens.gold,
     required this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = active
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurfaceVariant;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 21, color: color),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                ),
+    final selected = active;
+    final color = selected
+        ? activeColor
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: .66);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(99),
+          onTap: onPressed,
+          splashColor: activeColor.withValues(alpha: .12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            decoration: BoxDecoration(
+              color: selected
+                  ? activeColor.withValues(alpha: .11)
+                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: .035),
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(
+                color: selected
+                    ? activeColor.withValues(alpha: .32)
+                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: .075),
+                width: .8,
               ),
-            ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 15, color: color),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -641,7 +653,7 @@ class _ErrorContent
       height: 320,
       decoration: BoxDecoration(
         color:
-            const Color(0xFFF1F6F3),
+            BenTokens.panel2,
         borderRadius:
             BorderRadius.circular(26),
       ),
@@ -652,8 +664,7 @@ class _ErrorContent
           Icon(
             icon,
             size: 54,
-            color:
-                const Color(0xFF142D28),
+            color: dark ? BenTokens.panel2 : BenTokens.paper,
           ),
           const SizedBox(height: 14),
           Text(
@@ -699,8 +710,7 @@ class _InfoRow
           child: Icon(
             icon,
             size: 19,
-            color:
-                const Color(0xFF142D28),
+            color: dark ? BenTokens.panel2 : BenTokens.paper,
           ),
         ),
         const SizedBox(
