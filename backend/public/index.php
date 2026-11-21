@@ -98,6 +98,66 @@ try {
   }
 
   if ($path === 'health' || $path === '') { echo json_encode(['ok'=>true,'service'=>'BEN API','version'=>'194']); exit; }
+  if (preg_match('#^users/(\\d+)/block$#', $path, $m) && in_array($method, ['POST','DELETE'], true)) {
+    $uid = ben_require_user_id($pdo);
+    $target = (int)$m[1];
+    if ($target <= 0 || $target === $uid) ben_error('Kendini engelleyemezsin.', 422, 'INVALID_BLOCK_TARGET');
+    $exists = $pdo->prepare('SELECT 1 FROM users WHERE id=?');
+    $exists->execute([$target]);
+    if (!$exists->fetchColumn()) ben_error('Kullanıcı bulunamadı.', 404, 'USER_NOT_FOUND');
+    if ($method === 'POST') {
+      $pdo->prepare('INSERT OR IGNORE INTO user_blocks(blocker_id,blocked_id) VALUES(?,?)')->execute([$uid,$target]);
+      $pdo->prepare('DELETE FROM follows WHERE (follower_id=? AND following_id=?) OR (follower_id=? AND following_id=?)')->execute([$uid,$target,$target,$uid]);
+      ben_ok(['blocked'=>true]);
+    }
+    $pdo->prepare('DELETE FROM user_blocks WHERE blocker_id=? AND blocked_id=?')->execute([$uid,$target]);
+    ben_ok(['blocked'=>false]);
+  }
+  if ($path === 'blocks' && $method === 'GET') {
+    $uid = ben_require_user_id($pdo);
+    $q = $pdo->prepare('SELECT u.id,u.username,u.avatar_url,b.created_at FROM user_blocks b JOIN users u ON u.id=b.blocked_id WHERE b.blocker_id=? ORDER BY b.created_at DESC');
+    $q->execute([$uid]);
+    ben_json($q->fetchAll());
+  }
+  if ($path === 'reports' && $method === 'POST') {
+    $uid = ben_require_user_id($pdo);
+    ben_enforce_rate_limit($pdo, 'reports-user:'.$uid, 20, 3600);
+    $type = trim((string)($input['target_type'] ?? ''));
+    $target = (int)($input['target_id'] ?? 0);
+    $reason = trim((string)($input['reason'] ?? ''));
+    $details = trim((string)($input['details'] ?? ''));
+    $allowedReasons = ['spam','harassment','hate','nudity','violence','self_harm','false_information','copyright','other'];
+    if (!in_array($type, ['user','memory','comment','live'], true) || $target <= 0 || !in_array($reason, $allowedReasons, true) || strlen($details) > 2000) {
+      ben_error('Şikâyet bilgileri geçersiz.', 422, 'INVALID_REPORT');
+    }
+    $tables = ['user'=>'users','memory'=>'memories','comment'=>'comments','live'=>'lives'];
+    $check = $pdo->prepare('SELECT 1 FROM '.$tables[$type].' WHERE id=?');
+    $check->execute([$target]);
+    if (!$check->fetchColumn()) ben_error('Şikâyet edilen içerik bulunamadı.', 404, 'REPORT_TARGET_NOT_FOUND');
+    $pdo->prepare('INSERT INTO content_reports(reporter_id,target_type,target_id,reason,details) VALUES(?,?,?,?,?)')->execute([$uid,$type,$target,$reason,$details]);
+    ben_ok(['report_id'=>(int)$pdo->lastInsertId()]);
+  }
+  if ($path === 'admin/reports' && $method === 'GET') {
+    $uid = ben_require_user_id($pdo);
+    $admins = array_filter(array_map('intval', explode(',', (string)ben_env('BEN_ADMIN_USER_IDS',''))));
+    if (!in_array($uid, $admins, true)) ben_error('Yönetici yetkisi gerekli.', 403, 'ADMIN_REQUIRED');
+    $status = trim((string)($_GET['status'] ?? 'open'));
+    if (!in_array($status, ['open','resolved','rejected'], true)) $status = 'open';
+    $q = $pdo->prepare('SELECT r.*,u.username AS reporter_username FROM content_reports r LEFT JOIN users u ON u.id=r.reporter_id WHERE r.status=? ORDER BY r.created_at ASC LIMIT 200');
+    $q->execute([$status]);
+    ben_json($q->fetchAll());
+  }
+  if (preg_match('#^admin/reports/(\\d+)/resolve$#', $path, $m) && $method === 'POST') {
+    $uid = ben_require_user_id($pdo);
+    $admins = array_filter(array_map('intval', explode(',', (string)ben_env('BEN_ADMIN_USER_IDS',''))));
+    if (!in_array($uid, $admins, true)) ben_error('Yönetici yetkisi gerekli.', 403, 'ADMIN_REQUIRED');
+    $status = trim((string)($input['status'] ?? 'resolved'));
+    if (!in_array($status, ['resolved','rejected'], true)) ben_error('Geçersiz moderasyon durumu.', 422, 'INVALID_REPORT_STATUS');
+    $q = $pdo->prepare("UPDATE content_reports SET status=?,reviewed_by=?,reviewed_at=CURRENT_TIMESTAMP WHERE id=? AND status='open'");
+    $q->execute([$status,$uid,(int)$m[1]]);
+    if ($q->rowCount() === 0) ben_error('Açık şikâyet bulunamadı.', 404, 'REPORT_NOT_FOUND');
+    ben_ok();
+  }
   if ($path === 'auth/me' && $method === 'GET') {
     $h=$_SERVER['HTTP_AUTHORIZATION']??'';
     if (!preg_match('/Bearer\s+(.+)/i',$h,$mm)) { http_response_code(401); echo json_encode(['ok'=>false,'message'=>'Oturum gerekli.']); exit; }
@@ -210,6 +270,7 @@ try {
     $scope=trim((string)($_GET['scope']??'discover'));
     $limit=max(1,min(100,(int)($_GET['limit']??50)));
     $where="(m.expires_at IS NULL OR m.expires_at > CURRENT_TIMESTAMP)";
+    $where .= " AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=$uid AND b.blocked_id=m.user_id) OR (b.blocker_id=m.user_id AND b.blocked_id=$uid))";
     if($scope==='following') {
       // The following feed may show public and follower-only posts from followed
       // accounts, but must never expose their private memories.
@@ -435,7 +496,7 @@ try {
     $region=(string)($a['city']??$a['town']??$a['municipality']??$a['county']??$a['state']??'Bölgesel BEN'); $country=strtoupper((string)($a['country_code']??'tr')); $slug=strtolower(preg_replace('/[^a-z0-9]+/i','-',iconv('UTF-8','ASCII//TRANSLIT',$country.'-'.$region))); if($slug==='')$slug='tr-regional';
     $q=$pdo->prepare('INSERT OR IGNORE INTO regional_rooms(slug,name,country) VALUES(?,?,?)');$q->execute([$slug,$region,$country]);$q=$pdo->prepare('SELECT id,slug,name,country FROM regional_rooms WHERE slug=?');$q->execute([$slug]);$room=$q->fetch(); echo json_encode(['ok'=>true,'room_id'=>$room['id']??null,'region'=>$region,'country'=>$country,'room'=>$room]);exit;
   }
-  if ($path === 'regional/messages' && $method === 'GET') { $rid=(int)($_GET['room_id']??0); $q=$pdo->prepare('SELECT rm.*,u.username,u.avatar_url FROM regional_messages rm LEFT JOIN users u ON u.id=rm.user_id WHERE rm.room_id=? ORDER BY rm.id DESC LIMIT 100');$q->execute([$rid]);echo json_encode(array_reverse($q->fetchAll()));exit; }
+  if ($path === 'regional/messages' && $method === 'GET') { $viewer=ben_require_user_id($pdo); $rid=(int)($_GET['room_id']??0); $q=$pdo->prepare('SELECT rm.*,u.username,u.avatar_url FROM regional_messages rm LEFT JOIN users u ON u.id=rm.user_id WHERE rm.room_id=? AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=? AND b.blocked_id=rm.user_id) OR (b.blocker_id=rm.user_id AND b.blocked_id=?)) ORDER BY rm.id DESC LIMIT 100');$q->execute([$rid,$viewer,$viewer]);echo json_encode(array_reverse($q->fetchAll()));exit; }
   if ($path === 'regional/messages' && $method === 'POST') { $rid=(int)($input['room_id']??0);$uid=ben_require_user_id($pdo);$body=trim((string)($input['body']??''));if($rid<=0||$uid<=0||$body===''){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Geçerli oda ve mesaj gerekli.']);exit;}$q=$pdo->prepare('INSERT INTO regional_messages(room_id,user_id,body) VALUES(?,?,?)');$q->execute([$rid,$uid,$body]);echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]);exit; }
   if ($path === 'rank' && $method === 'GET') {
     $uid=ben_require_user_id($pdo);$q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM memories WHERE user_id=?) memories,(SELECT COUNT(*) FROM comments WHERE user_id=?) comments,(SELECT COUNT(*) FROM memory_likes WHERE user_id=?) likes,(SELECT COUNT(*) FROM follows WHERE follower_id=?) following,(SELECT COUNT(*) FROM regional_messages WHERE user_id=?) regional_messages,(SELECT COUNT(*) FROM lives WHERE user_id=?) lives');$q->execute([$uid,$uid,$uid,$uid,$uid,$uid]);$c=$q->fetch()?:[]; $xp=(int)$c['memories']*100+(int)$c['comments']*15+(int)$c['likes']*5+(int)$c['following']*10+(int)$c['regional_messages']*8+(int)$c['lives']*50; $level=max(1,(int)floor($xp/500)+1);$base=($level-1)*500;$next=$level*500;$badges=[];if((int)$c['memories']>=1)$badges[]=['id'=>'first_memory','name'=>'İlk Anı','description'=>'İlk kalıcı anını bıraktın.'];if((int)$c['memories']>=10)$badges[]=['id'=>'memory_10','name'=>'Anı Avcısı','description'=>'10 anı bıraktın.'];if((int)$c['regional_messages']>=10)$badges[]=['id'=>'local_voice','name'=>'Bölge Sesi','description'=>'Bölgesel toplulukta aktif oldun.'];if((int)$c['lives']>=1)$badges[]=['id'=>'live','name'=>'Canlı','description'=>'İlk canlı yayınını başlattın.'];echo json_encode(['ok'=>true,'xp'=>$xp,'level'=>$level,'next_xp'=>$next,'progress'=>min(1,max(0,($xp-$base)/500)),'counts'=>$c,'badges'=>$badges]);exit;
