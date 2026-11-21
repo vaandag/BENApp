@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../core/network/api_client.dart';
 import 'admin_moderation_screen.dart';
+import 'legal_information_screen.dart';
+import 'legal_information_screen.dart';
 
 class TrustSafetyScreen extends StatefulWidget {
   const TrustSafetyScreen({super.key});
@@ -148,9 +150,90 @@ class _TrustSafetyScreenState extends State<TrustSafetyScreen> {
             title: 'Şikâyet ve yaptırım',
             body: 'Uygunsuz kullanıcı veya anıları şikâyet edebilirsin. Şikâyetler incelenir; kuralları ihlal eden içerikler kaldırılabilir ve hesaplar kısıtlanabilir.',
           ),
+          const SizedBox(height: 26),
+          const Text(
+            'YASAL BİLGİLER',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: const Text(
+                'Gizlilik politikası',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: const Text('Hangi verilerin işlendiğini ve hesap silmeyi öğren'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LegalInformationScreen(
+                    document: LegalDocument.privacy,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: const Text(
+                'Kullanım koşulları',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: const Text('BEN topluluk ve kullanım şartları'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LegalInformationScreen(
+                    document: LegalDocument.terms,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'YASAL BİLGİLER',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: const Text('Gizlilik politikası'),
+              subtitle: const Text('İşlenen veriler, konum izni ve hesap silme'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LegalInformationScreen(
+                    document: LegalDocument.privacy,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: const Text('Kullanım koşulları'),
+              subtitle: const Text('BEN hizmetini kullanırken geçerli kurallar'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LegalInformationScreen(
+                    document: LegalDocument.terms,
+                  ),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 18),
           const Text(
-            'Bu ekran uygulama içi topluluk kurallarını gösterir. Resmî gizlilik politikası, kullanım koşulları, veri saklama süreleri ve destek iletişim bilgileri yayın öncesinde BEN’in gerçek işletmeci bilgileriyle tamamlanmalıdır.',
+            'Bu ekrandaki yasal belgeler taslaktır. Resmî politika olarak yayımlanmadan önce işletmeci bilgileri, gerçek hizmet sağlayıcıları ve veri saklama süreleri tamamlanmalıdır.',
+            style: TextStyle(fontSize: 12, height: 1.45),
+          ),
+ Resmî gizlilik politikası, kullanım koşulları, veri saklama süreleri ve destek iletişim bilgileri yayın öncesinde BEN’in gerçek işletmeci bilgileriyle tamamlanmalıdır.',
             style: TextStyle(fontSize: 12, height: 1.45),
           ),
         ],
