@@ -438,8 +438,8 @@ try {
   }
   if (preg_match('#^memories/(\d+)/(like|save)$#',$path,$m) && $method==='POST') {
     $memoryId=(int)$m[1]; $userId=ben_require_user_id($pdo); $table=$m[2]==='like'?'memory_likes':'memory_saves';
-    $visible=$pdo->prepare("SELECT 1 FROM memories m WHERE m.id=? AND (m.expires_at IS NULL OR m.expires_at>CURRENT_TIMESTAMP) AND (m.privacy='public' OR m.user_id=? OR (m.privacy='followers' AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=m.user_id)))");
-    $visible->execute([$memoryId,$userId,$userId]);
+    $visible=$pdo->prepare("SELECT 1 FROM memories m WHERE m.id=? AND (m.expires_at IS NULL OR m.expires_at>CURRENT_TIMESTAMP) AND (m.privacy='public' OR m.user_id=? OR (m.privacy='followers' AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=m.user_id))) AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=? AND b.blocked_id=m.user_id) OR (b.blocker_id=m.user_id AND b.blocked_id=?))");
+    $visible->execute([$memoryId,$userId,$userId,$userId,$userId]);
     if(!$visible->fetchColumn()){ben_error('Anı bulunamadı veya etkileşim yetkin yok.',404,'MEMORY_NOT_FOUND');}
     $exists=$pdo->prepare("SELECT 1 FROM $table WHERE memory_id=? AND user_id=?"); $exists->execute([$memoryId,$userId]);
     if ($exists->fetchColumn()) { $s=$pdo->prepare("DELETE FROM $table WHERE memory_id=? AND user_id=?"); $s->execute([$memoryId,$userId]); $active=false; }
@@ -518,7 +518,11 @@ try {
   }
   if ($path === 'follow' && $method === 'POST') {
     $from=ben_require_user_id($pdo); $to=(int)($input['following_id']??0);
-    if ($from === $to) { http_response_code(422); echo json_encode(['ok'=>false,'message'=>'Kendi hesabını takip edemezsin.']); exit; }
+    if ($from === $to || $to <= 0) { ben_error('Geçerli bir kullanıcı seçmelisin.',422,'INVALID_FOLLOW_TARGET'); }
+    $exists=$pdo->prepare('SELECT 1 FROM users WHERE id=?'); $exists->execute([$to]);
+    if(!$exists->fetchColumn()){ben_error('Kullanıcı bulunamadı.',404,'USER_NOT_FOUND');}
+    $blocked=$pdo->prepare('SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)'); $blocked->execute([$from,$to,$to,$from]);
+    if($blocked->fetchColumn()){ben_error('Engellenen kullanıcılar birbirini takip edemez.',403,'USER_BLOCKED');}
     $e=$pdo->prepare('SELECT 1 FROM follows WHERE follower_id=? AND following_id=?'); $e->execute([$from,$to]);
     if ($e->fetchColumn()) { $s=$pdo->prepare('DELETE FROM follows WHERE follower_id=? AND following_id=?'); $s->execute([$from,$to]); $active=false; }
     else { $s=$pdo->prepare('INSERT INTO follows(follower_id,following_id) VALUES(?,?)'); $s->execute([$from,$to]); $active=true; $n=$pdo->prepare("INSERT INTO notifications(user_id,type,text) VALUES(?,?,?)"); $who=$pdo->prepare('SELECT username FROM users WHERE id=?'); $who->execute([$from]); $name=(string)$who->fetchColumn(); $n->execute([$to,'follow',$name.' seni takip etti.']); }
@@ -607,7 +611,7 @@ try {
     $uid=ben_require_user_id($pdo); $liveId=(int)$m[1]; $peerId=trim((string)($_GET['peer_id']??''));
     if($peerId===''){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Peer gerekli.']);exit;}
     $check=$pdo->prepare('SELECT 1 FROM live_peers WHERE peer_id=? AND live_id=? AND user_id=?');$check->execute([$peerId,$liveId,$uid]);if(!$check->fetchColumn()){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Peer doğrulanamadı.']);exit;}
-    $q=$pdo->prepare('SELECT id,from_peer,to_peer,kind,payload,created_at FROM live_signals WHERE live_id=? AND to_peer=? ORDER BY id LIMIT 100');$q->execute([$liveId,$peerId]);$signals=$q->fetchAll();
+    $q=$pdo->prepare('SELECT s.id,s.from_peer,s.to_peer,s.kind,s.payload,s.created_at FROM live_signals s JOIN live_peers sender ON sender.peer_id=s.from_peer AND sender.live_id=s.live_id WHERE s.live_id=? AND s.to_peer=? AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=? AND b.blocked_id=sender.user_id) OR (b.blocker_id=sender.user_id AND b.blocked_id=?)) ORDER BY s.id LIMIT 100');$q->execute([$liveId,$peerId,$uid,$uid]);$signals=$q->fetchAll();
     if($signals){$ids=array_column($signals,'id');$placeholders=implode(',',array_fill(0,count($ids),'?'));$pdo->prepare("DELETE FROM live_signals WHERE id IN ($placeholders)")->execute($ids);}
     foreach($signals as &$signal){$signal['payload']=json_decode((string)$signal['payload'],true)??[];} unset($signal);
     echo json_encode(['ok'=>true,'signals'=>$signals]); exit;
@@ -618,7 +622,8 @@ try {
     if(!is_array($payload)){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Geçersiz sinyal verisi.']);exit;}
     $owner=$pdo->prepare("SELECT 1 FROM lives WHERE id=? AND status='live'");$owner->execute([$liveId]);if(!$owner->fetchColumn()){http_response_code(404);echo json_encode(['ok'=>false,'message'=>'Canlı yayın sona ermiş.']);exit;}
     $q=$pdo->prepare('SELECT 1 FROM live_peers WHERE peer_id=? AND live_id=? AND user_id=?');$q->execute([$fromPeer,$liveId,$uid]);if(!$q->fetchColumn()){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Gönderen peer doğrulanamadı.']);exit;}
-    $q=$pdo->prepare('SELECT 1 FROM live_peers WHERE peer_id=? AND live_id=?');$q->execute([$toPeer,$liveId]);if(!$q->fetchColumn()){http_response_code(404);echo json_encode(['ok'=>false,'message'=>'Alıcı peer bulunamadı.']);exit;}
+    $q=$pdo->prepare('SELECT user_id FROM live_peers WHERE peer_id=? AND live_id=?');$q->execute([$toPeer,$liveId]);$targetUser=(int)$q->fetchColumn();if($targetUser<=0){http_response_code(404);echo json_encode(['ok'=>false,'message'=>'Alıcı peer bulunamadı.']);exit;}
+     $blocked=$pdo->prepare('SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)');$blocked->execute([$uid,$targetUser,$targetUser,$uid]);if($blocked->fetchColumn()){ben_error('Engelleme nedeniyle canlı yayın bağlantısı kurulamaz.',403,'USER_BLOCKED');}
     $encoded=json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); if($encoded===false || strlen($encoded)>700000){http_response_code(413);echo json_encode(['ok'=>false,'message'=>'Sinyal verisi çok büyük.']);exit;}
     $pdo->prepare('INSERT INTO live_signals(live_id,from_peer,to_peer,kind,payload) VALUES(?,?,?,?,?)')->execute([$liveId,$fromPeer,$toPeer,$kind,$encoded]);
     $pdo->prepare('UPDATE live_peers SET last_seen_at=CURRENT_TIMESTAMP WHERE peer_id=?')->execute([$fromPeer]);
