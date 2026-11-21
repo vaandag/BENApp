@@ -867,7 +867,7 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
     return Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: dark ? BenTokens.panel : Colors.white,
+          color: BenTokens.panel,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: BenTokens.cyan.withValues(alpha: dark ? .09 : .10)),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? .34 : .10), blurRadius: 28, offset: const Offset(0, 14))],
@@ -908,8 +908,8 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
             Padding(
               padding: const EdgeInsets.fromLTRB(9, 7, 9, 8),
               child: Row(children: [
-                _ActionButton(iconWidget: BENDartIcon(active: widget.liked), label: '$likeCount', active: widget.liked, activeColor: BenTokens.danger, onTap: widget.onLike),
-                _ActionButton(iconWidget: BENFeatherIcon(active: _commentsOpen), label: '$commentCount', active: _commentsOpen, activeColor: BenTokens.gold, onTap: _toggleComments),
+                _ActionButton(icon: widget.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded, label: '$likeCount', active: widget.liked, activeColor: BenTokens.danger, onTap: widget.onLike),
+                _ActionButton(icon: Icons.chat_bubble_outline_rounded, label: '$commentCount', active: _commentsOpen, activeColor: BenTokens.gold, onTap: _toggleComments),
                 _ActionButton(icon: widget.saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, label: '$saveCount', active: widget.saved, activeColor: BenTokens.gold, onTap: widget.onSave),
                 _ActionButton(icon: Icons.ios_share_rounded, label: 'Paylaş', onTap: widget.onShare),
                 const Spacer(),
@@ -926,12 +926,13 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
                         if (_loadingComments)
                           const Padding(padding: EdgeInsets.all(10), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
                         else if (_comments.isNotEmpty)
-                          ..._comments.reversed.take(2).map((c) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Row(children: [_Avatar(name: c.username, size: 27), const SizedBox(width: 8), Expanded(child: Text('${c.username}: ${c.text}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)))]))),
+                          ..._comments.reversed.take(2).map((c) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Row(children: [_Avatar(name: c.username, size: 27), const SizedBox(width: 8), Expanded(child: Text('${c.username}: ${c.text}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: BenTokens.white)))]))),
                         Row(
                           children: [
                             Expanded(
                               child: TextField(
                                 controller: _commentController,
+                                style: const TextStyle(color: BenTokens.white, fontSize: 12),
                                 minLines: 1,
                                 maxLines: 1,
                                 textInputAction: TextInputAction.send,
@@ -940,6 +941,8 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
                                   hintText: 'Bu ana bir iz bırak…',
                                   isDense: true,
                                   filled: true,
+                                  fillColor: BenTokens.panel2,
+                                  hintStyle: const TextStyle(color: BenTokens.muted),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(15),
                                     borderSide: BorderSide.none,
@@ -1212,7 +1215,7 @@ class _MapMemoryButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: SizedBox(width: 34, height: 34, child: Stack(alignment: Alignment.center, children: [
-          Icon(Icons.map_outlined, size: 19, color: enabled ? BenTokens.gold : Theme.of(context).colorScheme.onSurface.withValues(alpha: .25)),
+          Icon(Icons.map_outlined, size: 19, color: enabled ? BenTokens.gold : BenTokens.white.withValues(alpha: .32)),
           Positioned(right: 6, top: 6, child: Container(width: 12, height: 12, padding: const EdgeInsets.all(2), decoration: const BoxDecoration(color: BenTokens.gold, shape: BoxShape.circle), child: Image(image: AssetImage('assets/branding/ben_master_logo.png'), fit: BoxFit.contain))),
         ])),
       ),
@@ -1233,7 +1236,7 @@ class _ActionButton extends StatelessWidget {
     final selectedColor = activeColor ?? BenTokens.gold;
     final color = active
         ? selectedColor
-        : Theme.of(context).colorScheme.onSurface.withValues(alpha: .66);
+        : BenTokens.white.withValues(alpha: .72);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1248,12 +1251,12 @@ class _ActionButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: active
                 ? selectedColor.withValues(alpha: .105)
-                : Theme.of(context).colorScheme.onSurface.withValues(alpha: .035),
+                : Colors.white.withValues(alpha: .035),
             borderRadius: BorderRadius.circular(99),
             border: Border.all(
               color: active
                   ? selectedColor.withValues(alpha: .34)
-                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: .075),
+                  : Colors.white.withValues(alpha: .075),
               width: .8,
             ),
           ),
@@ -1271,7 +1274,7 @@ class _ActionButton extends StatelessWidget {
                   fontSize: 10,
                   height: 1,
                   fontWeight: FontWeight.w800,
-                  color: active ? selectedColor : null,
+                  color: color,
                 ),
               ),
             ],
