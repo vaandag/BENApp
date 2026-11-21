@@ -1,6 +1,19 @@
 <?php
 declare(strict_types=1);
 
+function ben_schema_column_exists(PDO $pdo, string $table, string $column): bool {
+  if (!preg_match('/^[a-z_][a-z0-9_]*$/i', $table) ||
+      !preg_match('/^[a-z_][a-z0-9_]*$/i', $column)) {
+    throw new InvalidArgumentException('Invalid schema identifier.');
+  }
+
+  $statement = $pdo->query('PRAGMA table_info("' . $table . '")');
+  foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+    if ((string)($row['name'] ?? '') === $column) return true;
+  }
+  return false;
+}
+
 function ben_migrate(PDO $pdo): void {
   $pdo->exec('CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
 
@@ -60,6 +73,14 @@ function ben_migrate(PDO $pdo): void {
     $pdo->beginTransaction();
     try {
       foreach ($statements as $sql) {
+        // A previous deployment may have added a column before its migration
+        // record was committed. Skip that ALTER instead of failing every API
+        // request on the already-existing column.
+        if (preg_match('/^ALTER TABLE ([a-z_][a-z0-9_]*) ADD COLUMN ([a-z_][a-z0-9_]*)/i', trim($sql), $columnMatch) &&
+            ben_schema_column_exists($pdo, $columnMatch[1], $columnMatch[2])) {
+          continue;
+        }
+
         try {
           $pdo->exec($sql);
         } catch (Throwable $e) {
