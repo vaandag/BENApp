@@ -47,6 +47,8 @@ jobs:
         run: find backend -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: PHP media MIME detection
         run: php backend/tests/media_mime_test.php
+      - name: PHP schema migration safety
+        run: php backend/tests/schema_migration_test.php
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos
