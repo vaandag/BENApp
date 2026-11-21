@@ -16,6 +16,7 @@ import '../services/auth_service.dart';
 import 'community_screen.dart';
 import 'memory_detail_screen.dart';
 import 'notifications_screen.dart';
+import 'trust_safety_screen.dart';
 
 const _night = BenTokens.night;
 const _panel = BenTokens.panel;
@@ -502,6 +503,16 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _showBadges();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.shield_outlined, color: _teal),
+                title: const Text('Güvenlik ve gizlilik', style: TextStyle(color: _white)),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const TrustSafetyScreen()),
+                  );
                 },
               ),
               ListTile(
