@@ -108,7 +108,7 @@ try {
 
     $pdo->beginTransaction();
     try {
-      $pdo->prepare('DELETE FROM live_signals WHERE live_id IN (SELECT id FROM lives WHERE user_id=?)')->execute([$uid]);
+      $pdo->prepare('DELETE FROM live_signals WHERE live_id IN (SELECT id FROM lives WHERE user_id=?) OR from_peer IN (SELECT peer_id FROM live_peers WHERE user_id=?) OR to_peer IN (SELECT peer_id FROM live_peers WHERE user_id=?)')->execute([$uid,$uid,$uid]);
       $pdo->prepare('DELETE FROM live_peers WHERE user_id=? OR live_id IN (SELECT id FROM lives WHERE user_id=?)')->execute([$uid,$uid]);
       $pdo->prepare('DELETE FROM comments WHERE user_id=? OR memory_id IN (SELECT id FROM memories WHERE user_id=?)')->execute([$uid,$uid]);
       $pdo->prepare('DELETE FROM memory_likes WHERE user_id=? OR memory_id IN (SELECT id FROM memories WHERE user_id=?)')->execute([$uid,$uid]);
@@ -458,16 +458,18 @@ try {
     $visible=$pdo->prepare("SELECT user_id FROM memories m WHERE m.id=? AND (m.expires_at IS NULL OR m.expires_at>CURRENT_TIMESTAMP) AND (m.privacy='public' OR m.user_id=? OR (m.privacy='followers' AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=m.user_id)))");
     $visible->execute([$mid,$uid,$uid]); $to=(int)$visible->fetchColumn();
     if($to<=0){ben_error('Anı bulunamadı veya yorum yapma yetkin yok.',404,'MEMORY_NOT_FOUND');}
+    $blocked=$pdo->prepare('SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)'); $blocked->execute([$uid,$to,$to,$uid]);
+    if($blocked->fetchColumn()){ben_error('Engelleme nedeniyle bu anıya yorum yapamazsın.',403,'USER_BLOCKED');}
     $s=$pdo->prepare('INSERT INTO comments(memory_id,user_id,body) VALUES(?,?,?)'); $s->execute([$mid,$uid,$body]);
     if($to!==$uid){$who=$pdo->prepare('SELECT username FROM users WHERE id=?');$who->execute([$uid]);$name=(string)$who->fetchColumn();$pdo->prepare("INSERT INTO notifications(user_id,type,text) VALUES(?,?,?)")->execute([$to,'comment',$name.' anına yorum yaptı.']);}
     echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]); exit;
   }
   if ($path === 'messages/conversations' && $method === 'GET') {
     $uid=ben_require_user_id($pdo);
-    $sql="SELECT u.id,u.username,u.avatar_url,m.body AS preview,m.created_at,m.sender_id,m.is_read FROM users u JOIN (SELECT CASE WHEN sender_id=$uid THEN receiver_id ELSE sender_id END AS other_id,MAX(id) AS last_id FROM messages WHERE sender_id=$uid OR receiver_id=$uid GROUP BY other_id) x ON x.other_id=u.id JOIN messages m ON m.id=x.last_id ORDER BY m.id DESC";
+    $sql="SELECT u.id,u.username,u.avatar_url,m.body AS preview,m.created_at,m.sender_id,m.is_read FROM users u JOIN (SELECT CASE WHEN sender_id=$uid THEN receiver_id ELSE sender_id END AS other_id,MAX(id) AS last_id FROM messages WHERE sender_id=$uid OR receiver_id=$uid GROUP BY other_id) x ON x.other_id=u.id JOIN messages m ON m.id=x.last_id AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=$uid AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=$uid)) ORDER BY m.id DESC";
     echo json_encode($pdo->query($sql)->fetchAll());exit;
   }
-  if ($path === 'messages' && $method === 'GET') { $uid=ben_require_user_id($pdo);$other=(int)($_GET['with_user_id']??0);if($other>0){$s=$pdo->prepare('SELECT * FROM messages WHERE (sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?) ORDER BY id');$s->execute([$uid,$other,$other,$uid]);}else{$s=$pdo->prepare('SELECT * FROM messages WHERE sender_id=? OR receiver_id=? ORDER BY id');$s->execute([$uid,$uid]);}echo json_encode($s->fetchAll());exit; }
+  if ($path === 'messages' && $method === 'GET') { $uid=ben_require_user_id($pdo);$other=(int)($_GET['with_user_id']??0);if($other>0){$blocked=$pdo->prepare('SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)');$blocked->execute([$uid,$other,$other,$uid]);if($blocked->fetchColumn()){ben_error('Bu kullanıcıyla mesajlaşma engellendi.',403,'USER_BLOCKED');}$s=$pdo->prepare('SELECT * FROM messages WHERE (sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?) ORDER BY id');$s->execute([$uid,$other,$other,$uid]);}else{$s=$pdo->prepare('SELECT * FROM messages WHERE sender_id=? OR receiver_id=? ORDER BY id');$s->execute([$uid,$uid]);}echo json_encode($s->fetchAll());exit; }
   if ($path === 'messages' && $method === 'POST') {
     $uid=ben_require_user_id($pdo);
     ben_enforce_rate_limit($pdo, 'messages-user:'.$uid, 120, 3600);
