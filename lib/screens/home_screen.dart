@@ -691,7 +691,7 @@ class _StoryViewerState extends State<_StoryViewer> {
                                      ),
                                    ),
                                  )
-                               : story.memory?.hasVideo == true &&
+                               : story.memory?.type == MemoryType.video &&
                                        (story.memory!.video != null ||
                                            story.memory!.mediaUrl?.contains('/media/') == true)
                               ? _LocalVideoPreview(path: story.memory!.video ?? story.memory!.mediaUrl!, fallbackColor: BenTokens.panel, icon: story.icon)
