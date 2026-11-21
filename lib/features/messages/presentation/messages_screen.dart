@@ -59,72 +59,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void initState() {
     super.initState();
     _load();
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _pollMessages(),
-    );
-  }
-
-  Future<void> _pollMessages() async {
-    final uid = AuthService.currentUser?.id;
-    if (!mounted || _loading || _sending || _polling || uid == null) return;
-    _polling = true;
-
-    try {
-      final raw = await _api.get(
-        'messages',
-        query: {'with_user_id': '${widget.chat.id}'},
-      );
-      final rows = raw is List ? raw : const <dynamic>[];
-      final loaded = rows.whereType<Map>().map((row) {
-        final sender = int.tryParse('${row['sender_id']}') ?? 0;
-        return _Message(
-          int.tryParse('${row['id']}') ?? 0,
-          '${row['body'] ?? ''}',
-          mine: sender == uid,
-          read: row['is_read'] == 1 || row['is_read'] == true,
-        );
-      }).where((message) => message.id > 0 && message.text.isNotEmpty).toList();
-
-      if (!mounted) return;
-      var changed = loaded.length != _messages.length;
-      if (!changed) {
-        for (var i = 0; i < loaded.length; i++) {
-          final incoming = loaded[i];
-          final current = _messages[i];
-          if (incoming.id != current.id ||
-              incoming.text != current.text ||
-              incoming.read != current.read) {
-            changed = true;
-            break;
-          }
-        }
-      }
-      if (changed) {
-        setState(() => _messages = loaded);
-        _scrollToLatest();
-      }
-
-      await _api.post(
-        'messages/read',
-        body: {'with_user_id': widget.chat.id},
-      );
-    } catch (_) {
-      // A temporary network failure must not interrupt the open conversation.
-    } finally {
-      _polling = false;
-    }
-  }
-
-  void _scrollToLatest() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-      );
-    });
   }
 
   Future<void> _load() async {
@@ -527,6 +461,72 @@ class _ChatScreenState extends State<_ChatScreen> {
   void initState() {
     super.initState();
     _load();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _pollMessages(),
+    );
+  }
+
+  Future<void> _pollMessages() async {
+    final uid = AuthService.currentUser?.id;
+    if (!mounted || _loading || _sending || _polling || uid == null) return;
+    _polling = true;
+
+    try {
+      final raw = await _api.get(
+        'messages',
+        query: {'with_user_id': '${widget.chat.id}'},
+      );
+      final rows = raw is List ? raw : const <dynamic>[];
+      final loaded = rows.whereType<Map>().map((row) {
+        final sender = int.tryParse('${row['sender_id']}') ?? 0;
+        return _Message(
+          int.tryParse('${row['id']}') ?? 0,
+          '${row['body'] ?? ''}',
+          mine: sender == uid,
+          read: row['is_read'] == 1 || row['is_read'] == true,
+        );
+      }).where((message) => message.id > 0 && message.text.isNotEmpty).toList();
+
+      if (!mounted) return;
+      var changed = loaded.length != _messages.length;
+      if (!changed) {
+        for (var i = 0; i < loaded.length; i++) {
+          final incoming = loaded[i];
+          final current = _messages[i];
+          if (incoming.id != current.id ||
+              incoming.text != current.text ||
+              incoming.read != current.read) {
+            changed = true;
+            break;
+          }
+        }
+      }
+      if (changed) {
+        setState(() => _messages = loaded);
+        _scrollToLatest();
+      }
+
+      await _api.post(
+        'messages/read',
+        body: {'with_user_id': widget.chat.id},
+      );
+    } catch (_) {
+      // A temporary network failure must not interrupt the open conversation.
+    } finally {
+      _polling = false;
+    }
+  }
+
+  void _scrollToLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   Future<void> _load() async {
