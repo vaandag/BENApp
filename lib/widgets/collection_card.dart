@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/memory_collection.dart';
+import '../core/theme/app_tokens.dart';
 
 class CollectionCard
     extends StatelessWidget {
@@ -17,8 +18,10 @@ class CollectionCard
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     return Material(
-      color: Colors.white,
+      color: theme.colorScheme.surface,
       borderRadius:
           BorderRadius.circular(22),
       child: InkWell(
@@ -32,8 +35,7 @@ class CollectionCard
             borderRadius:
                 BorderRadius.circular(22),
             border: Border.all(
-              color:
-                  Colors.grey.shade200,
+              color: theme.colorScheme.outlineVariant.withValues(alpha: .55),
             ),
           ),
           child: Row(
@@ -43,18 +45,16 @@ class CollectionCard
                 height: 64,
                 decoration:
                     BoxDecoration(
-                  color:
-                      const Color(0xFFF1F6F3),
+                  color: dark ? BenTokens.panel2 : BenTokens.paper,
                   borderRadius:
                       BorderRadius.circular(
                     18,
                   ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.folder_rounded,
-                  size: 32,
-                  color:
-                      Color(0xFF142D28),
+                  size: 30,
+                  color: BenTokens.gold,
                 ),
               ),
               const SizedBox(
@@ -95,9 +95,7 @@ class CollectionCard
                             TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors
-                              .grey
-                              .shade600,
+                          color: theme.colorScheme.onSurface.withValues(alpha: .58),
                           height: 1.3,
                         ),
                       ),
