@@ -908,8 +908,8 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
             Padding(
               padding: const EdgeInsets.fromLTRB(9, 7, 9, 8),
               child: Row(children: [
-                _ActionButton(icon: widget.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded, label: '$likeCount', active: widget.liked, activeColor: BenTokens.danger, onTap: widget.onLike),
-                _ActionButton(icon: Icons.chat_bubble_outline_rounded, label: '$commentCount', active: _commentsOpen, activeColor: BenTokens.gold, onTap: _toggleComments),
+                _SocialActionButton(icon: widget.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded, label: '$likeCount', active: widget.liked, onTap: widget.onLike),
+                _SocialActionButton(icon: Icons.chat_bubble_outline_rounded, label: '$commentCount', active: _commentsOpen, onTap: _toggleComments),
                 _ActionButton(icon: widget.saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, label: '$saveCount', active: widget.saved, activeColor: BenTokens.gold, onTap: widget.onSave),
                 _ActionButton(icon: Icons.ios_share_rounded, label: 'Paylaş', onTap: widget.onShare),
                 const Spacer(),
@@ -1218,6 +1218,52 @@ class _MapMemoryButton extends StatelessWidget {
           Icon(Icons.map_outlined, size: 19, color: enabled ? BenTokens.gold : BenTokens.white.withValues(alpha: .32)),
           Positioned(right: 6, top: 6, child: Container(width: 12, height: 12, padding: const EdgeInsets.all(2), decoration: const BoxDecoration(color: BenTokens.gold, shape: BoxShape.circle), child: Image(image: AssetImage('assets/branding/ben_master_logo.png'), fit: BoxFit.contain))),
         ])),
+      ),
+    );
+  }
+}
+
+class _SocialActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _SocialActionButton({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active
+        ? BenTokens.cyan
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: .60);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(13),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w900,
+                  color: active ? BenTokens.cyan : null,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
