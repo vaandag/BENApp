@@ -130,11 +130,10 @@ class _CreateTextMemoryScreenState
               border:
                   InputBorder.none,
             ),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 19,
               height: 1.55,
-              color:
-                  theme.colorScheme.onSurface,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ),
