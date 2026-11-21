@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'trust_safety_screen.dart';
+
 class SettingsScreen extends StatelessWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeChanged;
@@ -109,6 +111,15 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.map_outlined,
             title: 'Harita görünümü',
             subtitle: 'Harita stili ve konum tercihleri',
+          ),
+          const SizedBox(height: 14),
+          _SettingTile(
+            icon: Icons.shield_outlined,
+            title: 'Güvenlik ve gizlilik',
+            subtitle: 'Engellenen kişiler ve BEN topluluk kuralları',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TrustSafetyScreen()),
+            ),
           ),
         ],
       ),
@@ -224,16 +235,19 @@ class _SettingTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onTap;
 
   const _SettingTile({
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       leading: Icon(icon),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
