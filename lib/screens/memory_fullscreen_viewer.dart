@@ -10,6 +10,7 @@ import '../core/theme/app_tokens.dart';
 import '../models/memory.dart';
 import '../services/auth_service.dart';
 import '../services/memory_repository.dart';
+import '../services/trust_safety_actions.dart';
 import '../features/messages/presentation/messages_screen.dart';
 
 /// A single, immersive viewer for every memory type.
@@ -197,6 +198,26 @@ class _MemoryFullscreenViewerState extends State<MemoryFullscreenViewer> {
                     Text(AuthService.currentUser?.username ?? 'BEN', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
                     if (memory.title?.isNotEmpty == true) Text(memory.title!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700)),
                   ])),
+                  if (int.tryParse(memory.id) != null)
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+                      color: const Color(0xFF142D28),
+                      onSelected: (value) {
+                        if (value == 'report') {
+                          TrustSafetyActions.report(
+                            context,
+                            targetType: 'memory',
+                            targetId: int.parse(memory.id),
+                          );
+                        }
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'report',
+                          child: Text('Anıyı şikâyet et', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
                   _GlassAction(icon: Icons.ios_share_rounded, onTap: _share),
                 ]),
                 const Spacer(),
