@@ -906,7 +906,7 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+              padding: const EdgeInsets.fromLTRB(9, 7, 9, 8),
               child: Row(children: [
                 _ActionButton(iconWidget: BENDartIcon(active: widget.liked), label: '$likeCount', active: widget.liked, activeColor: BenTokens.danger, onTap: widget.onLike),
                 _ActionButton(iconWidget: BENFeatherIcon(active: _commentsOpen), label: '$commentCount', active: _commentsOpen, activeColor: BenTokens.gold, onTap: _toggleComments),
@@ -1211,8 +1211,8 @@ class _MapMemoryButton extends StatelessWidget {
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: SizedBox(width: 38, height: 38, child: Stack(alignment: Alignment.center, children: [
-          Icon(Icons.map_outlined, size: 22, color: enabled ? BenTokens.gold : Theme.of(context).colorScheme.onSurface.withValues(alpha: .25)),
+        child: SizedBox(width: 34, height: 34, child: Stack(alignment: Alignment.center, children: [
+          Icon(Icons.map_outlined, size: 19, color: enabled ? BenTokens.gold : Theme.of(context).colorScheme.onSurface.withValues(alpha: .25)),
           Positioned(right: 6, top: 6, child: Container(width: 12, height: 12, padding: const EdgeInsets.all(2), decoration: const BoxDecoration(color: BenTokens.gold, shape: BoxShape.circle), child: Image(image: AssetImage('assets/branding/ben_master_logo.png'), fit: BoxFit.contain))),
         ])),
       ),
@@ -1230,16 +1230,52 @@ class _ActionButton extends StatelessWidget {
   const _ActionButton({this.icon, this.iconWidget, required this.label, required this.onTap, this.active = false, this.activeColor});
   @override
   Widget build(BuildContext context) {
-    final selectedColor = activeColor ?? BenTokens.cyan;
-    final color = active ? selectedColor : Theme.of(context).colorScheme.onSurface.withValues(alpha: .60);
+    final selectedColor = activeColor ?? BenTokens.gold;
+    final color = active
+        ? selectedColor
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: .66);
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(99),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(children: [iconWidget ?? Icon(icon, size: 18, color: color), const SizedBox(width: 4), Text(label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: active ? selectedColor : null))]),
+        splashColor: selectedColor.withValues(alpha: .12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 7),
+          decoration: BoxDecoration(
+            color: active
+                ? selectedColor.withValues(alpha: .105)
+                : Theme.of(context).colorScheme.onSurface.withValues(alpha: .035),
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(
+              color: active
+                  ? selectedColor.withValues(alpha: .34)
+                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: .075),
+              width: .8,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (iconWidget != null)
+                iconWidget!
+              else
+                Icon(icon, size: 16, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  height: 1,
+                  fontWeight: FontWeight.w800,
+                  color: active ? selectedColor : null,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
