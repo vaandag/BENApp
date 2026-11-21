@@ -373,14 +373,11 @@ class _MemoryDetailScreenState
             ),
             Text(
               memory.text!,
-              style:
-                  const TextStyle(
+              style: TextStyle(
                 fontSize: 22,
                 height: 1.55,
-                fontWeight:
-                    FontWeight.w500,
-                color:
-                    Color(0xFF142D28),
+                fontWeight: FontWeight.w500,
+                color: theme.colorScheme.onSurface,
               ),
             ),
           ],
@@ -405,12 +402,9 @@ class _MemoryDetailScreenState
             Container(
               width: 82,
               height: 82,
-              decoration:
-                  const BoxDecoration(
-                color:
-                    Color(0xFF142D28),
-                shape:
-                    BoxShape.circle,
+              decoration: const BoxDecoration(
+                color: BenTokens.gold,
+                shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons
@@ -442,7 +436,7 @@ class _MemoryDetailScreenState
       width: double.infinity,
       height: 280,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius:
             BorderRadius.circular(26),
       ),
@@ -450,7 +444,7 @@ class _MemoryDetailScreenState
         child: Icon(
           _typeIcon(memory.type),
           size: 64,
-          color: dark ? BenTokens.panel2 : BenTokens.paper,
+          color: BenTokens.gold,
         ),
       ),
     );
