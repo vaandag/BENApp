@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/network/api_client.dart';
+import 'admin_moderation_screen.dart';
 
 class TrustSafetyScreen extends StatefulWidget {
   const TrustSafetyScreen({super.key});
@@ -12,6 +13,7 @@ class TrustSafetyScreen extends StatefulWidget {
 class _TrustSafetyScreenState extends State<TrustSafetyScreen> {
   final ApiClient _api = ApiClient();
   List<Map<String, dynamic>> _blocked = [];
+  bool _isAdmin = false;
   bool _loading = true;
   String? _error;
 
@@ -29,10 +31,18 @@ class _TrustSafetyScreenState extends State<TrustSafetyScreen> {
     try {
       final raw = await _api.get('blocks');
       final rows = raw is List ? raw : const [];
+      var isAdmin = false;
+      try {
+        final adminStatus = await _api.get('admin/status');
+        isAdmin = adminStatus is Map && adminStatus['is_admin'] == true;
+      } catch (_) {
+        // A failed admin check must never grant moderator access.
+      }
       if (!mounted) return;
       setState(() {
         _blocked = rows.whereType<Map>()
             .map((row) => Map<String, dynamic>.from(row)).toList();
+        _isAdmin = isAdmin;
         _loading = false;
       });
     } catch (error) {
@@ -103,6 +113,21 @@ class _TrustSafetyScreenState extends State<TrustSafetyScreen> {
                 ),
               );
             }),
+          if (_isAdmin) ...[
+            const SizedBox(height: 20),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.admin_panel_settings_outlined),
+                title: const Text('Şikâyet yönetimi',
+                    style: TextStyle(fontWeight: FontWeight.w900)),
+                subtitle: const Text('Kullanıcı bildirimlerini incele ve sonuçlandır'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AdminModerationScreen()),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 28),
           const Text('BEN topluluk kuralları',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),

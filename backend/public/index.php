@@ -174,6 +174,11 @@ try {
     $pdo->prepare('INSERT INTO content_reports(reporter_id,target_type,target_id,reason,details) VALUES(?,?,?,?,?)')->execute([$uid,$type,$target,$reason,$details]);
     ben_ok(['report_id'=>(int)$pdo->lastInsertId()]);
   }
+  if ($path === 'admin/status' && $method === 'GET') {
+    $uid = ben_require_user_id($pdo);
+    $admins = array_filter(array_map('intval', explode(',', (string)ben_env('BEN_ADMIN_USER_IDS',''))));
+    ben_json(['is_admin'=>in_array($uid, $admins, true)]);
+  }
   if ($path === 'admin/reports' && $method === 'GET') {
     $uid = ben_require_user_id($pdo);
     $admins = array_filter(array_map('intval', explode(',', (string)ben_env('BEN_ADMIN_USER_IDS',''))));
