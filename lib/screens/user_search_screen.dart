@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/network/api_client.dart';
 import '../services/auth_service.dart';
+import '../services/trust_safety_actions.dart';
 
 class UserSearchScreen extends StatefulWidget {
   const UserSearchScreen({super.key});
@@ -172,7 +173,33 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     final initial = name.isEmpty ? 'B' : name.substring(0, 1).toUpperCase();
 
     return Scaffold(
-      appBar: AppBar(title: Text('@$name')),
+      appBar: AppBar(
+        title: Text('@$name'),
+        actions: [
+          if (AuthService.currentUser?.id != widget.userId)
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'report') {
+                  TrustSafetyActions.report(
+                    context,
+                    targetType: 'user',
+                    targetId: widget.userId,
+                  );
+                } else if (value == 'block') {
+                  TrustSafetyActions.block(
+                    context,
+                    userId: widget.userId,
+                    username: name,
+                  );
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'report', child: Text('Şikâyet et')),
+                PopupMenuItem(value: 'block', child: Text('Engelle')),
+              ],
+            ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
