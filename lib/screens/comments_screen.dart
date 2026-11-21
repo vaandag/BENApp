@@ -288,7 +288,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: dark ? const Color(0xFF07110F) : const Color(0xFFF1F6F3),
+      backgroundColor: dark ? BenTokens.night : BenTokens.paper,
       appBar: AppBar(
         leading: IconButton(onPressed: _close, icon: const Icon(Icons.arrow_back_rounded)),
         backgroundColor: Colors.transparent,
@@ -397,7 +397,7 @@ class _CommentCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: dark ? const [Color(0xFF142D28), Color(0xFF091A17)] : const [Colors.white, Color(0xFFEAF2EF)],
+          colors: dark ? const [BenTokens.panel2, BenTokens.night2] : const [BenTokens.paper, Color(0xFFE7E7E7)],
         ),
         border: Border.all(color: BenTokens.cyan.withValues(alpha: dark ? .24 : .13)),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? .24 : .07), blurRadius: 26, offset: const Offset(0, 12))],
@@ -484,7 +484,7 @@ class _Composer extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
         decoration: BoxDecoration(
-          color: dark ? const Color(0xEE09151D) : const Color(0xF4FFFFFF),
+          color: dark ? const Color(0xEE101010) : const Color(0xF4F1F1F1),
           border: Border(top: BorderSide(color: BenTokens.cyan.withValues(alpha: .12))),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .10), blurRadius: 24, offset: const Offset(0, -8))],
         ),
@@ -502,7 +502,7 @@ class _Composer extends StatelessWidget {
                 decoration: InputDecoration(
                   hintText: 'Yorumunu bırak...',
                   filled: true,
-                  fillColor: dark ? const Color(0xFF0E211E) : const Color(0xFFEAF2EF),
+                  fillColor: dark ? BenTokens.panel2 : const Color(0xFFE4E4E4),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                 ),
