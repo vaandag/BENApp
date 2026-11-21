@@ -127,11 +127,11 @@ class _MemoryDetailScreenState
             padding:
                 const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
+              color: BenTokens.panel2,
               borderRadius:
                   BorderRadius.circular(22),
               border: Border.all(
-                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .55),
+                color: Colors.white.withValues(alpha: .075),
               ),
             ),
             child: Column(
@@ -269,7 +269,7 @@ class _MemoryDetailScreenState
           height: 430,
           decoration:
               BoxDecoration(
-            color: dark ? BenTokens.panel2 : BenTokens.paper,
+            color: BenTokens.panel2,
             borderRadius:
                 BorderRadius.circular(
               26,
@@ -377,7 +377,7 @@ class _MemoryDetailScreenState
                 fontSize: 22,
                 height: 1.55,
                 fontWeight: FontWeight.w500,
-                color: theme.colorScheme.onSurface,
+                color: BenTokens.white,
               ),
             ),
           ],
@@ -423,8 +423,8 @@ class _MemoryDetailScreenState
                 style:
                     const TextStyle(
                   fontSize: 14,
-                  fontWeight:
-                      FontWeight.w700,
+                  fontWeight: FontWeight.w700,
+                  color: BenTokens.white,
                 ),
               ),
           ],
@@ -436,7 +436,7 @@ class _MemoryDetailScreenState
       width: double.infinity,
       height: 280,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: BenTokens.panel,
         borderRadius:
             BorderRadius.circular(26),
       ),
@@ -520,9 +520,9 @@ class _SocialActions extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
-        color: scheme.surface,
+        color: BenTokens.panel,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .55)),
+        border: Border.all(color: Colors.white.withValues(alpha: .075)),
       ),
       child: Row(
         children: [
@@ -545,7 +545,7 @@ class _SocialActions extends StatelessWidget {
           ),
           Expanded(
             child: _ActionButton(
-              icon: pinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+              icon: pinned ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
               label: 'Sabitle',
               active: pinned,
               activeColor: BenTokens.gold,
@@ -578,7 +578,7 @@ class _ActionButton extends StatelessWidget {
     final selected = active;
     final color = selected
         ? activeColor
-        : Theme.of(context).colorScheme.onSurface.withValues(alpha: .66);
+        : BenTokens.white.withValues(alpha: .72);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 3),
       child: Material(
@@ -594,12 +594,12 @@ class _ActionButton extends StatelessWidget {
             decoration: BoxDecoration(
               color: selected
                   ? activeColor.withValues(alpha: .11)
-                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: .035),
+                  : Colors.white.withValues(alpha: .035),
               borderRadius: BorderRadius.circular(99),
               border: Border.all(
                 color: selected
                     ? activeColor.withValues(alpha: .32)
-                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: .075),
+                    : Colors.white.withValues(alpha: .075),
                 width: .8,
               ),
             ),
@@ -715,8 +715,8 @@ class _InfoRow
             style:
                 const TextStyle(
               fontSize: 14,
-              fontWeight:
-                  FontWeight.w600,
+              fontWeight: FontWeight.w600,
+              color: BenTokens.white,
             ),
           ),
         ),
