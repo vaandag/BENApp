@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_tokens.dart';
+
 import '../models/memory_collection.dart';
 import '../services/memory_repository.dart';
 import '../widgets/collection_card.dart';
@@ -218,12 +220,12 @@ class _CollectionsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFFAFAF8),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor:
-            const Color(0xFFFAFAF8),
+        backgroundColor: Colors.transparent,
         surfaceTintColor:
             Colors.transparent,
         elevation: 0,
@@ -237,10 +239,8 @@ class _CollectionsScreenState
       ),
       floatingActionButton:
           FloatingActionButton(
-        backgroundColor:
-            const Color(0xFF142D28),
-        foregroundColor:
-            Colors.white,
+        backgroundColor: BenTokens.gold,
+        foregroundColor: BenTokens.ink,
         onPressed:
             _createCollection,
         child: const Icon(
@@ -316,8 +316,7 @@ class _EmptyCollections
               height: 82,
               decoration:
                   BoxDecoration(
-                color:
-                    const Color(0xFFF1F6F3),
+                color: dark ? BenTokens.panel2 : BenTokens.paper,
                 borderRadius:
                     BorderRadius.circular(
                   26,
@@ -326,8 +325,7 @@ class _EmptyCollections
               child: const Icon(
                 Icons.folder_outlined,
                 size: 38,
-                color:
-                    Color(0xFF142D28),
+                color: BenTokens.gold,
               ),
             ),
             const SizedBox(
@@ -350,7 +348,7 @@ class _EmptyCollections
                   TextAlign.center,
               style: TextStyle(
                 color:
-                    Colors.grey.shade600,
+                    theme.colorScheme.onSurface.withValues(alpha: .58),
                 height: 1.45,
               ),
             ),
