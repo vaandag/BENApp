@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_tokens.dart';
+
 class CreateTextMemoryScreen
     extends StatefulWidget {
   const CreateTextMemoryScreen({
@@ -48,12 +50,11 @@ class _CreateTextMemoryScreenState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFFAFAF8),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor:
-            const Color(0xFFFAFAF8),
+        backgroundColor: Colors.transparent,
         surfaceTintColor:
             Colors.transparent,
         elevation: 0,
@@ -82,7 +83,7 @@ class _CreateTextMemoryScreenState
               child: const Text(
                 'Kaydet',
                 style: TextStyle(
-                  color: Color(0xFF142D28),
+                  color: BenTokens.gold,
                   fontWeight:
                       FontWeight.w700,
                 ),
@@ -103,11 +104,11 @@ class _CreateTextMemoryScreenState
           padding:
               const EdgeInsets.all(22),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.colorScheme.surface,
             borderRadius:
                 BorderRadius.circular(24),
             border: Border.all(
-              color: Colors.grey.shade200,
+              color: theme.colorScheme.outlineVariant.withValues(alpha: .55),
             ),
           ),
           child: TextField(
@@ -123,7 +124,7 @@ class _CreateTextMemoryScreenState
                   'Bu anıyı yaz...',
               hintStyle: TextStyle(
                 color:
-                    Colors.grey.shade400,
+                    theme.colorScheme.onSurface.withValues(alpha: .38),
                 fontSize: 19,
               ),
               border:
@@ -133,7 +134,7 @@ class _CreateTextMemoryScreenState
               fontSize: 19,
               height: 1.55,
               color:
-                  Color(0xFF142D28),
+                  theme.colorScheme.onSurface,
             ),
           ),
         ),
