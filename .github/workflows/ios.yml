@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - ui/ben-design-system-v1
+      - benapp-v195-social-live-repair
   workflow_dispatch:
     inputs:
       api_url:
