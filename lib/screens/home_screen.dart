@@ -1225,12 +1225,11 @@ class _MapMemoryButton extends StatelessWidget {
 
 class _ActionButton extends StatelessWidget {
   final IconData? icon;
-  final Widget? iconWidget;
   final String label;
   final bool active;
   final Color? activeColor;
   final VoidCallback onTap;
-  const _ActionButton({this.icon, this.iconWidget, required this.label, required this.onTap, this.active = false, this.activeColor});
+  const _ActionButton({this.icon, required this.label, required this.onTap, this.active = false, this.activeColor});
   @override
   Widget build(BuildContext context) {
     final selectedColor = activeColor ?? BenTokens.gold;
@@ -1263,10 +1262,7 @@ class _ActionButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (iconWidget != null)
-                iconWidget!
-              else
-                Icon(icon, size: 16, color: color),
+              Icon(icon, size: 16, color: color),
               const SizedBox(width: 4),
               Text(
                 label,
