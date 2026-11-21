@@ -1,24 +1,31 @@
-# BEN yasal belgeleri - yayın hazırlık notu
+# BEN yasal belgeleri — bireysel geliştirici yayın hazırlığı
 
-Bu dosyalar uygulama kodundaki gözlemlenebilir veri akışlarına dayanarak hazırlanmış **taslak** metinlerdir; hukuk görüşü veya tamamlanmış KVKK/GDPR uyum belgesi değildir.
+Bu belgeler uygulamadaki gözlemlenebilir veri akışlarına göre hazırlanmış taslaklardır; hukuk görüşü veya tamamlanmış KVKK/GDPR uyum belgesi değildir.
+
+## Bireysel geliştirici modeli
+
+- İlk yayın hazırlığında şirket kurulması varsayılmamıştır.
+- İşletmeci/veri sorumlusu alanında geliştiricinin gerçek yasal adı kullanılmalıdır; ticari unvan uydurulmaz.
+- Destek için ayrı bir BEN e-posta adresi belirlenmelidir; adres uydurulmaz.
+- Mağaza doğrulamasında istenen yasal adres, kamuya açık politika sayfasına otomatik olarak kopyalanmamalıdır. Kamuya açık adres gerekliliği ve uygun iletişim adresi ayrıca doğrulanmalıdır.
 
 ## Tamamlanacak bilgiler
 
-- İşletmecinin/ticari ünvanın ve yasal adresi
-- Destek e-posta adresi ve kişisel veri başvuru kanalı
-- Canlı üretim sunucusunun ülkesi, barındırma şirketi ve tüm alt hizmet sağlayıcıları
+- Geliştiricinin gerçek yasal adı
+- BEN destek e-postası ve kişisel veri başvuru kanalı
+- Kamuya açık adres gerekip gerekmediği; gerekiyorsa uygun yasal iletişim adresi
+- Sunucu ülkesi, barındırma şirketi ve alt hizmet sağlayıcıları
 - Yedekleme, güvenlik kayıtları ve içeriklerin gerçek saklama/silme süreleri
-- MapTiler veya OpenStreetMap kullanımı, STUN/TURN sağlayıcıları ve olası uluslararası veri aktarımları
-- Coin/hediye/premium özellikleri açılmadan önce sanal öğe, ücret ve iade şartları
-- Uygulanacak hukuk, yetkili merciler ve itiraz yöntemi
-- Her iki belgenin yürürlük ve sürüm tarihi
+- Harita ve STUN/TURN sağlayıcıları ile olası uluslararası veri aktarımları
+- Coin/hediye/Premium ücret, kullanım ve iade şartları
+- Uygulanacak hukuk, yetkili merciler, itiraz yöntemi ve yürürlük tarihi
 
 ## Yayına alma
 
-1. Köşeli parantezli tüm alanları gerçek işletmeci/veri işleme bilgileriyle doldur.
-2. Üçüncü taraf hizmet sağlayıcılarını canlı yapılandırma ve sözleşmelerle karşılaştır.
+1. Köşeli parantezli alanları gerçek geliştirici ve veri işleme bilgileriyle doldur.
+2. Sağlayıcıları canlı yapılandırma ve sözleşmelerle karşılaştır.
 3. Saklama sürelerini, yedekleme politikasını ve KVKK başvuru sürecini hukuk danışmanıyla doğrula.
-4. `backend/public/privacy-policy.html` ve `backend/public/terms-of-service.html` dosyalarını HTTPS altında herkese açık ve kalıcı URL'lerde yayımla.
-5. Bu URL'leri uygulama içindeki yasal bilgi ekranı ve mağaza kayıtlarıyla aynı tut.
+4. Gizlilik politikası ve kullanım koşullarını HTTPS altında herkese açık kalıcı URL'lerde yayımla.
+5. URL'leri uygulama içi yasal bilgi ekranı ve mağaza kayıtlarıyla eşleştir.
 
-Şu anki metinler bilerek taslak uyarısı taşır; bu uyarı işletmeci bilgileri doğrulanmadan kaldırılmamalıdır.
+Taslak uyarısı, bilgiler doğrulanmadan kaldırılmamalıdır.

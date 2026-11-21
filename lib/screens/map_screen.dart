@@ -104,7 +104,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   void didUpdateWidget(covariant MapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     final focus = widget.focusMemory;
-    if (focus != null && focus.id != oldWidget.focusMemory?.id && focus.hasLocation) {
+    if (focus != null && focus.id != oldWidget.focusMemory?.id && focus.hasLocation && _isValidCoordinate(focus.latitude!, focus.longitude!)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_mapReady) return;
         _selectPin(_MapPin.fromMemory(focus));
@@ -125,8 +125,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         .where((m) =>
             m.hasLocation &&
             !m.isExpired &&
-            m.latitude!.isFinite &&
-            m.longitude!.isFinite)
+            _isValidCoordinate(m.latitude!, m.longitude!))
         .map(_MapPin.fromMemory);
 
     // Sample names and locations must never appear in release builds.
@@ -142,6 +141,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   List<_MapNode> get _nodes => _cluster(_pins, _currentZoom);
+
+  bool _isValidCoordinate(double latitude, double longitude) =>
+      latitude.isFinite && longitude.isFinite &&
+      latitude >= -90 && latitude <= 90 &&
+      longitude >= -180 && longitude <= 180;
 
   Future<void> _loadLocalState() async {
     final prefs = await SharedPreferences.getInstance();
@@ -181,8 +185,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   Future<void> _prepareStart() async {
     final focus = widget.focusMemory;
     if (focus?.hasLocation == true &&
-        focus!.latitude!.isFinite &&
-        focus.longitude!.isFinite) {
+        _isValidCoordinate(focus!.latitude!, focus.longitude!)) {
       _center = LatLng(focus.latitude!, focus.longitude!);
       _preparedLocation = true;
       if (mounted) setState(() {});
@@ -301,7 +304,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _selectPin(_MapPin pin, {bool addHistory = true}) {
-    if (!mounted || !pin.latitude.isFinite || !pin.longitude.isFinite) return;
+    if (!mounted || !_isValidCoordinate(pin.latitude, pin.longitude)) return;
     final previous = _selectedPin;
     if (addHistory && previous != null && previous.id != pin.id) {
       _history.add(previous.id);
@@ -326,7 +329,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       _selectedPin = null;
     });
     final nextZoom = math.min(17.2, _currentZoom + (node.members.length > 12 ? 2.2 : 1.7));
-    _controller.move(node.center, nextZoom);
+    if (_mapReady && _isValidCoordinate(node.center.latitude, node.center.longitude)) {
+      _controller.move(node.center, nextZoom);
+    }
   }
 
   void _exploreNext() {
@@ -492,8 +497,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               final nextZoom = event.camera.zoom;
               final nextCenter = event.camera.center;
               if (!nextZoom.isFinite ||
-                  !nextCenter.latitude.isFinite ||
-                  !nextCenter.longitude.isFinite) {
+                  !_isValidCoordinate(nextCenter.latitude, nextCenter.longitude)) {
                 return;
               }
               if ((nextZoom - _currentZoom).abs() >= .12 && mounted) {

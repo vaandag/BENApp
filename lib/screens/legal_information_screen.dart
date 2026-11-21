@@ -53,7 +53,7 @@ class LegalInformationScreen extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Yayın tarihi: [YAYIN TARİHİ] • İşletmeci: [TİCARİ ÜNVAN / İŞLETMECİ]',
+            'Yayın tarihi: [YAYIN TARİHİ] • İşletmeci: [GELİŞTİRİCİNİN YASAL ADI — BİREYSEL GELİŞTİRİCİ]',
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .6),
               fontSize: 12,
@@ -104,7 +104,7 @@ class LegalInformationScreen extends StatelessWidget {
   static const _privacySections = <_LegalSection>[
     _LegalSection(
       '1. Veri sorumlusu',
-      'BEN hizmetinin işletmecisi [TİCARİ ÜNVAN / İŞLETMECİ]’dir. Yasal adres [YASAL ADRES], gizlilik ve veri talepleri için iletişim adresi [DESTEK E-POSTASI] olarak tamamlanmalıdır.',
+      'BEN hizmetinin veri sorumlusu/işletmecisi bireysel geliştirici [GELİŞTİRİCİNİN YASAL ADI]’dır. Yasal adres [GEREKİRSE YASAL İLETİŞİM ADRESİ], gizlilik ve veri talepleri için iletişim adresi [BEN DESTEK E-POSTASI] olarak tamamlanmalıdır.',
     ),
     _LegalSection(
       '2. İşlenen veri kategorileri',
@@ -151,7 +151,7 @@ class LegalInformationScreen extends StatelessWidget {
     ),
     _LegalSection(
       '2. Hesap ve güvenlik',
-      'Hesap bilgilerini doğru tutmalı, oturum bilgilerini korumalı ve hesabındaki işlemlerden sorumlu olmalısın. Hesabına yetkisiz erişim olduğunu düşünüyorsan [DESTEK E-POSTASI] üzerinden bildirim yap.',
+      'Hesap bilgilerini doğru tutmalı, oturum bilgilerini korumalı ve hesabındaki işlemlerden sorumlu olmalısın. Hesabına yetkisiz erişim olduğunu düşünüyorsan [BEN DESTEK E-POSTASI] üzerinden bildirim yap.',
     ),
     _LegalSection(
       '3. İçerik ve paylaşım hakları',
@@ -179,7 +179,7 @@ class LegalInformationScreen extends StatelessWidget {
     ),
     _LegalSection(
       '9. Hesabın kapatılması ve yürürlük',
-      'Hesabını uygulama içinden veya [DIŞ HESAP SİLME URL’Sİ] üzerinden silebilirsin. Kullanım koşullarının yürürlük tarihi [YÜRÜRLÜK TARİHİ], işletmeci [TİCARİ ÜNVAN / İŞLETMECİ], destek iletişimi [DESTEK E-POSTASI] olarak tamamlanmalıdır.',
+      'Hesabını uygulama içinden veya [DIŞ HESAP SİLME URL’Sİ] üzerinden silebilirsin. Kullanım koşullarının yürürlük tarihi [YÜRÜRLÜK TARİHİ], işletmeci [GELİŞTİRİCİNİN YASAL ADI — BİREYSEL GELİŞTİRİCİ], destek iletişimi [BEN DESTEK E-POSTASI] olarak tamamlanmalıdır.',
     ),
   ];
 }
