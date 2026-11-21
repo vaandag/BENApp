@@ -516,6 +516,18 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.delete_forever_outlined, color: Color(0xFFFF8B8B)),
+                title: const Text('Hesabımı sil', style: TextStyle(color: Color(0xFFFF8B8B))),
+                subtitle: const Text(
+                  'Hesabını ve ilişkili verilerini kalıcı olarak kaldır',
+                  style: TextStyle(color: _muted),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _deleteAccount();
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.logout_rounded, color: Color(0xFFFF8B8B)),
                 title: const Text('Çıkış yap', style: TextStyle(color: _white)),
                 onTap: () async {
@@ -549,6 +561,81 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
         ),
       ),
     );
+  }
+
+  Future<void> _deleteAccount() async {
+    final passwordController = TextEditingController();
+    final password = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _panel,
+        title: const Text(
+          'BEN hesabını sil',
+          style: TextStyle(color: _white, fontWeight: FontWeight.w900),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Hesabın, anıların, yorumların, mesajların ve takip bağlantıların kalıcı olarak silinecek. Bu işlem geri alınamaz.',
+              style: TextStyle(color: _muted, height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Hesap şifren',
+                hintText: 'Silme işlemini doğrulamak için şifreni gir',
+              ),
+              onSubmitted: (value) {
+                if (value.trim().isNotEmpty) {
+                  Navigator.pop(dialogContext, value);
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFB42332),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              final value = passwordController.text;
+              if (value.trim().isNotEmpty) {
+                Navigator.pop(dialogContext, value);
+              }
+            },
+            child: const Text('Hesabımı kalıcı sil'),
+          ),
+        ],
+      ),
+    );
+    passwordController.dispose();
+    if (password == null || password.isEmpty || !mounted) return;
+
+    try {
+      await _api.post('account/delete', body: {'password': password});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Hesabın ve ilişkili verilerin silindi.')),
+      );
+      widget.onLogout();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Hesap silinemedi: $error')),
+      );
+    }
   }
 
   Future<void> _showBadges() async {
