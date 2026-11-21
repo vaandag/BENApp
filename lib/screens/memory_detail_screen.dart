@@ -690,7 +690,6 @@ class _InfoRow
   Widget build(
     BuildContext context,
   ) {
-    final theme = Theme.of(context);
     return Row(
       children: [
         Container(
