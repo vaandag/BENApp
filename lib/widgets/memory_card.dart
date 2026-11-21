@@ -630,7 +630,7 @@ class _LocationPreview
               child: const Icon(
                 Icons.location_on_rounded,
                 size: 29,
-                color: Colors.white,
+                color: BenTokens.ink,
               ),
             ),
             const SizedBox(height: 10),
