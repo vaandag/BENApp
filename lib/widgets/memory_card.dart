@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../models/memory.dart';
+import '../core/theme/app_tokens.dart';
 
 class MemoryCard extends StatelessWidget {
   final Memory memory;
@@ -146,7 +147,7 @@ class MemoryCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPreview() {
+  Widget _buildPreview(BuildContext context) {
     if (memory.hasPhoto) {
       return AspectRatio(
         aspectRatio: 1.08,
@@ -185,14 +186,15 @@ class MemoryCard extends StatelessWidget {
       );
     }
 
+    final theme = Theme.of(context);
     return Container(
       width: double.infinity,
       height: 180,
-      color: const Color(0xFFF1F6F3),
+      color: theme.colorScheme.surface,
       child: Icon(
         _typeIcon(memory.type),
         size: 48,
-        color: const Color(0xFF142D28),
+        color: BenTokens.gold,
       ),
     );
   }
@@ -344,13 +346,14 @@ class _VideoPreviewState
 
     if (controller == null ||
         !controller.value.isInitialized) {
+      final theme = Theme.of(context);
       return Container(
         width: double.infinity,
         height: 205,
-        color: const Color(0xFF142D28),
+        color: theme.colorScheme.surface,
         child: const Center(
           child: CircularProgressIndicator(
-            color: Colors.white,
+            color: BenTokens.gold,
           ),
         ),
       );
@@ -359,7 +362,7 @@ class _VideoPreviewState
     return Container(
       width: double.infinity,
       height: 205,
-      color: const Color(0xFF142D28),
+      color: Theme.of(context).colorScheme.surface,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -419,15 +422,14 @@ class _VideoPreviewState
                 height: 60,
                 decoration:
                     const BoxDecoration(
-                  color: Colors.white,
+                  color: BenTokens.gold,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   controller.value.isPlaying
                       ? Icons.pause_rounded
                       : Icons.play_arrow_rounded,
-                  color:
-                      const Color(0xFF142D28),
+                  color: BenTokens.ink,
                   size: 34,
                 ),
               ),
@@ -556,19 +558,19 @@ class _TextMemoryPreview
         22,
         22,
       ),
-      decoration:
-          const BoxDecoration(
-        color: Color(0xFFF1F6F3),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? BenTokens.panel2
+            : BenTokens.paper,
       ),
       child: Column(
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
-          Icon(
+          const Icon(
             Icons.format_quote_rounded,
             size: 30,
-            color:
-                Colors.grey.shade400,
+            color: BenTokens.gold,
           ),
           const SizedBox(height: 20),
           Text(
@@ -576,14 +578,12 @@ class _TextMemoryPreview
             maxLines: 6,
             overflow:
                 TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 19,
               height: 1.42,
-              fontWeight:
-                  FontWeight.w500,
+              fontWeight: FontWeight.w500,
               letterSpacing: -0.2,
-              color:
-                  Color(0xFF142D28),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],
@@ -610,9 +610,10 @@ class _LocationPreview
     return Container(
       width: double.infinity,
       height: 190,
-      decoration:
-          const BoxDecoration(
-        color: Color(0xFFEAF2EF),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? BenTokens.panel2
+            : BenTokens.paper,
       ),
       child: Center(
         child: Column(
@@ -622,12 +623,9 @@ class _LocationPreview
             Container(
               width: 58,
               height: 58,
-              decoration:
-                  const BoxDecoration(
-                color:
-                    Color(0xFF142D28),
-                shape:
-                    BoxShape.circle,
+              decoration: const BoxDecoration(
+                color: BenTokens.gold,
+                shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.location_on_rounded,
@@ -672,17 +670,15 @@ class _TypeIcon
     return Container(
       width: 36,
       height: 36,
-      decoration:
-          BoxDecoration(
-        color:
-            Colors.grey.shade100,
+      decoration: BoxDecoration(
+        color: BenTokens.gold.withValues(alpha: .12),
         shape: BoxShape.circle,
+        border: Border.all(color: BenTokens.gold.withValues(alpha: .24)),
       ),
       child: Icon(
         MemoryCard._typeIcon(type),
         size: 18,
-        color:
-            const Color(0xFF142D28),
+        color: BenTokens.gold,
       ),
     );
   }
@@ -706,13 +702,13 @@ class _ErrorPreview
     return Container(
       width: double.infinity,
       height: 205,
-      color:
-          const Color(0xFFF1F6F3),
+      color: Theme.of(context).brightness == Brightness.dark
+          ? BenTokens.panel2
+          : BenTokens.paper,
       child: Icon(
         icon,
         size: 48,
-        color:
-            const Color(0xFF142D28),
+        color: BenTokens.gold,
       ),
     );
   }
