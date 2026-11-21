@@ -180,11 +180,58 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
         },
         child: Scaffold(
           backgroundColor: Colors.black,
-          body: Stack(children: [
+          body: SizedBox.expand(
+            child: Stack(fit: StackFit.expand, children: [
             Positioned.fill(child: _renderer.srcObject == null ? Center(child: _busy ? const CircularProgressIndicator(color: BenTokens.cyan) : const Text('CANLI video akışı alınamadı.', style: TextStyle(color: Colors.white))) : RTCVideoView(_renderer, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)),
             Positioned.fill(child: IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withValues(alpha: .55), Colors.transparent, Colors.black.withValues(alpha: .72)], stops: const [0, .48, 1]))))),
-            SafeArea(child: Padding(padding: const EdgeInsets.fromLTRB(14, 12, 14, 0), child: Row(children: [IconButton(onPressed: () async { await _leave(); if (context.mounted) Navigator.pop(context); }, icon: const Icon(Icons.arrow_back_rounded, color: Colors.white)), Expanded(child: Text(_title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900))), Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7), decoration: BoxDecoration(color: BenTokens.cyan.withValues(alpha: .16), borderRadius: BorderRadius.circular(99), border: Border.all(color: BenTokens.cyan.withValues(alpha: .26))), child: Text(_status, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)))]))),
-          ]),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () async {
+                          await _leave();
+                          if (context.mounted) Navigator.pop(context);
+                        },
+                        icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                      ),
+                      Expanded(
+                        child: Text(
+                          _title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: BenTokens.cyan.withValues(alpha: .16),
+                          borderRadius: BorderRadius.circular(99),
+                          border: Border.all(color: BenTokens.cyan.withValues(alpha: .26)),
+                        ),
+                        child: Text(
+                          _status,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            ]),
+          ),
         ),
       );
 }
