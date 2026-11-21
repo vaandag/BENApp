@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../core/network/api_client.dart';
 import 'admin_moderation_screen.dart';
 import 'legal_information_screen.dart';
-import 'legal_information_screen.dart';
 
 class TrustSafetyScreen extends StatefulWidget {
   const TrustSafetyScreen({super.key});
