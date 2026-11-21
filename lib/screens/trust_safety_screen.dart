@@ -232,9 +232,6 @@ class _TrustSafetyScreenState extends State<TrustSafetyScreen> {
             'Bu ekrandaki yasal belgeler taslaktır. Resmî politika olarak yayımlanmadan önce işletmeci bilgileri, gerçek hizmet sağlayıcıları ve veri saklama süreleri tamamlanmalıdır.',
             style: TextStyle(fontSize: 12, height: 1.45),
           ),
- Resmî gizlilik politikası, kullanım koşulları, veri saklama süreleri ve destek iletişim bilgileri yayın öncesinde BEN’in gerçek işletmeci bilgileriyle tamamlanmalıdır.',
-            style: TextStyle(fontSize: 12, height: 1.45),
-          ),
         ],
       ),
     );

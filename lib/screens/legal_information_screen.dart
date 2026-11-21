@@ -89,14 +89,10 @@ class LegalInformationScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            '• [Ticari ünvan ve veri sorumlusu]
-'
-            '• [Yasal adres ve destek e-posta adresi]
-'
-            '• [Sunucu ülkesi, barındırma ve diğer alt hizmet sağlayıcıları]
-'
-            '• [Yedekleme ve veri saklama süreleri]
-'
+            '• [Ticari ünvan ve veri sorumlusu]\n'
+            '• [Yasal adres ve destek e-posta adresi]\n'
+            '• [Sunucu ülkesi, barındırma ve diğer alt hizmet sağlayıcıları]\n'
+            '• [Yedekleme ve veri saklama süreleri]\n'
             '• [KVKK başvuru/iletişim yöntemi ve yürürlük tarihi]',
             style: TextStyle(height: 1.55),
           ),
