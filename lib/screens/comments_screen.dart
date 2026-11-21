@@ -6,21 +6,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/network/api_client.dart';
 import '../core/theme/app_tokens.dart';
 import '../services/auth_service.dart';
+import '../services/trust_safety_actions.dart';
 
 class _Comment {
   String text;
   String username;
+  final int? id;
+  final int? userId;
   final int? memoryId;
   DateTime createdAt;
   int likes;
   bool liked;
-  _Comment(this.text, {this.memoryId, String? username, DateTime? createdAt, this.likes = 0, this.liked = false})
+  _Comment(this.text, {this.id, this.userId, this.memoryId, String? username, DateTime? createdAt, this.likes = 0, this.liked = false})
       : username = username ?? (AuthService.currentUser?.username ?? 'BEN'),
         createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
         'body': text,
         'username': username,
+        if (id != null) 'id': id,
+        if (userId != null) 'user_id': userId,
         'created_at': createdAt.toIso8601String(),
         'likes': likes,
         'liked': liked,
@@ -29,6 +34,8 @@ class _Comment {
 
   factory _Comment.fromJson(Map<String, dynamic> json) => _Comment(
         '${json['body'] ?? ''}',
+        id: int.tryParse('${json['id'] ?? ''}'),
+        userId: int.tryParse('${json['user_id'] ?? json['userId'] ?? ''}'),
         memoryId: int.tryParse('${json['memory_id'] ?? json['memoryId'] ?? ''}'),
         username: '${json['username'] ?? 'BEN'}',
         createdAt: DateTime.tryParse('${json['created_at'] ?? ''}'),
@@ -158,7 +165,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
     final editingIndex = _editingIndex;
     final comment = editingIndex == null
-        ? _Comment(text, memoryId: widget.memoryId, username: _currentName)
+        ? _Comment(text, memoryId: widget.memoryId, username: _currentName, userId: AuthService.currentUser?.id)
         : _comments[editingIndex];
 
     setState(() {
@@ -240,7 +247,30 @@ class _CommentsScreenState extends State<CommentsScreen> {
     await _persistLocal();
   }
 
+  Future<void> _reportComment(int index) async {
+    final comment = _comments[index];
+    final commentId = comment.id;
+    if (commentId == null || commentId <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bu yorum sunucuya kaydedilmediği için şikâyet edilemiyor.'),
+        ),
+      );
+      return;
+    }
+    await TrustSafetyActions.report(
+      context,
+      targetType: 'comment',
+      targetId: commentId,
+    );
+  }
+
   void _menu(int index) {
+    final comment = _comments[index];
+    final currentId = AuthService.currentUser?.id;
+    final isMine = comment.userId != null && currentId != null
+        ? comment.userId == currentId
+        : comment.username.trim().toLowerCase() == _currentName.toLowerCase();
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -248,22 +278,32 @@ class _CommentsScreenState extends State<CommentsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('Düzenle'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _edit(index);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Sil'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _delete(index);
-              },
-            ),
+            if (isMine) ...[
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Düzenle'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _edit(index);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Sil'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _delete(index);
+                },
+              ),
+            ] else
+              ListTile(
+                leading: const Icon(Icons.flag_outlined),
+                title: const Text('Yorumu şikâyet et'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _reportComment(index);
+                },
+              ),
           ],
         ),
       ),
