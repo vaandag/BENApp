@@ -228,14 +228,143 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(children: [
-        Positioned.fill(child: _starting || _localStream == null ? const Center(child: CircularProgressIndicator(color: BenTokens.cyan)) : RTCVideoView(_renderer, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover, mirror: true)),
-        Positioned.fill(child: IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withValues(alpha: .52), Colors.transparent, Colors.black.withValues(alpha: .86)], stops: const [0, .42, 1]))))),
-        SafeArea(child: Padding(padding: const EdgeInsets.fromLTRB(14, 12, 14, 0), child: Row(children: [IconButton(onPressed: () { if (_live) return; Navigator.pop(context); }, icon: const Icon(Icons.close_rounded, color: Colors.white)), Expanded(child: Text(_live ? 'CANLI • $_viewerCount' : 'CANLI STÜDYO', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900))), if (_live) Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7), decoration: BoxDecoration(color: Colors.redAccent.withValues(alpha: .90), borderRadius: BorderRadius.circular(99)), child: const Text('YAYINDA', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)))]))),
-        if (!_live && !_starting) Positioned(left: 18, right: 18, bottom: 28, child: SafeArea(top: false, child: _StartPanel(title: _title, status: _status, busy: _busy, onTitle: (v) => setState(() => _title = v), onStart: _startLive))),
-        if (_live) Positioned(left: 16, right: 16, bottom: 22, child: SafeArea(top: false, child: FilledButton.icon(onPressed: _stopLive, style: FilledButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)), icon: const Icon(Icons.stop_circle_outlined), label: const Text('YAYINI BİTİR')))),
-        Positioned(left: 18, top: 86, child: SafeArea(top: false, child: Text(_status, style: TextStyle(color: Colors.white.withValues(alpha: .78), fontWeight: FontWeight.w700, fontSize: 11)))),
-      ]),
+      body: SizedBox.expand(
+        child: Stack(
+          fit: StackFit.expand,
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned.fill(
+              child: _starting || _localStream == null
+                  ? const Center(
+                      child: CircularProgressIndicator(color: BenTokens.cyan),
+                    )
+                  : SizedBox.expand(
+                      child: RTCVideoView(
+                        _renderer,
+                        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                        mirror: true,
+                      ),
+                    ),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: .52),
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: .86),
+                      ],
+                      stops: const [0, .42, 1],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () {
+                          if (_live) return;
+                          Navigator.pop(context);
+                        },
+                        icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      ),
+                      Expanded(
+                        child: Text(
+                          _live ? 'CANLI • $_viewerCount' : 'CANLI STÜDYO',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      if (_live)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: .90),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: const Text(
+                            'YAYINDA',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (!_live && !_starting)
+              Positioned(
+                left: 18,
+                right: 18,
+                bottom: 0,
+                child: SafeArea(
+                  top: false,
+                  minimum: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+                  child: _StartPanel(
+                    title: _title,
+                    status: _status,
+                    busy: _busy,
+                    onTitle: (v) => setState(() => _title = v),
+                    onStart: _startLive,
+                  ),
+                ),
+              ),
+            if (_live)
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 0,
+                child: SafeArea(
+                  top: false,
+                  minimum: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+                  child: FilledButton.icon(
+                    onPressed: _stopLive,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: const Icon(Icons.stop_circle_outlined),
+                    label: const Text('YAYINI BİTİR'),
+                  ),
+                ),
+              ),
+            Positioned(
+              left: 18,
+              top: 86,
+              child: SafeArea(
+                top: false,
+                child: Text(
+                  _status,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: .78),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
