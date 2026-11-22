@@ -7,6 +7,7 @@ require __DIR__ . '/lib/auth.php';
 require __DIR__ . '/lib/schema.php';
 require __DIR__ . '/lib/account_deletion.php';
 require __DIR__ . '/lib/moderation.php';
+require __DIR__ . '/lib/messaging.php';
 
 $requestId = ben_bootstrap_http();
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -487,15 +488,8 @@ try {
     if($receiver<=0||$receiver===$uid||$body===''||strlen($body)>5000){
       ben_error('Geçerli bir alıcı ve 1-5000 karakterlik mesaj gerekli.',422,'INVALID_MESSAGE');
     }
-    $recipient=$pdo->prepare('SELECT 1 FROM users WHERE id=?');
-    $recipient->execute([$receiver]);
-    if(!$recipient->fetchColumn()){ben_error('Alıcı bulunamadı.',404,'RECIPIENT_NOT_FOUND');}
-    $blocked=$pdo->prepare('SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)');
-    $blocked->execute([$uid,$receiver,$receiver,$uid]);
-    if($blocked->fetchColumn()){ben_error('Bu kullanıcıyla mesajlaşma engellendi.',403,'USER_BLOCKED');}
-    $s=$pdo->prepare('INSERT INTO messages(sender_id,receiver_id,body) VALUES(?,?,?)');
-    $s->execute([$uid,$receiver,$body]);
-    echo json_encode(['ok'=>true,'id'=>$pdo->lastInsertId()]); exit;
+    $messageId = ben_send_message($pdo, $uid, $receiver, $body);
+    echo json_encode(['ok'=>true,'id'=>$messageId]); exit;
   }
   if (preg_match('#^messages/(\\d+)/edit$#',$path,$m) && $method==='POST') {
     $uid=ben_require_user_id($pdo);
