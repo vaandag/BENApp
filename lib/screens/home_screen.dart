@@ -599,6 +599,7 @@ class _StoryViewerState extends State<_StoryViewer> with SingleTickerProviderSta
   int _storyIndex = 0;
   int? _pendingStoryIndex;
   bool _openingMemory = false;
+  double _verticalDragDistance = 0;
 
   @override
   void initState() {
@@ -676,7 +677,11 @@ class _StoryViewerState extends State<_StoryViewer> with SingleTickerProviderSta
   }
 
   void _closeOnVerticalSwipe(DragEndDetails details) {
-    if ((details.primaryVelocity ?? 0).abs() >= 450 && mounted) Navigator.of(context).pop();
+    final velocity = (details.primaryVelocity ?? 0).abs();
+    if ((_verticalDragDistance >= 70 || velocity >= 450) && mounted) {
+      Navigator.of(context).pop();
+    }
+    _verticalDragDistance = 0;
   }
 
   @override
@@ -698,13 +703,10 @@ class _StoryViewerState extends State<_StoryViewer> with SingleTickerProviderSta
       );
     }
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onVerticalDragEnd: _closeOnVerticalSwipe,
-      child: Material(
-        color: Colors.black,
-        child: SafeArea(
-          child: PageView.builder(
+    return Material(
+      color: Colors.black,
+      child: SafeArea(
+        child: PageView.builder(
             controller: _peopleController,
             itemCount: widget.people.length,
             onPageChanged: (index) {
@@ -722,6 +724,11 @@ class _StoryViewerState extends State<_StoryViewer> with SingleTickerProviderSta
               final story = person.stories[storyIndex.clamp(0, person.stories.length - 1)];
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
+                onVerticalDragStart: (_) => _verticalDragDistance = 0,
+                onVerticalDragUpdate: (details) {
+                  _verticalDragDistance += details.delta.dy.abs();
+                },
+                onVerticalDragEnd: _closeOnVerticalSwipe,
                 onTapUp: (details) {
                   final width = MediaQuery.sizeOf(context).width;
                   if (details.localPosition.dx < width * .30) {
