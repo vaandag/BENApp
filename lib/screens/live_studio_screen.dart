@@ -212,8 +212,20 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
     _remoteDescriptionReady.remove(id);
   }
 
+  Future<void> _stopLiveOnDispose(int liveId) async {
+    try {
+      await _api.post('live/$liveId/stop');
+    } catch (_) {
+      // The server expires an abandoned room after its host heartbeat grace period.
+    }
+  }
+
   @override
   void dispose() {
+    final activeLiveId = _live ? _liveId : null;
+    if (activeLiveId != null) {
+      unawaited(_stopLiveOnDispose(activeLiveId));
+    }
     _pollTimer?.cancel();
     _heartbeatTimer?.cancel();
     for (final pc in _peers.values) { pc.close(); pc.dispose(); }

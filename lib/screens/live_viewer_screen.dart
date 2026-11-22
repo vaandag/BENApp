@@ -106,8 +106,12 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
         if (kind == 'offer') await _handleOffer(payload);
         if (kind == 'candidate') await _handleCandidate(payload);
       }
-    } catch (_) {
-      if (mounted && _joined) {
+    } catch (error) {
+      if (error is ApiException && error.statusCode == 404 && mounted) {
+        setState(() => _status = 'Yayın sona erdi.');
+        await _leave();
+        if (mounted) Navigator.pop(context);
+      } else if (mounted && _joined) {
         setState(() => _status = 'Bağlantı yenileniyor…');
       }
     } finally {
