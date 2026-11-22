@@ -41,6 +41,26 @@ $checks = [
   'signals to removed or ended peers are pruned' => $signals === 1,
   'pruning is idempotent' => ben_prune_stale_live_sessions($pdo) === 0,
 ];
+
+$peerConflictRejected = false;
+try {
+  ben_register_live_peer($pdo, 'viewer-fresh', $freshId, 99, 'viewer');
+} catch (DomainException $error) {
+  $peerConflictRejected = (int)$error->getCode() === 409;
+}
+$wrongOwnerCannotRemove = !ben_remove_live_peer($pdo, 'viewer-fresh', $freshId, 99);
+$peerStillPresent = (int)$pdo->query(
+  "SELECT COUNT(*) FROM live_peers WHERE peer_id='viewer-fresh'"
+)->fetchColumn() === 1;
+$signal->execute([$freshId,'host-fresh','viewer-fresh','candidate','{}']);
+$ownPeerRemoved = ben_remove_live_peer($pdo, 'viewer-fresh', $freshId, 4);
+$signalAfterLeave = (int)$pdo->query(
+  "SELECT COUNT(*) FROM live_signals WHERE to_peer='viewer-fresh' OR from_peer='viewer-fresh'"
+)->fetchColumn() === 0;
+$checks['peer ID cannot be hijacked by another account'] = $peerConflictRejected;
+$checks['wrong owner cannot remove a live peer'] = $wrongOwnerCannotRemove && $peerStillPresent;
+$checks['authorized leave removes only own peer and queued signals'] = $ownPeerRemoved && $signalAfterLeave;
+
 foreach ($checks as $name => $passed) {
   if (!$passed) throw new RuntimeException("Live session cleanup test failed: $name");
 }

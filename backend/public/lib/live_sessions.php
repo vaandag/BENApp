@@ -58,3 +58,67 @@ function ben_live_has_active_host(PDO $pdo, int $liveId): bool {
   $statement->execute([$liveId]);
   return $statement->fetchColumn() !== false;
 }
+
+
+/**
+ * Register or refresh a peer without allowing one account to replace another's
+ * peer identifier. Repeated joins from the same owner/room/role are idempotent.
+ */
+function ben_register_live_peer(
+  PDO $pdo,
+  string $peerId,
+  int $liveId,
+  int $userId,
+  string $role
+): void {
+  if ($peerId === '' || strlen($peerId) > 100 || $liveId <= 0 || $userId <= 0 ||
+      !in_array($role, ['host', 'viewer'], true)) {
+    throw new DomainException('Geçersiz canlı bağlantı kimliği.', 422);
+  }
+
+  $existing = $pdo->prepare(
+    'SELECT live_id,user_id,role FROM live_peers WHERE peer_id=?'
+  );
+  $existing->execute([$peerId]);
+  $row = $existing->fetch(PDO::FETCH_ASSOC);
+  if ($row) {
+    if ((int)$row['live_id'] !== $liveId ||
+        (int)$row['user_id'] !== $userId ||
+        $row['role'] !== $role) {
+      throw new DomainException('Bu canlı bağlantı kimliği zaten kullanımda.', 409);
+    }
+    $pdo->prepare(
+      'UPDATE live_peers SET last_seen_at=CURRENT_TIMESTAMP WHERE peer_id=? AND user_id=?'
+    )->execute([$peerId, $userId]);
+    return;
+  }
+
+  $pdo->prepare(
+    'INSERT INTO live_peers(peer_id,live_id,user_id,role) VALUES(?,?,?,?)'
+  )->execute([$peerId, $liveId, $userId, $role]);
+}
+
+/**
+ * Remove only the requesting account's own peer and its pending signals.
+ */
+function ben_remove_live_peer(PDO $pdo, string $peerId, int $liveId, int $userId): bool {
+  $pdo->beginTransaction();
+  try {
+    $delete = $pdo->prepare(
+      'DELETE FROM live_peers WHERE peer_id=? AND live_id=? AND user_id=?'
+    );
+    $delete->execute([$peerId, $liveId, $userId]);
+    if ($delete->rowCount() === 0) {
+      $pdo->commit();
+      return false;
+    }
+    $pdo->prepare(
+      'DELETE FROM live_signals WHERE live_id=? AND (from_peer=? OR to_peer=?)'
+    )->execute([$liveId, $peerId, $peerId]);
+    $pdo->commit();
+    return true;
+  } catch (Throwable $error) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    throw $error;
+  }
+}

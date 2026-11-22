@@ -621,6 +621,7 @@ try {
   }
   if ($path === 'live' && $method === 'POST') {
     $uid = ben_require_user_id($pdo);
+    ben_enforce_rate_limit($pdo, 'live-start-user:'.$uid, 6, 3600);
     if ($uid <= 0) { http_response_code(401); echo json_encode(['ok'=>false,'message'=>'CANLI başlatmak için giriş yapmalısın.']); exit; }
     $check=$pdo->prepare('SELECT 1 FROM users WHERE id=?'); $check->execute([$uid]);
     if (!$check->fetchColumn()) { http_response_code(401); echo json_encode(['ok'=>false,'message'=>'Kullanıcı bulunamadı.']); exit; }
@@ -635,6 +636,7 @@ try {
   }
   if (preg_match('#^live/(\d+)/join$#',$path,$m) && $method==='POST') {
     $uid=ben_require_user_id($pdo);
+    ben_enforce_rate_limit($pdo, 'live-join-user:'.$uid, 60, 3600);
     ben_prune_stale_live_sessions($pdo); $liveId=(int)$m[1]; $peerId=trim((string)($input['peer_id']??''));
     if($uid<=0||$liveId<=0||$peerId===''||strlen($peerId)>100){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Canlı katılım bilgisi eksik.']);exit;}
     $q=$pdo->prepare("SELECT id,user_id,host_peer_id,title FROM lives WHERE id=? AND status='live'");$q->execute([$liveId]);$live=$q->fetch();
@@ -642,8 +644,11 @@ try {
     $blocked=$pdo->prepare('SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)');
     $blocked->execute([$uid,(int)$live['user_id'],(int)$live['user_id'],$uid]);
     if($blocked->fetchColumn()){ben_error('Engelleme nedeniyle bu canlı yayına katılamazsın.',403,'USER_BLOCKED');}
-    $pdo->prepare('DELETE FROM live_peers WHERE peer_id=?')->execute([$peerId]);
-    $pdo->prepare('INSERT INTO live_peers(peer_id,live_id,user_id,role) VALUES(?,?,?,?)')->execute([$peerId,$liveId,$uid,'viewer']);
+    try {
+      ben_register_live_peer($pdo, $peerId, $liveId, $uid, 'viewer');
+    } catch (DomainException $error) {
+      ben_error($error->getMessage(), (int)$error->getCode() ?: 409, 'LIVE_PEER_ID_IN_USE');
+    }
     echo json_encode(['ok'=>true,'live_id'=>$liveId,'host_peer_id'=>$live['host_peer_id'],'title'=>$live['title']]); exit;
   }
   if (preg_match('#^live/(\d+)/peers$#',$path,$m) && $method==='GET') {
@@ -656,11 +661,11 @@ try {
   }
   if (preg_match('#^live/(\d+)/signals$#',$path,$m) && $method==='GET') {
     $uid=ben_require_user_id($pdo); $liveId=(int)$m[1]; $peerId=trim((string)($_GET['peer_id']??''));
+    ben_enforce_rate_limit($pdo, 'live-poll-user:'.$uid, 6000, 3600);
     if (!ben_live_has_active_host($pdo, $liveId)) {
       ben_prune_stale_live_sessions($pdo);
       ben_error('Canlı yayın sona erdi veya yayıncı bağlantısı kesildi.', 404, 'LIVE_ENDED');
     }
-    ben_prune_stale_live_sessions($pdo);
     if($peerId===''){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Peer gerekli.']);exit;}
     $check=$pdo->prepare('SELECT 1 FROM live_peers WHERE peer_id=? AND live_id=? AND user_id=?');$check->execute([$peerId,$liveId,$uid]);if(!$check->fetchColumn()){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Peer doğrulanamadı.']);exit;}
     $q=$pdo->prepare('SELECT s.id,s.from_peer,s.to_peer,s.kind,s.payload,s.created_at FROM live_signals s JOIN live_peers sender ON sender.peer_id=s.from_peer AND sender.live_id=s.live_id WHERE s.live_id=? AND s.to_peer=? AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=? AND b.blocked_id=sender.user_id) OR (b.blocker_id=sender.user_id AND b.blocked_id=?)) ORDER BY s.id LIMIT 100');$q->execute([$liveId,$peerId,$uid,$uid]);$signals=$q->fetchAll();
@@ -669,14 +674,15 @@ try {
     echo json_encode(['ok'=>true,'signals'=>$signals]); exit;
   }
   if (preg_match('#^live/(\d+)/signal$#',$path,$m) && $method==='POST') {
-    $uid=ben_require_user_id($pdo); $liveId=(int)$m[1]; $fromPeer=trim((string)($input['from_peer']??'')); $toPeer=trim((string)($input['to_peer']??'')); $kind=trim((string)($input['kind']??'')); $payload=$input['payload']??[];
+    $uid=ben_require_user_id($pdo); $liveId=(int)$m[1]; $fromPeer=trim((string)($input['from_peer']??''));
+    ben_enforce_rate_limit($pdo, 'live-signal-user:'.$uid, 3600, 3600); $toPeer=trim((string)($input['to_peer']??'')); $kind=trim((string)($input['kind']??'')); $payload=$input['payload']??[];
     if($uid<=0||$liveId<=0||$fromPeer===''||$toPeer===''||!in_array($kind,['offer','answer','candidate'],true)){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Geçerli canlı sinyali gerekli.']);exit;}
     if(!is_array($payload)){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Geçersiz sinyal verisi.']);exit;}
     $owner=$pdo->prepare("SELECT 1 FROM lives WHERE id=? AND status='live'");$owner->execute([$liveId]);if(!$owner->fetchColumn()){http_response_code(404);echo json_encode(['ok'=>false,'message'=>'Canlı yayın sona ermiş.']);exit;}
     $q=$pdo->prepare('SELECT 1 FROM live_peers WHERE peer_id=? AND live_id=? AND user_id=?');$q->execute([$fromPeer,$liveId,$uid]);if(!$q->fetchColumn()){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Gönderen peer doğrulanamadı.']);exit;}
     $q=$pdo->prepare('SELECT user_id FROM live_peers WHERE peer_id=? AND live_id=?');$q->execute([$toPeer,$liveId]);$targetUser=(int)$q->fetchColumn();if($targetUser<=0){http_response_code(404);echo json_encode(['ok'=>false,'message'=>'Alıcı peer bulunamadı.']);exit;}
      $blocked=$pdo->prepare('SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)');$blocked->execute([$uid,$targetUser,$targetUser,$uid]);if($blocked->fetchColumn()){ben_error('Engelleme nedeniyle canlı yayın bağlantısı kurulamaz.',403,'USER_BLOCKED');}
-    $encoded=json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); if($encoded===false || strlen($encoded)>700000){http_response_code(413);echo json_encode(['ok'=>false,'message'=>'Sinyal verisi çok büyük.']);exit;}
+    $encoded=json_encode($payload,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); if($encoded===false || strlen($encoded)>65536){http_response_code(413);echo json_encode(['ok'=>false,'message'=>'Sinyal verisi çok büyük.']);exit;}
     $pdo->prepare('INSERT INTO live_signals(live_id,from_peer,to_peer,kind,payload) VALUES(?,?,?,?,?)')->execute([$liveId,$fromPeer,$toPeer,$kind,$encoded]);
     $pdo->prepare('UPDATE live_peers SET last_seen_at=CURRENT_TIMESTAMP WHERE peer_id=?')->execute([$fromPeer]);
     echo json_encode(['ok'=>true]); exit;
@@ -686,7 +692,9 @@ try {
     $q=$pdo->prepare("UPDATE live_peers SET last_seen_at=CURRENT_TIMESTAMP WHERE peer_id=? AND live_id=? AND user_id=? AND EXISTS(SELECT 1 FROM lives WHERE id=? AND status='live')");$q->execute([$peerId,$liveId,$uid,$liveId]);echo json_encode(['ok'=>$q->rowCount()>0]);exit;
   }
   if (preg_match('#^live/(\d+)/leave$#',$path,$m) && $method==='POST') {
-    $uid=ben_require_user_id($pdo);$liveId=(int)$m[1];$peerId=trim((string)($input['peer_id']??''));$pdo->prepare('DELETE FROM live_peers WHERE peer_id=? AND live_id=? AND user_id=?')->execute([$peerId,$liveId,$uid]);$pdo->prepare('DELETE FROM live_signals WHERE live_id=? AND (from_peer=? OR to_peer=?)')->execute([$liveId,$peerId,$peerId]);echo json_encode(['ok'=>true]);exit;
+    $uid=ben_require_user_id($pdo);$liveId=(int)$m[1];$peerId=trim((string)($input['peer_id']??''));
+    $removed=ben_remove_live_peer($pdo,$peerId,$liveId,$uid);
+    echo json_encode(['ok'=>$removed]);exit;
   }
   if (preg_match('#^live/(\d+)/stop$#',$path,$m) && $method==='POST') {
     $uid=ben_require_user_id($pdo);$liveId=(int)$m[1];$q=$pdo->prepare("UPDATE lives SET status='ended' WHERE id=? AND user_id=? AND status='live'");$q->execute([$liveId,$uid]);$pdo->prepare('DELETE FROM live_peers WHERE live_id=?')->execute([$liveId]);$pdo->prepare('DELETE FROM live_signals WHERE live_id=?')->execute([$liveId]);echo json_encode(['ok'=>$q->rowCount()>0]);exit;
