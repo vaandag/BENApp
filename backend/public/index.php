@@ -634,8 +634,8 @@ try {
     echo json_encode(['ok'=>true,'id'=>$liveId,'user_id'=>$uid,'host_peer_id'=>$hostPeer]); exit;
   }
   if (preg_match('#^live/(\d+)/join$#',$path,$m) && $method==='POST') {
-    ben_prune_stale_live_sessions($pdo);
-    $uid=ben_require_user_id($pdo); $liveId=(int)$m[1]; $peerId=trim((string)($input['peer_id']??''));
+    $uid=ben_require_user_id($pdo);
+    ben_prune_stale_live_sessions($pdo); $liveId=(int)$m[1]; $peerId=trim((string)($input['peer_id']??''));
     if($uid<=0||$liveId<=0||$peerId===''||strlen($peerId)>100){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Canlı katılım bilgisi eksik.']);exit;}
     $q=$pdo->prepare("SELECT id,user_id,host_peer_id,title FROM lives WHERE id=? AND status='live'");$q->execute([$liveId]);$live=$q->fetch();
     if(!$live){http_response_code(404);echo json_encode(['ok'=>false,'message'=>'Canlı yayın bulunamadı.']);exit;}
@@ -655,12 +655,12 @@ try {
     echo json_encode(['ok'=>true,'peers'=>$q->fetchAll(),'host_peer_id'=>$row['host_peer_id']]); exit;
   }
   if (preg_match('#^live/(\d+)/signals$#',$path,$m) && $method==='GET') {
+    $uid=ben_require_user_id($pdo); $liveId=(int)$m[1]; $peerId=trim((string)($_GET['peer_id']??''));
     if (!ben_live_has_active_host($pdo, $liveId)) {
       ben_prune_stale_live_sessions($pdo);
       ben_error('Canlı yayın sona erdi veya yayıncı bağlantısı kesildi.', 404, 'LIVE_ENDED');
     }
     ben_prune_stale_live_sessions($pdo);
-    $uid=ben_require_user_id($pdo); $liveId=(int)$m[1]; $peerId=trim((string)($_GET['peer_id']??''));
     if($peerId===''){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Peer gerekli.']);exit;}
     $check=$pdo->prepare('SELECT 1 FROM live_peers WHERE peer_id=? AND live_id=? AND user_id=?');$check->execute([$peerId,$liveId,$uid]);if(!$check->fetchColumn()){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Peer doğrulanamadı.']);exit;}
     $q=$pdo->prepare('SELECT s.id,s.from_peer,s.to_peer,s.kind,s.payload,s.created_at FROM live_signals s JOIN live_peers sender ON sender.peer_id=s.from_peer AND sender.live_id=s.live_id WHERE s.live_id=? AND s.to_peer=? AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=? AND b.blocked_id=sender.user_id) OR (b.blocker_id=sender.user_id AND b.blocked_id=?)) ORDER BY s.id LIMIT 100');$q->execute([$liveId,$peerId,$uid,$uid]);$signals=$q->fetchAll();
