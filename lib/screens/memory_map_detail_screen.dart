@@ -683,70 +683,39 @@ class _Preview
   }
 }
 
-class _ActionButton
-    extends StatelessWidget {
+class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool active;
   final VoidCallback onTap;
 
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    this.active = false,
-    required this.onTap,
-  });
+  const _ActionButton({required this.icon, required this.label, this.active = false, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Material(
-        color: active
-            ? const Color(0xFF142D28)
-            : const Color(0xFFF2F3F0),
-        borderRadius:
-            BorderRadius.circular(15),
+  Widget build(BuildContext context) => Expanded(
         child: InkWell(
           onTap: onTap,
-          borderRadius:
-              BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(
-              vertical: 10,
-            ),
+            padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  size: 19,
-                  color: active
-                      ? Colors.white
-                      : const Color(
-                          0xFF142D28,
-                        ),
-                ),
+                Icon(icon, size: 19, color: active ? const Color(0xFF087F70) : const Color(0xFF142D28)),
                 const SizedBox(height: 3),
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 11,
-                    fontWeight:
-                        FontWeight.w700,
-                    color: active
-                        ? Colors.white
-                        : const Color(
-                            0xFF142D28,
-                          ),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: active ? const Color(0xFF087F70) : const Color(0xFF142D28),
                   ),
                 ),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _GlassButton

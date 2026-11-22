@@ -259,31 +259,30 @@ class _BottomAction extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
   const _BottomAction({required this.icon, required this.label, required this.onTap, this.active = false});
+
   @override
   Widget build(BuildContext context) => Expanded(
-        child: Material(
-          color: active ? BenTokens.cyan : Colors.black54,
-          borderRadius: BorderRadius.circular(17),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(17),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, color: active ? BenTokens.ink : Colors.white, size: 19),
-                  const SizedBox(height: 3),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: active ? BenTokens.ink : Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: active ? BenTokens.cyan : Colors.white.withValues(alpha: .82), size: 20),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: active ? BenTokens.cyan : Colors.white.withValues(alpha: .82),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

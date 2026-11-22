@@ -902,13 +902,34 @@ class _SelectedMapPinCard extends StatelessWidget {
             const SizedBox(height: 6),
             Align(alignment: Alignment.centerLeft, child: Text('${distanceKm.toStringAsFixed(distanceKm < 1 ? 2 : 1)} km • anılar arasında keşif', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Colors.white.withValues(alpha: .58)))),
             const SizedBox(height: 7),
-            Row(children: [
-              IconButton(tooltip: 'Önceki anı', onPressed: hasPrevious ? onPrevious : null, icon: const Icon(Icons.arrow_back_rounded)),
-              Expanded(child: FilledButton.icon(onPressed: onNext, style: FilledButton.styleFrom(backgroundColor: BenTokens.cyan, foregroundColor: BenTokens.ink), icon: const Icon(Icons.explore_rounded, size: 18), label: const Text('SONRAKİ ANI'))),
-              IconButton(tooltip: 'Yorumlar', onPressed: onComments, icon: const Icon(Icons.chat_bubble_outline_rounded)),
-              IconButton(tooltip: saved ? 'Kaydedildi' : 'Kaydet', onPressed: onSave, icon: Icon(saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded)),
-              IconButton(tooltip: liked ? 'Beğenildi' : 'Beğen', onPressed: onLike, icon: Icon(liked ? Icons.favorite_rounded : Icons.favorite_border_rounded)),
-            ]),
+            Row(
+              children: [
+                if (hasPrevious)
+                  TextButton.icon(
+                    onPressed: onPrevious,
+                    style: TextButton.styleFrom(foregroundColor: Colors.white70),
+                    icon: const Icon(Icons.arrow_back_rounded, size: 17),
+                    label: const Text('Önceki'),
+                  ),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: onNext,
+                    style: FilledButton.styleFrom(backgroundColor: BenTokens.cyan, foregroundColor: BenTokens.ink),
+                    icon: const Icon(Icons.explore_rounded, size: 18),
+                    label: const Text('SONRAKİ ANI'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _MapAction(icon: Icons.chat_bubble_outline_rounded, label: '$commentCount', onTap: onComments),
+                _MapAction(icon: saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, label: 'Kaydet', active: saved, onTap: onSave),
+                _MapAction(icon: liked ? Icons.favorite_rounded : Icons.favorite_border_rounded, label: 'Beğen', active: liked, onTap: onLike),
+              ],
+            ),
               ]),
             ),
           ),

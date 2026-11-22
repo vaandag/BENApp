@@ -546,6 +546,10 @@ class _HomeScreenState extends State<HomeScreen>
       pageBuilder: (_, _, _) => _StoryViewer(
         people: _people,
         initialIndex: initialIndex,
+        memories: {
+          for (final memory in [...widget.memories, ...widget.connectionMemories])
+            memory.id: memory,
+        }.values.toList(),
       ),
     );
   }
@@ -581,44 +585,99 @@ class _DemoPerson {
 class _StoryViewer extends StatefulWidget {
   final List<_DemoPerson> people;
   final int initialIndex;
-  const _StoryViewer({required this.people, required this.initialIndex});
+  final List<Memory> memories;
+  const _StoryViewer({required this.people, required this.initialIndex, required this.memories});
 
   @override
   State<_StoryViewer> createState() => _StoryViewerState();
 }
 
-class _StoryViewerState extends State<_StoryViewer> {
+class _StoryViewerState extends State<_StoryViewer> with SingleTickerProviderStateMixin {
   late final PageController _peopleController;
+  late final AnimationController _progress;
   int _personIndex = 0;
   int _storyIndex = 0;
+  int? _pendingStoryIndex;
+  bool _openingMemory = false;
 
   @override
   void initState() {
     super.initState();
     _personIndex = widget.initialIndex.clamp(0, widget.people.isEmpty ? 0 : widget.people.length - 1);
     _peopleController = PageController(initialPage: _personIndex);
+    _progress = AnimationController(vsync: this, duration: const Duration(seconds: 6))
+      ..addStatusListener(_onProgressStatus);
+    if (widget.people.isNotEmpty && widget.people[_personIndex].stories.isNotEmpty) {
+      _progress.forward();
+    }
+  }
+
+  void _onProgressStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed && mounted && !_openingMemory) _goStory(1);
   }
 
   @override
   void dispose() {
+    _progress.dispose();
     _peopleController.dispose();
     super.dispose();
   }
 
   _DemoPerson? get _person => widget.people.isEmpty ? null : widget.people[_personIndex];
-  _DemoStory? get _story => (_person == null || _person!.stories.isEmpty)
-      ? null
-      : _person!.stories[_storyIndex.clamp(0, _person!.stories.length - 1)];
+
+  _DemoStory? get _story {
+    final person = _person;
+    if (person == null || person.stories.isEmpty) return null;
+    return person.stories[_storyIndex.clamp(0, person.stories.length - 1)];
+  }
+
+  void _restartProgress() {
+    if (mounted && !_openingMemory) _progress.forward(from: 0);
+  }
 
   void _goStory(int direction) {
     final person = _person;
     if (person == null || person.stories.isEmpty) return;
-    final next = _storyIndex + direction;
-    if (next >= 0 && next < person.stories.length) {
-      setState(() => _storyIndex = next);
+    if (direction > 0) {
+      if (_storyIndex + 1 < person.stories.length) {
+        setState(() => _storyIndex++);
+        _restartProgress();
+      } else if (_personIndex + 1 < widget.people.length) {
+        if (_peopleController.hasClients) {
+          _peopleController.nextPage(duration: const Duration(milliseconds: 260), curve: Curves.easeOutCubic);
+        }
+      } else {
+        Navigator.of(context).pop();
+      }
+      return;
+    }
+    if (_storyIndex > 0) {
+      setState(() => _storyIndex--);
+      _restartProgress();
+    } else if (_personIndex > 0 && _peopleController.hasClients) {
+      _pendingStoryIndex = widget.people[_personIndex - 1].stories.length - 1;
+      _peopleController.previousPage(duration: const Duration(milliseconds: 260), curve: Curves.easeOutCubic);
     }
   }
 
+  Future<void> _openCurrentMemory() async {
+    final memory = _story?.memory;
+    if (memory == null || _openingMemory) return;
+    _openingMemory = true;
+    _progress.stop();
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MemoryFullscreenViewer(memory: memory, memories: widget.memories),
+      ),
+    );
+    if (!mounted) return;
+    _openingMemory = false;
+    _restartProgress();
+  }
+
+  void _closeOnVerticalSwipe(DragEndDetails details) {
+    if ((details.primaryVelocity ?? 0).abs() >= 450 && mounted) Navigator.of(context).pop();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -629,178 +688,195 @@ class _StoryViewerState extends State<_StoryViewer> {
           child: Stack(
             children: [
               const Center(child: Text('Henüz AN yok.', style: TextStyle(color: Colors.white))),
-              Positioned(top: 12, right: 12, child: IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close, color: Colors.white))),
+              Positioned(
+                top: 12, right: 12,
+                child: IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close, color: Colors.white)),
+              ),
             ],
           ),
         ),
       );
     }
 
-    return Material(
-      color: Colors.black,
-      child: SafeArea(
-        child: PageView.builder(
-          controller: _peopleController,
-          itemCount: widget.people.length,
-          onPageChanged: (index) => setState(() {
-            _personIndex = index;
-            _storyIndex = 0;
-          }),
-          itemBuilder: (context, index) {
-            final person = widget.people[index];
-            final storyIndex = index == _personIndex ? _storyIndex : 0;
-            final story = person.stories[storyIndex.clamp(0, person.stories.length - 1)];
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTapUp: (details) {
-                final width = MediaQuery.sizeOf(context).width;
-                if (details.localPosition.dx < width * .35) {
-                  _goStory(-1);
-                } else if (details.localPosition.dx > width * .65) {
-                  _goStory(1);
-                }
-              },
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: Container(
-                      margin: const EdgeInsets.fromLTRB(10, 10, 10, 18),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            BenTokens.panel,
-                            Color.lerp(BenTokens.ink, BenTokens.gold, (index + 1) / (widget.people.length + 1))!,
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: story.memory?.photo != null && story.memory!.photo!.existsSync()
-                          ? Image.file(story.memory!.photo!, fit: BoxFit.cover)
-                          : story.memory?.type == MemoryType.photo &&
-                                   story.memory?.mediaUrl?.contains('/media/') == true
-                               ? Image.network(
-                                   ApiClient().resolveMediaUri(story.memory!.mediaUrl!).toString(),
-                                   headers: ApiClient().authorizationHeaders,
-                                   fit: BoxFit.cover,
-                                   errorBuilder: (_, _, _) => CustomPaint(
-                                     painter: _MemoryVisualPainter(
-                                       base: BenTokens.panel,
-                                       icon: story.icon,
-                                     ),
-                                   ),
-                                 )
-                               : story.memory?.type == MemoryType.video &&
-                                       (story.memory!.video != null ||
-                                           story.memory!.mediaUrl?.contains('/media/') == true)
-                              ? _LocalVideoPreview(path: story.memory!.video ?? story.memory!.mediaUrl!, fallbackColor: BenTokens.panel, icon: story.icon)
-                              : Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    Icon(story.icon, size: 118, color: Colors.white.withValues(alpha: .12)),
-                                    Container(
-                                      width: 96,
-                                      height: 104,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(color: BenTokens.gold.withValues(alpha: .55), width: 1.5),
-                                        color: Colors.black.withValues(alpha: .16),
-                                      ),
-                                      child: Icon(story.icon, size: 38, color: Colors.white.withValues(alpha: .62)),
-                                    ),
-                                  ],
-                                ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 18,
-                    left: 20,
-                    right: 20,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              for (int i = 0; i < person.stories.length; i++)
-                                Expanded(
-                                  child: Container(
-                                    height: 3,
-                                    margin: EdgeInsets.only(right: i == person.stories.length - 1 ? 0 : 4),
-                                    decoration: BoxDecoration(
-                                      color: i <= storyIndex ? BenTokens.gold : Colors.white24,
-                                      borderRadius: BorderRadius.circular(99),
-                                    ),
-                                  ),
-                                ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onVerticalDragEnd: _closeOnVerticalSwipe,
+      child: Material(
+        color: Colors.black,
+        child: SafeArea(
+          child: PageView.builder(
+            controller: _peopleController,
+            itemCount: widget.people.length,
+            onPageChanged: (index) {
+              final requested = _pendingStoryIndex;
+              setState(() {
+                _personIndex = index;
+                _storyIndex = (requested ?? 0).clamp(0, widget.people[index].stories.length - 1);
+                _pendingStoryIndex = null;
+              });
+              _restartProgress();
+            },
+            itemBuilder: (context, index) {
+              final person = widget.people[index];
+              final storyIndex = index == _personIndex ? _storyIndex : 0;
+              final story = person.stories[storyIndex.clamp(0, person.stories.length - 1)];
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapUp: (details) {
+                  final width = MediaQuery.sizeOf(context).width;
+                  if (details.localPosition.dx < width * .30) {
+                    _goStory(-1);
+                  } else if (details.localPosition.dx > width * .70) {
+                    _goStory(1);
+                  } else {
+                    _openCurrentMemory();
+                  }
+                },
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Container(
+                        margin: const EdgeInsets.fromLTRB(10, 10, 10, 18),
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              BenTokens.panel,
+                              Color.lerp(BenTokens.ink, BenTokens.gold, (index + 1) / (widget.people.length + 1))!,
                             ],
                           ),
+                          borderRadius: BorderRadius.circular(30),
                         ),
-                        const SizedBox(width: 10),
-                        IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded, color: Colors.white)),
-                      ],
+                        child: story.memory?.photo != null && story.memory!.photo!.existsSync()
+                            ? Image.file(story.memory!.photo!, fit: BoxFit.cover)
+                            : story.memory?.type == MemoryType.photo && story.memory?.mediaUrl?.contains('/media/') == true
+                                ? Image.network(
+                                    ApiClient().resolveMediaUri(story.memory!.mediaUrl!).toString(),
+                                    headers: ApiClient().authorizationHeaders,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => CustomPaint(painter: _MemoryVisualPainter(base: BenTokens.panel, icon: story.icon)),
+                                  )
+                                : story.memory?.type == MemoryType.video &&
+                                        (story.memory!.video != null || story.memory!.mediaUrl?.contains('/media/') == true)
+                                    ? _LocalVideoPreview(
+                                        path: story.memory!.video ?? story.memory!.mediaUrl!,
+                                        fallbackColor: BenTokens.panel,
+                                        icon: story.icon,
+                                      )
+                                    : Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          Icon(story.icon, size: 118, color: Colors.white.withValues(alpha: .12)),
+                                          Container(
+                                            width: 96, height: 104,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(color: BenTokens.gold.withValues(alpha: .55), width: 1.5),
+                                              color: Colors.black.withValues(alpha: .16),
+                                            ),
+                                            child: Icon(story.icon, size: 38, color: Colors.white.withValues(alpha: .62)),
+                                          ),
+                                        ],
+                                      ),
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    left: 22,
-                    top: 65,
-                    child: Row(
-                      children: [
-                        Container(
-                           width: 42,
-                           height: 42,
-                           decoration: const BoxDecoration(
-                             color: BenTokens.gold,
-                             shape: BoxShape.circle,
-                           ),
-                           clipBehavior: Clip.antiAlias,
-                           child: person.avatarUrl.trim().isNotEmpty
-                               ? Image.network(
-                                   person.avatarUrl,
-                                   fit: BoxFit.cover,
-                                   errorBuilder: (_, _, _) => Icon(
-                                     person.icon,
-                                     color: BenTokens.ink,
-                                   ),
-                                 )
-                               : Icon(person.icon, color: BenTokens.ink),
-                         ),
-                        const SizedBox(width: 10),
-                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(person.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
-                          Text('${person.time} • AN', style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700)),
-                        ]),
-                      ],
+                    Positioned(
+                      top: 18, left: 20, right: 20,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: AnimatedBuilder(
+                              animation: _progress,
+                              builder: (context, _) => Row(
+                                children: [
+                                  for (int i = 0; i < person.stories.length; i++)
+                                    Expanded(
+                                      child: Container(
+                                        height: 3,
+                                        margin: EdgeInsets.only(right: i == person.stories.length - 1 ? 0 : 4),
+                                        decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(99)),
+                                        child: Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: FractionallySizedBox(
+                                            widthFactor: i < storyIndex
+                                                ? 1
+                                                : i == storyIndex && index == _personIndex
+                                                    ? _progress.value
+                                                    : 0,
+                                            child: Container(
+                                              decoration: BoxDecoration(color: BenTokens.gold, borderRadius: BorderRadius.circular(99)),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close_rounded, color: Colors.white),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    left: 26,
-                    right: 26,
-                    bottom: 34,
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(story.text, style: const TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.w900, height: 1.12)),
-                      const SizedBox(height: 9),
-                      Row(children: [const Icon(Icons.auto_stories_rounded, color: BenTokens.gold, size: 16), const SizedBox(width: 6), const Text('STORY • 24 SAAT', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w800, fontSize: 11)), const Spacer(), Text('📍 ${story.place}', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w700))]),
-                    ]),
-                  ),
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: MediaQuery.sizeOf(context).width * .18,
-                    child: GestureDetector(behavior: HitTestBehavior.translucent, onTap: () => _goStory(-1)),
-                  ),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: MediaQuery.sizeOf(context).width * .18,
-                    child: GestureDetector(behavior: HitTestBehavior.translucent, onTap: () => _goStory(1)),
-                  ),
-                ],
-              ),
-            );
-          },
+                    Positioned(
+                      left: 22, top: 65,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 42, height: 42,
+                            decoration: const BoxDecoration(color: BenTokens.gold, shape: BoxShape.circle),
+                            clipBehavior: Clip.antiAlias,
+                            child: person.avatarUrl.trim().isNotEmpty
+                                ? Image.network(
+                                    person.avatarUrl, fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => Icon(person.icon, color: BenTokens.ink),
+                                  )
+                                : Icon(person.icon, color: BenTokens.ink),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(person.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                              Text('${person.time} • AN', style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w700)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Positioned(
+                      left: 26, right: 26, bottom: 34,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(story.text, style: const TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.w900, height: 1.12)),
+                          const SizedBox(height: 9),
+                          Row(
+                            children: [
+                              const Icon(Icons.auto_stories_rounded, color: BenTokens.gold, size: 16),
+                              const SizedBox(width: 6),
+                              const Text('STORY • 24 SAAT', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w800, fontSize: 11)),
+                              const Spacer(),
+                              Flexible(
+                                child: Text('📍 ${story.place}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w700)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
