@@ -6,6 +6,7 @@ require __DIR__ . '/db.php';
 require __DIR__ . '/lib/auth.php';
 require __DIR__ . '/lib/schema.php';
 require __DIR__ . '/lib/account_deletion.php';
+require __DIR__ . '/lib/moderation.php';
 
 $requestId = ben_bootstrap_http();
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -165,9 +166,7 @@ try {
     if (!ben_is_admin_user($uid)) ben_error('Yönetici yetkisi gerekli.', 403, 'ADMIN_REQUIRED');
     $status = trim((string)($_GET['status'] ?? 'open'));
     if (!in_array($status, ['open','resolved','rejected'], true)) $status = 'open';
-    $q = $pdo->prepare('SELECT r.*,u.username AS reporter_username FROM content_reports r LEFT JOIN users u ON u.id=r.reporter_id WHERE r.status=? ORDER BY r.created_at ASC LIMIT 200');
-    $q->execute([$status]);
-    ben_json($q->fetchAll());
+    ben_json(ben_admin_report_rows($pdo, $status));
   }
   if (preg_match('#^admin/reports/(\\d+)/resolve$#', $path, $m) && $method === 'POST') {
     $uid = ben_require_user_id($pdo);

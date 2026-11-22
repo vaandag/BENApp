@@ -164,6 +164,10 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
                                     '${report['reason'] ?? 'other'}');
                                 final details =
                                     '${report['details'] ?? ''}'.trim();
+                                final targetAuthor =
+                                    '${report['target_author_username'] ?? ''}'.trim();
+                                final targetPreview =
+                                    '${report['target_preview'] ?? ''}'.trim();
                                 return Card(
                                   margin: const EdgeInsets.only(bottom: 10),
                                   child: Padding(
@@ -186,7 +190,28 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
                                         ),
                                         const SizedBox(height: 7),
                                         Text('Bildiren: @$reporter'),
+                                        if (targetAuthor.isNotEmpty)
+                                          Text('İçerik sahibi: @$targetAuthor'),
                                         Text('Neden: $reason'),
+                                        if (targetPreview.isNotEmpty) ...[
+                                          const SizedBox(height: 9),
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.all(11),
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .surfaceContainerHighest
+                                                  .withValues(alpha: .45),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              targetPreview,
+                                              maxLines: 5,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                         if (details.isNotEmpty) ...[
                                           const SizedBox(height: 7),
                                           Text(details),

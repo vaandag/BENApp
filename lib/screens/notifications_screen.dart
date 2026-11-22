@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/network/api_client.dart';
@@ -14,36 +16,64 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   final ApiClient _api = ApiClient();
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
+  bool _refreshing = false;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _pollTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted && !_refreshing) _load();
+    });
   }
 
   Future<void> _load() async {
+    if (_refreshing) return;
+
     final id = AuthService.currentUser?.id;
     if (id == null) {
       if (mounted) setState(() => _loading = false);
       return;
     }
+
+    _refreshing = true;
     try {
-      final result = await _api.get('notifications', query: {'user_id': '$id'});
+      final result = await _api.get(
+        'notifications',
+        query: {'user_id': '$id'},
+      );
       final rows = result is List ? result : <dynamic>[];
       final items = rows
           .whereType<Map>()
           .map((item) => Map<String, dynamic>.from(item))
           .toList();
-      if (mounted) {
-        setState(() {
-          _items = items;
-          _loading = false;
-        });
-      }
+
+      if (!mounted) return;
+      setState(() {
+        _items = items;
+        _loading = false;
+      });
+
       await _api.post('notifications/read', body: {'user_id': id});
+      if (!mounted) return;
+      setState(() {
+        _items = _items
+            .map((item) => {...item, 'is_read': 1})
+            .toList();
+      });
     } catch (_) {
+      // Keep the last successful notification list during temporary outages.
       if (mounted) setState(() => _loading = false);
+    } finally {
+      _refreshing = false;
     }
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   IconData _icon(String type) {
@@ -78,7 +108,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final notification = _items[index];
-                        final unread = notification['is_read'] == 0 || notification['is_read'] == false;
+                        final readValue = notification['is_read'];
+                        final unread = readValue == 0 || readValue == '0' || readValue == false;
                         return ListTile(
                           tileColor: Theme.of(context).colorScheme.surface,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
