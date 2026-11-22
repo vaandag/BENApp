@@ -16,6 +16,7 @@ import '../services/auth_service.dart';
 import 'community_screen.dart';
 import 'memory_detail_screen.dart';
 import 'notifications_screen.dart';
+import 'admin_moderation_screen.dart';
 import 'trust_safety_screen.dart';
 
 const _night = BenTokens.night;
@@ -126,6 +127,7 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
 
   String _name = '';
   bool _editing = false;
+  bool _isAdmin = false;
   bool _saving = false;
   String _avatarPath = '';
   String _bio = '';
@@ -136,12 +138,25 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
   void initState() {
     super.initState();
     _syncUser();
+    _loadAdminStatus();
   }
 
   @override
   void dispose() {
     _sheetController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAdminStatus() async {
+    try {
+      final result = await _api.get('admin/status');
+      final isAdmin = result is Map && result['is_admin'] == true;
+      if (mounted && isAdmin != _isAdmin) {
+        setState(() => _isAdmin = isAdmin);
+      }
+    } catch (_) {
+      // Yönetici girişi doğrulanamazsa yönetim bağlantısı gösterilmez.
+    }
   }
 
   void _syncUser() {
@@ -389,6 +404,18 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
                 ),
               ),
               const SizedBox(height: 12),
+              if (_isAdmin)
+                ListTile(
+                  leading: const Icon(Icons.admin_panel_settings_outlined, color: _gold),
+                  title: const Text('Yönetim paneli', style: TextStyle(color: _white)),
+                  subtitle: const Text('Şikâyetler ve kullanıcı duyuruları', style: TextStyle(color: _muted)),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AdminModerationScreen()),
+                    );
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.ios_share_rounded, color: _teal),
                 title: const Text('Profili paylaş', style: TextStyle(color: _white)),

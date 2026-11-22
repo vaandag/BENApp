@@ -57,6 +57,8 @@ jobs:
         run: php backend/tests/admin_report_context_test.php
       - name: PHP direct messaging behavior
         run: php backend/tests/messaging_test.php
+      - name: PHP admin announcement behavior
+        run: php backend/tests/admin_notifications_test.php
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos

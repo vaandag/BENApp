@@ -81,6 +81,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'like' => Icons.favorite_rounded,
       'comment' => Icons.chat_bubble_rounded,
       'follow' => Icons.person_add_alt_1_rounded,
+      'announcement' => Icons.campaign_rounded,
       _ => Icons.notifications_rounded,
     };
   }

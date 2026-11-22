@@ -8,6 +8,7 @@ require __DIR__ . '/lib/schema.php';
 require __DIR__ . '/lib/account_deletion.php';
 require __DIR__ . '/lib/moderation.php';
 require __DIR__ . '/lib/messaging.php';
+require __DIR__ . '/lib/admin_notifications.php';
 
 $requestId = ben_bootstrap_http();
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -161,6 +162,33 @@ try {
   if ($path === 'admin/status' && $method === 'GET') {
     $uid = ben_require_user_id($pdo);
     ben_json(['is_admin'=>ben_is_admin_user($uid)]);
+  }
+  if ($path === 'admin/users' && $method === 'GET') {
+    $uid = ben_require_user_id($pdo);
+    if (!ben_is_admin_user($uid)) ben_error('Yönetici yetkisi gerekli.', 403, 'ADMIN_REQUIRED');
+    $query = trim((string)($_GET['q'] ?? ''));
+    if (strlen($query) < 2 || strlen($query) > 40) ben_json([]);
+    ben_json(ben_admin_search_users($pdo, $query));
+  }
+  if ($path === 'admin/notifications' && $method === 'POST') {
+    $uid = ben_require_user_id($pdo);
+    if (!ben_is_admin_user($uid)) ben_error('Yönetici yetkisi gerekli.', 403, 'ADMIN_REQUIRED');
+    ben_enforce_rate_limit($pdo, 'admin-announcements:'.$uid, 20, 3600);
+    $audience = trim((string)($input['audience'] ?? ''));
+    $targetUserId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+    $title = (string)($input['title'] ?? '');
+    $body = (string)($input['body'] ?? '');
+    try {
+      $result = ben_admin_send_announcement(
+        $pdo, $uid, $audience, $targetUserId, $title, $body
+      );
+    } catch (DomainException $error) {
+      $status = $error->getCode() >= 400 && $error->getCode() <= 599
+        ? $error->getCode() : 422;
+      $code = $status === 404 ? 'USER_NOT_FOUND' : 'INVALID_ANNOUNCEMENT';
+      ben_error($error->getMessage(), $status, $code);
+    }
+    ben_json(['sent' => true] + $result);
   }
   if ($path === 'admin/reports' && $method === 'GET') {
     $uid = ben_require_user_id($pdo);
