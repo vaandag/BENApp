@@ -19,6 +19,9 @@ class MessagesScreen extends StatefulWidget {
   State<MessagesScreen> createState() => _MessagesScreenState();
 }
 
+bool _messageIsRead(dynamic value) =>
+    value == true || value == 1 || value == '1' || value == 'true';
+
 class _Chat {
   final int id;
   final String name, avatarUrl, preview, time;
@@ -55,7 +58,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
   String _query = '';
   bool _loading = true;
   bool _refreshing = false;
+  bool _searchingPeople = false;
   Timer? _inboxPollTimer;
+  Timer? _peopleSearchDebounce;
+  int _peopleSearchGeneration = 0;
 
   @override
   void initState() {
@@ -98,7 +104,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               '${m['avatar_url'] ?? ''}',
               '${m['preview'] ?? ''}',
               _time('${m['created_at'] ?? ''}'),
-              m['is_read'] == 0 &&
+              !_messageIsRead(m['is_read']) &&
                       int.tryParse('${m['sender_id'] ?? 0}') != uid
                   ? 1
                   : 0,
@@ -120,44 +126,58 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
-  Future<void> _searchPeople(String v) async {
-    setState(() => _query = v);
+  Future<void> _searchPeople(String value) async {
+    final query = value.trim();
+    _peopleSearchDebounce?.cancel();
+    final generation = ++_peopleSearchGeneration;
 
-    if (v.trim().isEmpty) {
-      setState(() => _people = []);
-      return;
-    }
+    if (!mounted) return;
+    setState(() {
+      _query = query;
+      _searchingPeople = query.isNotEmpty;
+      if (query.isEmpty) _people = [];
+    });
 
-    try {
-      final raw = await _api.get(
-        'users',
-        query: {
-          'q': v.trim(),
-        },
-      );
+    if (query.isEmpty) return;
 
-      final uid = AuthService.currentUser?.id;
-      final list = raw is List ? raw : const <dynamic>[];
+    _peopleSearchDebounce = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final raw = await _api.get(
+          'users',
+          query: {'q': query},
+        );
 
-      final people = list
-          .whereType<Map>()
-          .map(
-            (m) => _Chat(
-              int.tryParse('${m['id']}') ?? 0,
-              '${m['username'] ?? ''}',
-              '${m['avatar_url'] ?? ''}',
-              '',
-              '',
-              0,
-            ),
-          )
-          .where((c) => c.id > 0 && c.id != uid)
-          .toList();
+        final uid = AuthService.currentUser?.id;
+        final list = raw is List ? raw : const <dynamic>[];
 
-      if (mounted) {
-        setState(() => _people = people);
+        final people = list
+            .whereType<Map>()
+            .map(
+              (m) => _Chat(
+                int.tryParse('${m['id']}') ?? 0,
+                '${m['username'] ?? ''}',
+                '${m['avatar_url'] ?? ''}',
+                '',
+                '',
+                0,
+              ),
+            )
+            .where((chat) => chat.id > 0 && chat.id != uid)
+            .toList();
+
+        if (!mounted || generation != _peopleSearchGeneration) return;
+        setState(() {
+          _people = people;
+          _searchingPeople = false;
+        });
+      } catch (_) {
+        if (!mounted || generation != _peopleSearchGeneration) return;
+        setState(() {
+          _people = [];
+          _searchingPeople = false;
+        });
       }
-    } catch (_) {}
+    });
   }
 
   String _time(String raw) {
@@ -179,6 +199,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   void dispose() {
     _inboxPollTimer?.cancel();
+    _peopleSearchDebounce?.cancel();
+    _peopleSearchGeneration++;
     _search.dispose();
     _searchFocus.dispose();
     super.dispose();
@@ -242,7 +264,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               ),
             ),
           ),
-          if (_loading)
+          if (_loading || (_query.isNotEmpty && _searchingPeople))
             const SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
@@ -496,7 +518,7 @@ class _ChatScreenState extends State<_ChatScreen> {
           int.tryParse('${row['id']}') ?? 0,
           '${row['body'] ?? ''}',
           mine: sender == uid,
-          read: row['is_read'] == 1 || row['is_read'] == true,
+          read: _messageIsRead(row['is_read']),
         );
       }).where((message) => message.id > 0 && message.text.isNotEmpty).toList();
 
@@ -569,7 +591,7 @@ class _ChatScreenState extends State<_ChatScreen> {
               int.tryParse('${m['id']}') ?? 0,
               '${m['body'] ?? ''}',
               mine: sender == uid,
-              read: m['is_read'] == 1,
+              read: _messageIsRead(m['is_read']),
             );
           })
           .where((m) => m.text.isNotEmpty)
