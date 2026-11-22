@@ -114,10 +114,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         final textValue = '${notification['text'] ?? ''}';
                         final isAnnouncement =
                             notification['type'] == 'announcement';
-                        final parts = textValue.split('\\n');
+                        final parts = textValue.split(String.fromCharCode(10));
                         final title = isAnnouncement ? parts.first : textValue;
                         final body = isAnnouncement && parts.length > 1
-                            ? parts.skip(1).join('\\n')
+                            ? parts.skip(1).join(String.fromCharCode(10))
                             : null;
                         return ListTile(
                           tileColor: Theme.of(context).colorScheme.surface,
