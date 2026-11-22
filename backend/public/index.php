@@ -488,7 +488,17 @@ try {
     if($receiver<=0||$receiver===$uid||$body===''||strlen($body)>5000){
       ben_error('Geçerli bir alıcı ve 1-5000 karakterlik mesaj gerekli.',422,'INVALID_MESSAGE');
     }
-    $messageId = ben_send_message($pdo, $uid, $receiver, $body);
+    try {
+      $messageId = ben_send_message($pdo, $uid, $receiver, $body);
+    } catch (DomainException $error) {
+      $status = (int)$error->getCode();
+      $errorCode = match ($status) {
+        403 => 'USER_BLOCKED',
+        404 => 'RECIPIENT_NOT_FOUND',
+        default => 'INVALID_MESSAGE',
+      };
+      ben_error($error->getMessage(), $status > 0 ? $status : 422, $errorCode);
+    }
     echo json_encode(['ok'=>true,'id'=>$messageId]); exit;
   }
   if (preg_match('#^messages/(\\d+)/edit$#',$path,$m) && $method==='POST') {

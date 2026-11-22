@@ -9,13 +9,13 @@ function ben_send_message(PDO $pdo, int $senderId, int $receiverId, string $body
   $body = trim($body);
   if ($senderId <= 0 || $receiverId <= 0 || $senderId === $receiverId ||
       $body === '' || strlen($body) > 5000) {
-    ben_error('Geçerli bir alıcı ve 1-5000 karakterlik mesaj gerekli.', 422, 'INVALID_MESSAGE');
+    throw new DomainException('Geçerli bir alıcı ve 1-5000 karakterlik mesaj gerekli.', 422);
   }
 
   $recipient = $pdo->prepare('SELECT username FROM users WHERE id=?');
   $recipient->execute([$receiverId]);
   if ($recipient->fetchColumn() === false) {
-    ben_error('Alıcı bulunamadı.', 404, 'RECIPIENT_NOT_FOUND');
+    throw new DomainException('Alıcı bulunamadı.', 404);
   }
 
   $blocked = $pdo->prepare(
@@ -24,14 +24,14 @@ function ben_send_message(PDO $pdo, int $senderId, int $receiverId, string $body
   );
   $blocked->execute([$senderId, $receiverId, $receiverId, $senderId]);
   if ($blocked->fetchColumn()) {
-    ben_error('Bu kullanıcıyla mesajlaşma engellendi.', 403, 'USER_BLOCKED');
+    throw new DomainException('Bu kullanıcıyla mesajlaşma engellendi.', 403);
   }
 
   $sender = $pdo->prepare('SELECT username FROM users WHERE id=?');
   $sender->execute([$senderId]);
   $senderName = $sender->fetchColumn();
   if ($senderName === false) {
-    ben_error('Gönderen kullanıcı bulunamadı.', 404, 'SENDER_NOT_FOUND');
+    throw new DomainException('Gönderen kullanıcı bulunamadı.', 404);
   }
 
   $pdo->beginTransaction();

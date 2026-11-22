@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/../public/lib/http.php';
 require __DIR__ . '/../public/lib/schema.php';
 require __DIR__ . '/../public/lib/messaging.php';
 
@@ -43,7 +42,7 @@ $pdo->prepare('INSERT INTO user_blocks(blocker_id,blocked_id) VALUES(?,?)')
 $blockedRejected = false;
 try {
   ben_send_message($pdo, $senderId, $receiverId, 'Engeli aşmaya çalışma');
-} catch (RuntimeException $error) {
+} catch (DomainException $error) {
   $blockedRejected = str_contains($error->getMessage(), 'Bu kullanıcıyla mesajlaşma engellendi.');
 }
 
