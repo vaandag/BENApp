@@ -9,6 +9,7 @@ require __DIR__ . '/lib/account_deletion.php';
 require __DIR__ . '/lib/moderation.php';
 require __DIR__ . '/lib/messaging.php';
 require __DIR__ . '/lib/admin_notifications.php';
+require __DIR__ . '/lib/live_sessions.php';
 
 $requestId = ben_bootstrap_http();
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -614,6 +615,7 @@ try {
   }
 
   if ($path === 'live' && $method === 'GET') {
+    ben_prune_stale_live_sessions($pdo);
     $sql = "SELECT l.*,u.username,u.avatar_url,(SELECT COUNT(*) FROM live_peers lp WHERE lp.live_id=l.id AND lp.role='viewer' AND lp.last_seen_at > datetime('now','-30 seconds')) viewers FROM lives l LEFT JOIN users u ON u.id=l.user_id WHERE l.status='live' ORDER BY l.id DESC";
     echo json_encode($pdo->query($sql)->fetchAll()); exit;
   }
@@ -632,6 +634,7 @@ try {
     echo json_encode(['ok'=>true,'id'=>$liveId,'user_id'=>$uid,'host_peer_id'=>$hostPeer]); exit;
   }
   if (preg_match('#^live/(\d+)/join$#',$path,$m) && $method==='POST') {
+    ben_prune_stale_live_sessions($pdo);
     $uid=ben_require_user_id($pdo); $liveId=(int)$m[1]; $peerId=trim((string)($input['peer_id']??''));
     if($uid<=0||$liveId<=0||$peerId===''||strlen($peerId)>100){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Canlı katılım bilgisi eksik.']);exit;}
     $q=$pdo->prepare("SELECT id,user_id,host_peer_id,title FROM lives WHERE id=? AND status='live'");$q->execute([$liveId]);$live=$q->fetch();
@@ -652,6 +655,11 @@ try {
     echo json_encode(['ok'=>true,'peers'=>$q->fetchAll(),'host_peer_id'=>$row['host_peer_id']]); exit;
   }
   if (preg_match('#^live/(\d+)/signals$#',$path,$m) && $method==='GET') {
+    if (!ben_live_has_active_host($pdo, $liveId)) {
+      ben_prune_stale_live_sessions($pdo);
+      ben_error('Canlı yayın sona erdi veya yayıncı bağlantısı kesildi.', 404, 'LIVE_ENDED');
+    }
+    ben_prune_stale_live_sessions($pdo);
     $uid=ben_require_user_id($pdo); $liveId=(int)$m[1]; $peerId=trim((string)($_GET['peer_id']??''));
     if($peerId===''){http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Peer gerekli.']);exit;}
     $check=$pdo->prepare('SELECT 1 FROM live_peers WHERE peer_id=? AND live_id=? AND user_id=?');$check->execute([$peerId,$liveId,$uid]);if(!$check->fetchColumn()){http_response_code(403);echo json_encode(['ok'=>false,'message'=>'Peer doğrulanamadı.']);exit;}
