@@ -404,18 +404,6 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
                 ),
               ),
               const SizedBox(height: 12),
-              if (_isAdmin)
-                ListTile(
-                  leading: const Icon(Icons.admin_panel_settings_outlined, color: _gold),
-                  title: const Text('Yönetim paneli', style: TextStyle(color: _white)),
-                  subtitle: const Text('Şikâyetler ve kullanıcı duyuruları', style: TextStyle(color: _muted)),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AdminModerationScreen()),
-                    );
-                  },
-                ),
               ListTile(
                 leading: const Icon(Icons.ios_share_rounded, color: _teal),
                 title: const Text('Profili paylaş', style: TextStyle(color: _white)),
@@ -466,6 +454,18 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
                 ),
               ),
               const SizedBox(height: 8),
+              if (_isAdmin)
+                ListTile(
+                  leading: const Icon(Icons.admin_panel_settings_outlined, color: _gold),
+                  title: const Text('Yönetim paneli', style: TextStyle(color: _white)),
+                  subtitle: const Text('Şikâyetler ve kullanıcı duyuruları', style: TextStyle(color: _muted)),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AdminModerationScreen()),
+                    );
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.edit_outlined, color: _teal),
                 title: const Text('Profili düzenle', style: TextStyle(color: _white)),
