@@ -49,7 +49,7 @@ try {
 $invalidRejected = false;
 try {
   ben_send_message($pdo, $senderId, $senderId, 'Kendime');
-} catch (RuntimeException $error) {
+} catch (DomainException $error) {
   $invalidRejected = str_contains($error->getMessage(), 'Geçerli bir alıcı');
 }
 
