@@ -158,13 +158,11 @@ try {
   }
   if ($path === 'admin/status' && $method === 'GET') {
     $uid = ben_require_user_id($pdo);
-    $admins = array_filter(array_map('intval', explode(',', (string)ben_env('BEN_ADMIN_USER_IDS',''))));
-    ben_json(['is_admin'=>in_array($uid, $admins, true)]);
+    ben_json(['is_admin'=>ben_is_admin_user($uid)]);
   }
   if ($path === 'admin/reports' && $method === 'GET') {
     $uid = ben_require_user_id($pdo);
-    $admins = array_filter(array_map('intval', explode(',', (string)ben_env('BEN_ADMIN_USER_IDS',''))));
-    if (!in_array($uid, $admins, true)) ben_error('Yönetici yetkisi gerekli.', 403, 'ADMIN_REQUIRED');
+    if (!ben_is_admin_user($uid)) ben_error('Yönetici yetkisi gerekli.', 403, 'ADMIN_REQUIRED');
     $status = trim((string)($_GET['status'] ?? 'open'));
     if (!in_array($status, ['open','resolved','rejected'], true)) $status = 'open';
     $q = $pdo->prepare('SELECT r.*,u.username AS reporter_username FROM content_reports r LEFT JOIN users u ON u.id=r.reporter_id WHERE r.status=? ORDER BY r.created_at ASC LIMIT 200');
@@ -173,8 +171,7 @@ try {
   }
   if (preg_match('#^admin/reports/(\\d+)/resolve$#', $path, $m) && $method === 'POST') {
     $uid = ben_require_user_id($pdo);
-    $admins = array_filter(array_map('intval', explode(',', (string)ben_env('BEN_ADMIN_USER_IDS',''))));
-    if (!in_array($uid, $admins, true)) ben_error('Yönetici yetkisi gerekli.', 403, 'ADMIN_REQUIRED');
+    if (!ben_is_admin_user($uid)) ben_error('Yönetici yetkisi gerekli.', 403, 'ADMIN_REQUIRED');
     $status = trim((string)($input['status'] ?? 'resolved'));
     if (!in_array($status, ['resolved','rejected'], true)) ben_error('Geçersiz moderasyon durumu.', 422, 'INVALID_REPORT_STATUS');
     $q = $pdo->prepare("UPDATE content_reports SET status=?,reviewed_by=?,reviewed_at=CURRENT_TIMESTAMP WHERE id=? AND status='open'");

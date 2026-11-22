@@ -51,6 +51,8 @@ jobs:
         run: php backend/tests/schema_migration_test.php
       - name: PHP account deletion cleanup
         run: php backend/tests/account_deletion_test.php
+      - name: PHP admin access configuration
+        run: php backend/tests/admin_access_test.php
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos

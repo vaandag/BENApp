@@ -191,42 +191,6 @@ class _TrustSafetyScreenState extends State<TrustSafetyScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'YASAL BİLGİLER',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined),
-              title: const Text('Gizlilik politikası'),
-              subtitle: const Text('İşlenen veriler, konum izni ve hesap silme'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const LegalInformationScreen(
-                    document: LegalDocument.privacy,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.description_outlined),
-              title: const Text('Kullanım koşulları'),
-              subtitle: const Text('BEN hizmetini kullanırken geçerli kurallar'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const LegalInformationScreen(
-                    document: LegalDocument.terms,
-                  ),
-                ),
-              ),
-            ),
-          ),
           const SizedBox(height: 18),
           const Text(
             'Bu ekrandaki yasal belgeler taslaktır. Resmî politika olarak yayımlanmadan önce işletmeci bilgileri, gerçek hizmet sağlayıcıları ve veri saklama süreleri tamamlanmalıdır.',

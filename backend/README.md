@@ -18,6 +18,11 @@ Expected service version: `192`.
 ## Environment
 - `BEN_ALLOWED_ORIGIN` — production CORS origin; when unset, development remains `*`.
 - `BEN_DEBUG=1` — returns the internal exception text for local debugging. Leave unset/0 outside local development.
+- `BEN_ADMIN_USER_IDS` — comma-separated positive user IDs permitted to use the moderation panel. Leave unset to disable admin access.
+
+For local moderation testing, `start_ben_server.bat` asks for administrator user IDs. Enter the numeric ID(s) from `backend/public/data/ben.sqlite`; press Enter to keep the admin panel disabled. Production deployments must configure `BEN_ADMIN_USER_IDS` in the hosting environment and restart PHP workers.
+
+See `ADMIN_MODERATION_DEPLOYMENT.md` for the complete setup.
 
 ## Production notes
 PHP built-in server + SQLite are still for local development/testing. Before opening BEN to real traffic, use HTTPS, a production web server, managed database, object storage/CDN, backups, rate limiting, structured logs and an actual realtime transport for chat/live.

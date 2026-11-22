@@ -8,6 +8,9 @@ if not exist "%PHP_EXE%" (
   pause
   exit /b 1
 )
+if not defined BEN_ADMIN_USER_IDS (
+  set /p "BEN_ADMIN_USER_IDS=Yonetici kullanici ID'leri (virgulle ayir; bos birak = kapali): "
+)
 echo BEN API baslatiliyor: http://0.0.0.0:8080
 "%PHP_EXE%" -d upload_max_filesize=32M -d post_max_size=40M -d max_execution_time=120 -d max_input_time=120 -S 0.0.0.0:8080 -t "%PUBLIC_DIR%"
 endlocal

@@ -77,6 +77,19 @@ function ben_detect_mime(string $path): string {
   return '';
 }
 
+function ben_admin_user_ids(): array {
+  $raw = (string)ben_env('BEN_ADMIN_USER_IDS', '');
+  $ids = array_map('intval', explode(',', $raw));
+  return array_values(array_unique(array_filter(
+    $ids,
+    static fn(int $id): bool => $id > 0
+  )));
+}
+
+function ben_is_admin_user(int $userId): bool {
+  return $userId > 0 && in_array($userId, ben_admin_user_ids(), true);
+}
+
 function ben_request_id(): string {
   $incoming = trim((string)($_SERVER['HTTP_X_REQUEST_ID'] ?? ''));
   if ($incoming !== '' && preg_match('/^[A-Za-z0-9._:-]{1,128}$/', $incoming)) {
