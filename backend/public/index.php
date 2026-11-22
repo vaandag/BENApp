@@ -11,6 +11,7 @@ require __DIR__ . '/lib/messaging.php';
 require __DIR__ . '/lib/admin_notifications.php';
 require __DIR__ . '/lib/live_sessions.php';
 require __DIR__ . '/lib/notifications.php';
+require __DIR__ . '/lib/coins.php';
 
 $requestId = ben_bootstrap_http();
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -704,8 +705,22 @@ try {
   if (preg_match('#^live/(\d+)/stop$#',$path,$m) && $method==='POST') {
     $uid=ben_require_user_id($pdo);$liveId=(int)$m[1];$q=$pdo->prepare("UPDATE lives SET status='ended' WHERE id=? AND user_id=? AND status='live'");$q->execute([$liveId,$uid]);$pdo->prepare('DELETE FROM live_peers WHERE live_id=?')->execute([$liveId]);$pdo->prepare('DELETE FROM live_signals WHERE live_id=?')->execute([$liveId]);echo json_encode(['ok'=>$q->rowCount()>0]);exit;
   }
-  if ($path === 'coins/gift'
- && $method === 'POST') { $from=ben_require_user_id($pdo); $to=(int)($input['to_user']??0); $amount=(int)($input['amount']??0); if($to<=0||$to===$from||$amount<=0||$amount>100000){ben_error('Geçerli hediye bilgisi gerekli.',422,'INVALID_GIFT');} $pdo->beginTransaction(); try { $balance=$pdo->prepare('SELECT coins FROM users WHERE id=?'); $balance->execute([$from]); $coins=(int)$balance->fetchColumn(); if($coins<$amount){throw new RuntimeException('Yetersiz coin.');} $pdo->prepare('UPDATE users SET coins=coins-? WHERE id=?')->execute([$amount,$from]); $pdo->prepare('UPDATE users SET coins=coins+? WHERE id=?')->execute([$amount,$to]); $s=$pdo->prepare('INSERT INTO coin_transactions(from_user,to_user,amount,type) VALUES(?,?,?,?)'); $s->execute([$from,$to,$amount,'gift']); $pdo->commit(); ben_ok(); } catch(Throwable $e) { if($pdo->inTransaction())$pdo->rollBack(); ben_error($e instanceof RuntimeException?$e->getMessage():'Hediye gönderilemedi.',422,'GIFT_FAILED'); } }
+  if ($path === 'coins/gift' && $method === 'POST') {
+    $from = ben_require_user_id($pdo);
+    $to = (int)($input['to_user'] ?? 0);
+    $amount = (int)($input['amount'] ?? 0);
+    try {
+      ben_send_coin_gift($pdo, $from, $to, $amount);
+    } catch (DomainException $error) {
+      $status = (int)$error->getCode();
+      ben_error(
+        $error->getMessage(),
+        $status >= 400 && $status <= 599 ? $status : 422,
+        $status === 404 ? 'USER_NOT_FOUND' : 'INVALID_GIFT'
+      );
+    }
+    ben_ok();
+  }
   http_response_code(404); echo json_encode(['ok'=>false,'message'=>'Endpoint bulunamadı']);
 } catch (Throwable $e) {
   error_log(sprintf(
