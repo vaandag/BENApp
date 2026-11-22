@@ -111,17 +111,43 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         final notification = _items[index];
                         final readValue = notification['is_read'];
                         final unread = readValue == 0 || readValue == '0' || readValue == false;
+                        final textValue = '${notification['text'] ?? ''}';
+                        final isAnnouncement =
+                            notification['type'] == 'announcement';
+                        final parts = textValue.split('\\n');
+                        final title = isAnnouncement ? parts.first : textValue;
+                        final body = isAnnouncement && parts.length > 1
+                            ? parts.skip(1).join('\\n')
+                            : null;
                         return ListTile(
                           tileColor: Theme.of(context).colorScheme.surface,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                          leading: CircleAvatar(child: Icon(_icon('${notification['type']}'))),
-                          title: Text(
-                            '${notification['text'] ?? ''}',
-                            style: TextStyle(fontWeight: unread ? FontWeight.w900 : FontWeight.w600),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
                           ),
-                          subtitle: Text('${notification['created_at'] ?? ''}'),
+                          leading: CircleAvatar(
+                            child: Icon(_icon('${notification['type']}')),
+                          ),
+                          title: Text(
+                            title,
+                            style: TextStyle(
+                              fontWeight: unread
+                                  ? FontWeight.w900
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (body != null) ...[
+                                const SizedBox(height: 4),
+                                Text(body),
+                              ],
+                              const SizedBox(height: 4),
+                              Text('${notification['created_at'] ?? ''}'),
+                            ],
+                          ),
                         );
-                      },
                     ),
             ),
     );

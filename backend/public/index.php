@@ -166,9 +166,17 @@ try {
   if ($path === 'admin/users' && $method === 'GET') {
     $uid = ben_require_user_id($pdo);
     if (!ben_is_admin_user($uid)) ben_error('Yönetici yetkisi gerekli.', 403, 'ADMIN_REQUIRED');
+    ben_enforce_rate_limit($pdo, 'admin-user-search:'.$uid, 120, 3600);
     $query = trim((string)($_GET['q'] ?? ''));
     if (strlen($query) < 2 || strlen($query) > 40) ben_json([]);
     ben_json(ben_admin_search_users($pdo, $query));
+  }
+  if ($path === 'admin/notifications' && $method === 'GET') {
+    $uid = ben_require_user_id($pdo);
+    if (!ben_is_admin_user($uid)) ben_error('Yönetici yetkisi gerekli.', 403, 'ADMIN_REQUIRED');
+    ben_enforce_rate_limit($pdo, 'admin-announcement-history:'.$uid, 120, 3600);
+    $limit = max(1, min(100, (int)($_GET['limit'] ?? 50)));
+    ben_json(ben_admin_announcement_history($pdo, $limit));
   }
   if ($path === 'admin/notifications' && $method === 'POST') {
     $uid = ben_require_user_id($pdo);

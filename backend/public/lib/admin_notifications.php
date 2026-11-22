@@ -26,7 +26,7 @@ function ben_admin_search_users(PDO $pdo, string $query): array {
  * Create a BEN announcement for all accounts or one selected account.
  * The caller must authenticate the admin and apply rate limiting.
  *
- * @return array{recipient_count:int}
+ * @return array{announcement_id:int,recipient_count:int}
  */
 function ben_admin_send_announcement(
   PDO $pdo,
@@ -77,10 +77,39 @@ function ben_admin_send_announcement(
     }
 
     $count = $insert->rowCount();
+    $history = $pdo->prepare(
+      'INSERT INTO admin_announcements(admin_user_id,audience,target_user_id,title,body,recipient_count)
+       VALUES(?,?,?,?,?,?)'
+    );
+    $history->execute([$adminId, $audience, $targetUserId, $title, $body, $count]);
+    $announcementId = (int)$pdo->lastInsertId();
+
     $pdo->commit();
-    return ['recipient_count' => $count];
+    return ['announcement_id' => $announcementId, 'recipient_count' => $count];
   } catch (Throwable $error) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     throw $error;
   }
+}
+
+
+/**
+ * Recent announcement audit log; call only after authorizing an administrator.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function ben_admin_announcement_history(PDO $pdo, int $limit = 50): array {
+  $limit = max(1, min(100, $limit));
+  $statement = $pdo->query(
+    "SELECT a.id, a.audience, a.target_user_id, a.title, a.body,
+            a.recipient_count, a.created_at,
+            admin.username AS admin_username,
+            target.username AS target_username
+     FROM admin_announcements a
+     LEFT JOIN users admin ON admin.id = a.admin_user_id
+     LEFT JOIN users target ON target.id = a.target_user_id
+     ORDER BY a.id DESC
+     LIMIT " . $limit
+  );
+  return $statement->fetchAll(PDO::FETCH_ASSOC);
 }

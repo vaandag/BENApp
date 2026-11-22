@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../core/network/api_client.dart';
+import 'admin_announcement_history_screen.dart';
 
 class AdminModerationScreen extends StatefulWidget {
   const AdminModerationScreen({super.key});
@@ -156,9 +157,16 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Şikâyet yönetimi',
+        title: const Text('Yönetim paneli',
             style: TextStyle(fontWeight: FontWeight.w900)),
         actions: [
+          IconButton(
+            tooltip: 'Duyuru geçmişi',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdminAnnouncementHistoryScreen()),
+            ),
+            icon: const Icon(Icons.history_rounded),
+          ),
           IconButton(
             tooltip: 'Duyuru gönder',
             onPressed: _sendingAnnouncement ? null : _composeAnnouncement,

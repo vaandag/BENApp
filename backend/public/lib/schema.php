@@ -70,6 +70,11 @@ function ben_migrate(PDO $pdo): void {
       'CREATE INDEX IF NOT EXISTS idx_content_reports_status_created ON content_reports(status, created_at DESC)',
       'CREATE INDEX IF NOT EXISTS idx_content_reports_target ON content_reports(target_type, target_id)',
     ],
+    '008_admin_announcement_history' => [
+      "CREATE TABLE IF NOT EXISTS admin_announcements (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_user_id INTEGER NOT NULL, audience TEXT NOT NULL, target_user_id INTEGER, title TEXT NOT NULL, body TEXT NOT NULL, recipient_count INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+      'CREATE INDEX IF NOT EXISTS idx_admin_announcements_created ON admin_announcements(id DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_admin_announcements_target ON admin_announcements(target_user_id, id DESC)',
+    ],
   ];
 
   foreach ($migrations as $version => $statements) {
