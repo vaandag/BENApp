@@ -707,6 +707,7 @@ try {
   }
   if ($path === 'coins/gift' && $method === 'POST') {
     $from = ben_require_user_id($pdo);
+    ben_enforce_rate_limit($pdo, 'coin-gift-user:'.$from, 60, 3600);
     $to = (int)($input['to_user'] ?? 0);
     $amount = (int)($input['amount'] ?? 0);
     try {
