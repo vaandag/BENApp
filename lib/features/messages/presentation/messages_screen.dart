@@ -54,14 +54,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   String _query = '';
   bool _loading = true;
+  bool _refreshing = false;
+  Timer? _inboxPollTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _inboxPollTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      if (!mounted || _query.trim().isNotEmpty || _refreshing) return;
+      _load();
+    });
   }
 
   Future<void> _load() async {
+    if (_refreshing) return;
     final uid = AuthService.currentUser?.id;
 
     if (uid == null) {
@@ -71,6 +78,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       return;
     }
 
+    _refreshing = true;
     try {
       final raw = await _api.get(
         'messages/conversations',
@@ -102,10 +110,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
       if (mounted) {
         setState(() => _chats = chats);
       }
-    } catch (_) {}
-
-    if (mounted) {
-      setState(() => _loading = false);
+    } catch (_) {
+      // Preserve the previously loaded conversation list during brief outages.
+    } finally {
+      _refreshing = false;
+      if (mounted && _loading) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -167,6 +178,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   void dispose() {
+    _inboxPollTimer?.cancel();
     _search.dispose();
     _searchFocus.dispose();
     super.dispose();
