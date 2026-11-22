@@ -54,6 +54,8 @@ class _MainScreenState
   late final ApiClient _api;
   late final PendingMemorySync _pendingMemorySync;
   bool _syncingPending = false;
+  Timer? _notificationTimer;
+  int _unreadNotifications = 0;
 
   int _selectedIndex = 0;
   bool _mapInitialized = false;
@@ -73,10 +75,15 @@ class _MainScreenState
     _pendingMemorySync = PendingMemorySync();
     WidgetsBinding.instance.addObserver(this);
     _loadMemories();
+    _loadUnreadNotifications();
+    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _loadUnreadNotifications();
+    });
   }
 
   @override
   void dispose() {
+    _notificationTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -85,7 +92,29 @@ class _MainScreenState
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_syncPendingMemories());
+      unawaited(_loadUnreadNotifications());
     }
+  }
+
+  Future<void> _loadUnreadNotifications() async {
+    if (AuthService.currentUser?.id == null) return;
+    try {
+      final result = await _api.get('notifications/unread-count');
+      final count = result is Map
+          ? int.tryParse('${result['count'] ?? 0}') ?? 0
+          : 0;
+      if (!mounted || count == _unreadNotifications) return;
+      setState(() => _unreadNotifications = count);
+    } catch (_) {
+      // Keep the last successful count during temporary network outages.
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+    );
+    await _loadUnreadNotifications();
   }
 
   Future<void> _loadMemories() async {
@@ -591,7 +620,7 @@ class _MainScreenState
                 if (showNotifications)
                   _topAction(
                     BenHeaderActionType.notifications,
-                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+                    _openNotifications,
                   ),
                 if (showSearch)
                   _topAction(BenHeaderActionType.search, () => _showGlobalSearch(context)),
@@ -606,7 +635,39 @@ class _MainScreenState
   }
 
   Widget _topAction(BenHeaderActionType type, VoidCallback onTap) {
-    return BenHeaderAction(type: type, onTap: onTap);
+    final action = BenHeaderAction(type: type, onTap: onTap);
+    if (type != BenHeaderActionType.notifications || _unreadNotifications <= 0) {
+      return action;
+    }
+    final label = _unreadNotifications > 99 ? '99+' : '$_unreadNotifications';
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        action,
+        Positioned(
+          right: -3,
+          top: -4,
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            decoration: BoxDecoration(
+              color: BenTokens.danger,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: BenTokens.night, width: 1.2),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   void _showGlobalSearch(BuildContext context) {

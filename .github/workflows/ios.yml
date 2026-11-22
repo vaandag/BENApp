@@ -61,6 +61,8 @@ jobs:
         run: php backend/tests/admin_notifications_test.php
       - name: PHP live session cleanup
         run: php backend/tests/live_sessions_test.php
+      - name: PHP unread notification count
+        run: php backend/tests/notifications_test.php
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos

@@ -10,6 +10,7 @@ require __DIR__ . '/lib/moderation.php';
 require __DIR__ . '/lib/messaging.php';
 require __DIR__ . '/lib/admin_notifications.php';
 require __DIR__ . '/lib/live_sessions.php';
+require __DIR__ . '/lib/notifications.php';
 
 $requestId = ben_bootstrap_http();
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -572,6 +573,10 @@ try {
     if ($e->fetchColumn()) { $s=$pdo->prepare('DELETE FROM follows WHERE follower_id=? AND following_id=?'); $s->execute([$from,$to]); $active=false; }
     else { $s=$pdo->prepare('INSERT INTO follows(follower_id,following_id) VALUES(?,?)'); $s->execute([$from,$to]); $active=true; $n=$pdo->prepare("INSERT INTO notifications(user_id,type,text) VALUES(?,?,?)"); $who=$pdo->prepare('SELECT username FROM users WHERE id=?'); $who->execute([$from]); $name=(string)$who->fetchColumn(); $n->execute([$to,'follow',$name.' seni takip etti.']); }
     echo json_encode(['ok'=>true,'active'=>$active]); exit;
+  }
+  if ($path === 'notifications/unread-count' && $method === 'GET') {
+    $uid = ben_require_user_id($pdo);
+    ben_json(['count' => ben_unread_notification_count($pdo, $uid)]);
   }
   if ($path === 'notifications/read' && $method === 'POST') { $uid=ben_require_user_id($pdo); $pdo->prepare('UPDATE notifications SET is_read=1 WHERE user_id=?')->execute([$uid]); echo json_encode(['ok'=>true]); exit; }
   if ($path === 'notifications' && $method === 'GET') { $uid=ben_require_user_id($pdo); $s=$pdo->prepare('SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC'); $s->execute([$uid]); echo json_encode($s->fetchAll()); exit; }
