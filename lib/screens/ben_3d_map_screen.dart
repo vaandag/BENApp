@@ -376,8 +376,9 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
         );
         buildingsReady = true;
       } catch (_) {
-        // A duplicate layer can occur after a native style reload.
-        buildingsReady = true;
+        // Keep the failure visible instead of pretending the extrusion layer
+        // was installed successfully.
+        buildingsReady = false;
       }
 
       try {
@@ -894,15 +895,15 @@ class _Memory3DCard extends StatelessWidget {
                         children: [
                           Icon(Icons.favorite_rounded, color: Colors.white70, size: 13),
                           SizedBox(width: 4),
-                          Text('Beğen', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w800)),
-                          SizedBox(width: 12),
+                          Text('${memory.likesCount} beğeni', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w800)),
+                          SizedBox(width: 10),
                           Icon(Icons.chat_bubble_rounded, color: Colors.white70, size: 13),
                           SizedBox(width: 4),
-                          Text('Yorum', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w800)),
-                          SizedBox(width: 12),
+                          Text('${memory.commentsCount} yorum', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w800)),
+                          SizedBox(width: 10),
                           Icon(Icons.bookmark_rounded, color: Colors.white70, size: 13),
                           SizedBox(width: 4),
-                          Text('Kaydet', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w800)),
+                          Text('${memory.savesCount} kayıt', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w800)),
                         ],
                       ),
                     ],
