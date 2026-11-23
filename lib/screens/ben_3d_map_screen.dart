@@ -891,7 +891,7 @@ class _Memory3DCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(memory.hasText ? memory.text! : 'Bu konumda bırakılmış bir BEN anısı.', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withValues(alpha: .62), fontSize: 11, fontWeight: FontWeight.w600, height: 1.25)),
                       const SizedBox(height: 9),
-                      const Row(
+                      Row(
                         children: [
                           Icon(Icons.favorite_rounded, color: Colors.white70, size: 13),
                           SizedBox(width: 4),
