@@ -34,6 +34,17 @@
 		<dict>
 			<key>NSAllowsLocalNetworking</key>
 			<true/>
+			<!-- BEN local development API: narrowly allow HTTP to the test PC. -->
+			<key>NSExceptionDomains</key>
+			<dict>
+				<key>192.168.1.24</key>
+				<dict>
+					<key>NSExceptionAllowsInsecureHTTPLoads</key>
+					<true/>
+					<key>NSIncludesSubdomains</key>
+					<false/>
+				</dict>
+			</dict>
 		</dict>
 		<key>NSCameraUsageDescription</key>
 		<string>BEN, fotoğraf ve video anıları oluşturmak için kameranı kullanır.</string>

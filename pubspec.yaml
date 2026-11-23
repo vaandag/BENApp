@@ -1,7 +1,7 @@
 name: benapp
 description: BEN - Anılar, insanlar ve mekanları birleştirir.
 publish_to: 'none'
-version: 1.0.0+197
+version: 1.0.0+198
 
 environment:
   sdk: '>=3.8.0 <4.0.0'
