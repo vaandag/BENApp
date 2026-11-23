@@ -20,6 +20,8 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
   final Map<String, RTCPeerConnection> _peers = <String, RTCPeerConnection>{};
   final Map<String, List<RTCIceCandidate>> _pendingCandidates = <String, List<RTCIceCandidate>>{};
   final Set<String> _remoteDescriptionReady = <String>{};
+  final Set<String> _connectedPeers = <String>{};
+  final Map<String, DateTime> _peerRetryAfter = <String, DateTime>{};
 
   MediaStream? _localStream;
   Timer? _pollTimer;
@@ -31,6 +33,7 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
   String _status = 'Kamera hazırlanıyor…';
   String _title = 'BEN CANLI';
   int _viewerCount = 0;
+  int _connectedViewerCount = 0;
   bool _polling = false;
   bool _turnAvailable = false;
   List<Map<String, dynamic>> _iceServers = <Map<String, dynamic>>[
@@ -111,12 +114,18 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
         final id = item['peer_id']?.toString();
         if (id == null || id.isEmpty) continue;
         ids.add(id);
-        if (!_peers.containsKey(id)) await _createHostPeer(id);
+        if (!_peers.containsKey(id)) {
+          final retryAfter = _peerRetryAfter[id];
+          if (retryAfter == null || !retryAfter.isAfter(DateTime.now())) {
+            await _createHostPeer(id);
+          }
+        }
       }
       _viewerCount = ids.length;
       final stale = _peers.keys.where((id) => !ids.contains(id)).toList();
       for (final id in stale) {
         await _closePeer(id);
+        _peerRetryAfter.remove(id);
       }
 
       final signals = await _api.get('live/$liveId/signals', query: {'peer_id': _peerId});
@@ -143,9 +152,10 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
       }
       if (mounted) {
         setState(() {
+          _connectedViewerCount = _connectedPeers.length;
           _status = _turnAvailable
-              ? 'CANLI • bağlantılar izleniyor'
-              : 'CANLI • TURN ayarı bekleniyor';
+              ? 'CANLI • $_connectedViewerCount bağlı / $_viewerCount izleyici'
+              : 'CANLI • TURN yok; bazı ağlarda bağlantı kısıtlanabilir';
         });
       }
     } catch (_) {
@@ -161,26 +171,89 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
     final liveId = _liveId;
     final local = _localStream;
     if (liveId == null || local == null || _peers.containsKey(viewerPeer)) return;
-    final pc = await createPeerConnection({
-      'iceServers': _iceServers,
-      'sdpSemantics': 'unified-plan',
-    });
-    _peers[viewerPeer] = pc;
-    _pendingCandidates[viewerPeer] = <RTCIceCandidate>[];
-    pc.onIceCandidate = (candidate) {
-      if (candidate.candidate == null || candidate.candidate!.isEmpty) return;
-      _sendSignal(liveId, viewerPeer, 'candidate', candidate.toMap());
-    };
-    for (final track in local.getTracks()) {
-      await pc.addTrack(track, local);
+
+    RTCPeerConnection? pc;
+    try {
+      pc = await createPeerConnection({
+        'iceServers': _iceServers,
+        'sdpSemantics': 'unified-plan',
+      });
+      _peers[viewerPeer] = pc;
+      _pendingCandidates[viewerPeer] = <RTCIceCandidate>[];
+
+      pc.onConnectionState = (state) {
+        if (!mounted || !identical(_peers[viewerPeer], pc)) return;
+        final connection = state.toString().toLowerCase();
+        if (connection.contains('connected')) {
+          _connectedPeers.add(viewerPeer);
+        } else if (connection.contains('disconnected') ||
+            connection.contains('failed') ||
+            connection.contains('closed')) {
+          _connectedPeers.remove(viewerPeer);
+        }
+        if (mounted) {
+          setState(() {
+            _connectedViewerCount = _connectedPeers.length;
+            if (connection.contains('failed')) {
+              _status = 'Bir izleyiciye bağlantı kurulamadı; yeniden denenecek.';
+            }
+          });
+        }
+        if (connection.contains('failed')) {
+          _peerRetryAfter[viewerPeer] =
+              DateTime.now().add(const Duration(seconds: 8));
+          unawaited(_closePeer(viewerPeer));
+        }
+      };
+
+      pc.onIceCandidate = (candidate) {
+        if (candidate.candidate == null || candidate.candidate!.isEmpty) return;
+        unawaited(_sendSignal(liveId, viewerPeer, 'candidate', candidate.toMap()));
+      };
+
+      for (final track in local.getTracks()) {
+        await pc.addTrack(track, local);
+      }
+      final offer = await pc.createOffer({
+        'offerToReceiveAudio': false,
+        'offerToReceiveVideo': false,
+      });
+      await pc.setLocalDescription(offer);
+      final sent = await _sendSignal(
+        liveId,
+        viewerPeer,
+        'offer',
+        (await pc.getLocalDescription())?.toMap() ?? offer.toMap(),
+      );
+      if (!sent) {
+        throw const ApiException('Canlı bağlantı teklifi sunucuya gönderilemedi.');
+      }
+      _peerRetryAfter.remove(viewerPeer);
+    } catch (_) {
+      await _closePeer(viewerPeer);
+      _peerRetryAfter[viewerPeer] =
+          DateTime.now().add(const Duration(seconds: 6));
+      if (mounted && _live) {
+        setState(() {
+          _connectedViewerCount = _connectedPeers.length;
+          _status = 'İzleyici bağlantısı kurulamadı; tekrar denenecek.';
+        });
+      }
     }
-    final offer = await pc.createOffer({'offerToReceiveAudio': false, 'offerToReceiveVideo': false});
-    await pc.setLocalDescription(offer);
-    await _sendSignal(liveId, viewerPeer, 'offer', (await pc.getLocalDescription())?.toMap() ?? offer.toMap());
   }
 
-  Future<void> _sendSignal(int liveId, String toPeer, String kind, Map<String, dynamic> payload) async {
-    try { await _api.post('live/$liveId/signal', body: {'from_peer': _peerId, 'to_peer': toPeer, 'kind': kind, 'payload': payload}); } catch (_) {}
+  Future<bool> _sendSignal(int liveId, String toPeer, String kind, Map<String, dynamic> payload) async {
+    try {
+      await _api.post('live/$liveId/signal', body: {
+        'from_peer': _peerId,
+        'to_peer': toPeer,
+        'kind': kind,
+        'payload': payload,
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _flushPending(String peerId, RTCPeerConnection pc) async {
@@ -210,6 +283,10 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
     if (pc != null) { try { await pc.close(); } catch (_) {} try { await pc.dispose(); } catch (_) {} }
     _pendingCandidates.remove(id);
     _remoteDescriptionReady.remove(id);
+    final wasConnected = _connectedPeers.remove(id);
+    if (wasConnected && mounted) {
+      setState(() => _connectedViewerCount = _connectedPeers.length);
+    }
   }
 
   Future<void> _stopLiveOnDispose(int liveId) async {
@@ -294,7 +371,9 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
                       ),
                       Expanded(
                         child: Text(
-                          _live ? 'CANLI • $_viewerCount' : 'CANLI STÜDYO',
+                          _live
+                              ? 'CANLI • $_connectedViewerCount bağlı / $_viewerCount izleyici'
+                              : 'CANLI STÜDYO',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w900,

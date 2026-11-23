@@ -14,6 +14,7 @@ class LiveScreen extends StatefulWidget {
 class _LiveScreenState extends State<LiveScreen> {
   final ApiClient _api = ApiClient();
   bool _loading = true;
+  String? _error;
   List<dynamic> _lives = const [];
 
   @override
@@ -23,6 +24,12 @@ class _LiveScreenState extends State<LiveScreen> {
   }
 
   Future<void> _loadLives() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final result = await _api.get('live');
       if (!mounted) return;
@@ -33,11 +40,15 @@ class _LiveScreenState extends State<LiveScreen> {
               : const [];
       setState(() {
         _lives = lives;
+        _error = null;
         _loading = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _error = error.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -70,9 +81,48 @@ class _LiveScreenState extends State<LiveScreen> {
                 padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
                 sliver: _loading
                     ? const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator())))
-                    : _lives.isEmpty
-                        ? SliverToBoxAdapter(child: Container(padding: const EdgeInsets.all(28), decoration: BoxDecoration(color: dark ? BenTokens.panel : Colors.white, borderRadius: BorderRadius.circular(26), border: Border.all(color: BenTokens.cyan.withValues(alpha: .14))), child: const Column(children: [Icon(Icons.radio_rounded, size: 42), SizedBox(height: 12), Text('Şu an canlı yayın yok', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)), SizedBox(height: 6), Text('İlk canlı yayınını kameranla başlatabilirsin.', textAlign: TextAlign.center)])))
-                        : SliverList.builder(
+                    : _error != null
+                        ? SliverToBoxAdapter(
+                            child: Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: dark ? BenTokens.panel : Colors.white,
+                                borderRadius: BorderRadius.circular(26),
+                                border: Border.all(
+                                  color: BenTokens.danger.withValues(alpha: .24),
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  const Icon(Icons.cloud_off_rounded,
+                                      size: 40, color: BenTokens.danger),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'Canlı yayınlar yüklenemedi',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 7),
+                                  Text(
+                                    _error!,
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                  const SizedBox(height: 14),
+                                  OutlinedButton.icon(
+                                    onPressed: _loadLives,
+                                    icon: const Icon(Icons.refresh_rounded),
+                                    label: const Text('Tekrar dene'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : _lives.isEmpty
+                            ? SliverToBoxAdapter(child: Container(padding: const EdgeInsets.all(28), decoration: BoxDecoration(color: dark ? BenTokens.panel : Colors.white, borderRadius: BorderRadius.circular(26), border: Border.all(color: BenTokens.cyan.withValues(alpha: .14))), child: const Column(children: [Icon(Icons.radio_rounded, size: 42), SizedBox(height: 12), Text('Şu an canlı yayın yok', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)), SizedBox(height: 6), Text('İlk canlı yayınını kameranla başlatabilirsin.', textAlign: TextAlign.center)])))
+                            : SliverList.builder(
                             itemCount: _lives.length,
                             itemBuilder: (context, index) {
                               final live = _lives[index] is Map ? _lives[index] as Map : const {};

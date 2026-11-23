@@ -16,15 +16,19 @@ class LiveViewerScreen extends StatefulWidget {
 class _LiveViewerScreenState extends State<LiveViewerScreen> {
   final ApiClient _api = ApiClient();
   final RTCVideoRenderer _renderer = RTCVideoRenderer();
-  final String _peerId = 'viewer-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}';
+  String _peerId = _newPeerId();
   final List<RTCIceCandidate> _pendingCandidates = <RTCIceCandidate>[];
+  bool _rendererInitialized = false;
+  bool _joining = false;
+  String? _failureMessage;
+  Timer? _connectionTimeoutTimer;
   RTCPeerConnection? _pc;
   Timer? _pollTimer;
   Timer? _heartbeatTimer;
   String? _hostPeerId;
   bool _joined = false;
   bool _remoteDescriptionReady = false;
-  bool _busy = true;
+  bool _busy = false;
   String _title = 'CANLI';
   String _status = 'Canlıya bağlanıyor…';
   bool _polling = false;
@@ -56,40 +60,161 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   }
 
   Future<void> _join() async {
+    if (_joining || _joined) return;
+    _joining = true;
+    if (mounted) {
+      setState(() {
+        _busy = true;
+        _failureMessage = null;
+        _status = 'Canlıya bağlanıyor…';
+      });
+    }
+    var peerRegistered = false;
     try {
       await _loadIceServers();
-      await _renderer.initialize();
-      final result = await _api.post('live/${widget.liveId}/join', body: {'peer_id': _peerId});
+      if (!_rendererInitialized) {
+        await _renderer.initialize();
+        _rendererInitialized = true;
+      }
+      final result = await _api.post(
+        'live/${widget.liveId}/join',
+        body: {'peer_id': _peerId},
+      );
+      peerRegistered = true;
       if (result is! Map) throw const ApiException('Canlı bilgisi alınamadı.');
       _hostPeerId = result['host_peer_id']?.toString();
+      if (_hostPeerId == null || _hostPeerId!.isEmpty) {
+        throw const ApiException('Yayıncı bağlantı kimliği alınamadı.');
+      }
       _title = result['title']?.toString() ?? 'CANLI';
-      _pc = await createPeerConnection({
+      final pc = await createPeerConnection({
         'iceServers': _iceServers,
         'sdpSemantics': 'unified-plan',
       });
-      _pc!.onIceCandidate = (candidate) {
-        if (candidate.candidate == null || candidate.candidate!.isEmpty || _hostPeerId == null) return;
-        _sendSignal('candidate', candidate.toMap());
+      _pc = pc;
+      pc.onConnectionState = _updateConnectionStatus;
+      pc.onIceConnectionState = _updateConnectionStatus;
+      pc.onIceCandidate = (candidate) {
+        if (candidate.candidate == null ||
+            candidate.candidate!.isEmpty ||
+            _hostPeerId == null) {
+          return;
+        }
+        unawaited(_sendSignal('candidate', candidate.toMap()));
       };
-      _pc!.onTrack = (event) {
+      pc.onTrack = (event) {
         if (event.streams.isNotEmpty) {
           _renderer.srcObject = event.streams.first;
-          if (mounted) setState(() => _status = 'CANLI bağlantısı kuruldu');
+          _connectionTimeoutTimer?.cancel();
+          if (mounted) {
+            setState(() {
+              _status = 'CANLI bağlantısı kuruldu';
+              _failureMessage = null;
+            });
+          }
         }
       };
       _joined = true;
-      _busy = false;
-      if (!_turnAvailable) {
-        _status = 'STUN bağlantısı • TURN ayarı bekleniyor';
+      if (!_turnAvailable && mounted) {
+        setState(() {
+          _status = 'STUN ile bağlantı deneniyor • TURN ayarı yok';
+        });
       }
-      _pollTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) => _pollSignals());
-      _heartbeatTimer = Timer.periodic(const Duration(seconds: 12), (_) => _heartbeat());
-      if (mounted) setState(() {});
+      _pollTimer?.cancel();
+      _heartbeatTimer?.cancel();
+      _pollTimer = Timer.periodic(
+        const Duration(milliseconds: 1000),
+        (_) => _pollSignals(),
+      );
+      _heartbeatTimer = Timer.periodic(
+        const Duration(seconds: 12),
+        (_) => _heartbeat(),
+      );
+      _connectionTimeoutTimer?.cancel();
+      _connectionTimeoutTimer = Timer(const Duration(seconds: 25), () {
+        if (!mounted || !_joined || _renderer.srcObject != null) return;
+        setState(() {
+          _status = 'Video akışı henüz gelmedi.';
+          _failureMessage =
+              'Yayıncıyla medya bağlantısı kurulamadı. Tekrar deneyebilir veya yayıncının bağlantı ayarlarını kontrol edebilirsin.';
+        });
+      });
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          if (_turnAvailable) _status = 'Yayıncıya bağlanıyor…';
+        });
+      }
       await _pollSignals();
-    } catch (e) {
-      if (mounted) { setState(() { _busy = false; _status = 'Canlıya bağlanılamadı.'; }); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'))); }
+    } catch (error) {
+      if (peerRegistered) {
+        try {
+          await _api.post(
+            'live/${widget.liveId}/leave',
+            body: {'peer_id': _peerId},
+          );
+        } catch (_) {}
+      }
+      _joined = false;
+      _connectionTimeoutTimer?.cancel();
+      _pollTimer?.cancel();
+      _heartbeatTimer?.cancel();
+      final pc = _pc;
+      _pc = null;
+      try {
+        await pc?.close();
+      } catch (_) {}
+      try {
+        await pc?.dispose();
+      } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _status = 'Canlıya bağlanılamadı.';
+          _failureMessage = error.toString();
+        });
+      }
+    } finally {
+      _joining = false;
     }
   }
+
+  void _updateConnectionStatus(Object state) {
+    if (!mounted) return;
+    final connection = state.toString().toLowerCase();
+    setState(() {
+      if (connection.contains('failed')) {
+        _status = 'Medya bağlantısı kurulamadı.';
+        _failureMessage =
+            'ICE bağlantısı başarısız. TURN sunucusu olmayan bazı mobil ağlarda bu durum yaşanabilir.';
+      } else if (connection.contains('disconnected')) {
+        _status = 'Yayıncı bağlantısı kesildi.';
+        _failureMessage = 'Bağlantı kesildi. Yeniden bağlanmayı deneyebilirsin.';
+      } else if (connection.contains('connected') ||
+          connection.contains('completed')) {
+        _status = 'CANLI bağlantısı kuruldu';
+        _failureMessage = null;
+        _connectionTimeoutTimer?.cancel();
+      } else if (connection.contains('checking') ||
+          connection.contains('connecting')) {
+        _status = 'Medya bağlantısı kuruluyor…';
+      }
+    });
+  }
+
+  Future<void> _retryJoin() async {
+    await _leave();
+    _peerId = _newPeerId();
+    _hostPeerId = null;
+    _remoteDescriptionReady = false;
+    _pendingCandidates.clear();
+    _renderer.srcObject = null;
+    if (!mounted) return;
+    await _join();
+  }
+
+  static String _newPeerId() =>
+      'viewer-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}';
 
   Future<void> _pollSignals() async {
     if (!_joined || !mounted || _polling) return;
@@ -156,21 +281,35 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
   Future<void> _leave() async {
     if (_joined) { try { await _api.post('live/${widget.liveId}/leave', body: {'peer_id': _peerId}); } catch (_) {} }
     _joined = false;
+    _connectionTimeoutTimer?.cancel();
     _pollTimer?.cancel();
     _heartbeatTimer?.cancel();
-    try { await _pc?.close(); } catch (_) {}
-    try { await _pc?.dispose(); } catch (_) {}
+    final pc = _pc;
     _pc = null;
+    try { await pc?.close(); } catch (_) {}
+    try { await pc?.dispose(); } catch (_) {}
+    _renderer.srcObject = null;
   }
 
   @override
   void dispose() {
+    _connectionTimeoutTimer?.cancel();
     _pollTimer?.cancel();
     _heartbeatTimer?.cancel();
+    final shouldLeave = _joined;
+    _joined = false;
+    if (shouldLeave) {
+      unawaited(_api.post(
+        'live/${widget.liveId}/leave',
+        body: {'peer_id': _peerId},
+      ));
+    }
     _renderer.srcObject = null;
     _renderer.dispose();
-    _pc?.close();
-    _pc?.dispose();
+    final pc = _pc;
+    _pc = null;
+    unawaited(pc?.close() ?? Future<void>.value());
+    unawaited(pc?.dispose() ?? Future<void>.value());
     super.dispose();
   }
 
@@ -186,7 +325,57 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
           backgroundColor: Colors.black,
           body: SizedBox.expand(
             child: Stack(fit: StackFit.expand, children: [
-            Positioned.fill(child: _renderer.srcObject == null ? Center(child: _busy ? const CircularProgressIndicator(color: BenTokens.cyan) : const Text('CANLI video akışı alınamadı.', style: TextStyle(color: Colors.white))) : RTCVideoView(_renderer, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)),
+            Positioned.fill(
+              child: _renderer.srcObject == null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(28),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_busy)
+                              const CircularProgressIndicator(color: BenTokens.cyan)
+                            else
+                              const Icon(
+                                Icons.videocam_off_rounded,
+                                color: BenTokens.cyan,
+                                size: 42,
+                              ),
+                            const SizedBox(height: 14),
+                            Text(
+                              _busy ? 'Canlıya bağlanıyor…' : _status,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if (_failureMessage != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                _failureMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              FilledButton.icon(
+                                onPressed: _busy ? null : _retryJoin,
+                                icon: const Icon(Icons.refresh_rounded),
+                                label: const Text('Tekrar bağlan'),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    )
+                  : RTCVideoView(
+                      _renderer,
+                      objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                    ),
+            ),
             Positioned.fill(child: IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withValues(alpha: .55), Colors.transparent, Colors.black.withValues(alpha: .72)], stops: const [0, .48, 1]))))),
             Positioned(
               top: 0,
