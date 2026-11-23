@@ -32,3 +32,11 @@ Base branch: `ui/ben-design-system-v1`
 4. Tap a BEN pin and open its memory card.
 5. Switch to another tab, return to **Harita**, and repeat the gestures.
 6. Verify like and comment actions show the BEN dart and feather artwork.
+
+
+## Local development admin test account
+
+- `backend/start_ben_server.bat` now defaults `BEN_ADMIN_USER_IDS` to `1`, so account ID 1 is recognized as an administrator when the local PHP server starts.
+- The script preserves an explicitly supplied `BEN_ADMIN_USER_IDS` value, allowing multiple comma-separated IDs or a different test account.
+- After updating the local repository, stop the currently running PHP server and start `backend/start_ben_server.bat` again. The console should show `BEN yonetici kullanici ID'leri: 1`.
+- This default is for the local development server only. Do not copy it into a public production server configuration without an explicit administrator policy.
