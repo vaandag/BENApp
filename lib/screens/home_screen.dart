@@ -1621,9 +1621,6 @@ class _SocialActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active
-        ? BenTokens.cyan
-        : Theme.of(context).colorScheme.onSurface.withValues(alpha: .60);
     return Material(
       color: Colors.transparent,
       child: InkWell(
