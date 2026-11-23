@@ -34,6 +34,7 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
 
   MapLibreMapController? _controller;
   bool _loading3D = false;
+  bool _styleReady = false;
   bool _showMemoryLayer = true;
   final bool _cinematic = true;
   bool _streetMode = false;
@@ -98,6 +99,12 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
     if (mounted) setState(() {});
   }
 
+  String _markerSignature(List<Memory> memories) => memories
+      .where((memory) => memory.hasLocation && !memory.isExpired)
+      .map((memory) =>
+          '${memory.id}:${memory.latitude}:${memory.longitude}')
+      .join('|');
+
   @override
   void didUpdateWidget(covariant Ben3DMapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -105,6 +112,18 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
     if (next != null && next.id != oldWidget.focusMemory?.id && next.hasLocation) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _selectMemory(next.id);
+      });
+    }
+
+    // MainScreen refreshes memories while this native map can remain mounted.
+    // Reconcile annotations when the server adds, removes or relocates a pin.
+    if (_markerSignature(oldWidget.memories) != _markerSignature(widget.memories) &&
+        _styleReady && _showMemoryLayer) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final controller = _controller;
+        if (mounted && controller != null && !controller.isDisposed) {
+          _addBenMemoryLayer(controller);
+        }
       });
     }
   }
@@ -319,78 +338,91 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
     if (controller == null || !mounted) return;
 
     setState(() => _loading3D = true);
+    var buildingsReady = false;
     try {
-      // Apply the same vector-tile building, road and edge layers on
-      // iOS and Android so both platforms render the real 3D city.
       try {
-          await controller.addSource(
-            'ben-openfreemap-buildings',
-            const VectorSourceProperties(
-              url: 'https://tiles.openfreemap.org/planet',
-              attribution: '© OpenStreetMap contributors • OpenFreeMap',
-            ),
-          );
-        } catch (_) {
-          // The style may already expose the source.
-        }
-        try {
-          await controller.addFillExtrusionLayer(
-            'ben-openfreemap-buildings',
-            _buildingsLayer,
-            const FillExtrusionLayerProperties(
-              fillExtrusionColor: [
-                'interpolate', ['linear'],
-                ['coalesce', ['get', 'render_height'], 0],
-                0, '#071114',
-                12, '#0A1A1F',
-                28, '#10282E',
-                60, '#173C44',
-              ],
-              fillExtrusionOpacity: .97,
-              fillExtrusionHeight: ['coalesce', ['get', 'render_height'], 10],
-              fillExtrusionBase: ['coalesce', ['get', 'render_min_height'], 0],
-              fillExtrusionVerticalGradient: true,
-            ),
-            sourceLayer: 'building',
-            minzoom: 13.8,
-            enableInteraction: false,
-          );
-        } catch (_) {}
-        try {
-          await controller.addLineLayer(
-            'ben-openfreemap-buildings',
-            'ben-3d-roads',
-            const LineLayerProperties(
-              lineColor: '#2ED9D0',
-              lineOpacity: .34,
-              lineWidth: 2.0,
-              lineBlur: .15,
-            ),
-            sourceLayer: 'transportation',
-            minzoom: 13,
-            enableInteraction: false,
-          );
-        } catch (_) {}
-        try {
-          await controller.addLineLayer(
-            'ben-openfreemap-buildings',
-            'ben-building-edges',
-            const LineLayerProperties(
-              lineColor: '#36E5DE',
-              lineOpacity: .16,
-              lineWidth: 1.0,
-              lineBlur: .25,
-            ),
-            sourceLayer: 'building',
-            minzoom: 14.8,
-            enableInteraction: false,
-          );
+        await controller.addSource(
+          'ben-openfreemap-buildings',
+          const VectorSourceProperties(
+            url: 'https://tiles.openfreemap.org/planet',
+            attribution: '© OpenStreetMap contributors • OpenFreeMap',
+          ),
+        );
+      } catch (_) {
+        // The source may already be part of a provider style.
+      }
+
+      try {
+        await controller.addFillExtrusionLayer(
+          'ben-openfreemap-buildings',
+          _buildingsLayer,
+          const FillExtrusionLayerProperties(
+            fillExtrusionColor: [
+              'interpolate', ['linear'],
+              ['coalesce', ['get', 'render_height'], 0],
+              0, '#0A1B20',
+              12, '#102A31',
+              28, '#17414A',
+              60, '#205761',
+            ],
+            fillExtrusionOpacity: .98,
+            fillExtrusionHeight: ['coalesce', ['get', 'render_height'], 10],
+            fillExtrusionBase: ['coalesce', ['get', 'render_min_height'], 0],
+            fillExtrusionVerticalGradient: true,
+          ),
+          sourceLayer: 'building',
+          minzoom: 13.2,
+          enableInteraction: false,
+        );
+        buildingsReady = true;
+      } catch (_) {
+        // A duplicate layer can occur after a native style reload.
+        buildingsReady = true;
+      }
+
+      try {
+        await controller.addLineLayer(
+          'ben-openfreemap-buildings',
+          'ben-3d-roads',
+          const LineLayerProperties(
+            lineColor: '#2ED9D0',
+            lineOpacity: .42,
+            lineWidth: 2.2,
+            lineBlur: .12,
+          ),
+          sourceLayer: 'transportation',
+          minzoom: 12.5,
+          enableInteraction: false,
+        );
       } catch (_) {}
 
-      await _addBenMemoryLayer(controller);
-      if (!mounted) return;
+      try {
+        await controller.addLineLayer(
+          'ben-openfreemap-buildings',
+          'ben-building-edges',
+          const LineLayerProperties(
+            lineColor: '#48EAE2',
+            lineOpacity: .24,
+            lineWidth: 1.1,
+            lineBlur: .18,
+          ),
+          sourceLayer: 'building',
+          minzoom: 14.2,
+          enableInteraction: false,
+        );
+      } catch (_) {}
+
+      _styleReady = true;
+      if (_showMemoryLayer) await _addBenMemoryLayer(controller);
+
+      if (!buildingsReady && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('3D bina katmanı yüklenemedi; harita kullanılabilir durumda.')),
+        );
+      }
     } catch (error) {
       if (!mounted) return;
+      _styleReady = true;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('3D şehir hazırlanamadı: $error')),
       );
@@ -400,8 +432,41 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
   }
 
   Future<void> _addBenMemoryLayer(MapLibreMapController controller) async {
+    // Clear old annotations first. This prevents duplicate or stale pins when
+    // the feed refreshes, the map is revisited, or the style reloads.
+    controller.onSymbolTapped.remove(_onSymbolTapped);
+    controller.onCircleTapped.remove(_onCircleTapped);
+    try {
+      await controller.clearSymbols();
+    } catch (_) {}
+    try {
+      await controller.clearCircles();
+    } catch (_) {}
+
     final located = _locatedMemories;
     if (located.isEmpty) return;
+
+    final data = located.map((memory) => {'memoryId': memory.id}).toList();
+    var haloReady = false;
+
+    // A soft cyan halo keeps BEN locations visible against both dark roads
+    // and bright building faces. The circles also provide a generous tap area.
+    try {
+      await controller.addCircles(
+        located.map((memory) => CircleOptions(
+          geometry: LatLng(memory.latitude!, memory.longitude!),
+          circleRadius: 14,
+          circleColor: '#19D9D1',
+          circleOpacity: .22,
+          circleStrokeColor: '#48EAE2',
+          circleStrokeWidth: 1.8,
+          circleStrokeOpacity: .82,
+        )).toList(),
+        data,
+      );
+      controller.onCircleTapped.add(_onCircleTapped);
+      haloReady = true;
+    } catch (_) {}
 
     try {
       final bytes = (await rootBundle.load('assets/branding/ben_master_logo.png'))
@@ -409,48 +474,39 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
           .asUint8List();
       await controller.addImage('ben-master-marker', bytes);
 
-      final options = located
-          .map(
-            (memory) => SymbolOptions(
-              geometry: LatLng(memory.latitude!, memory.longitude!),
-              iconImage: 'ben-master-marker',
-              iconSize: .10,
-              iconOpacity: .98,
-              textField: memory.title?.trim().isNotEmpty == true
-                  ? memory.title
-                  : 'BEN',
-              textSize: 9,
-              textColor: '#FFFFFF',
-              textHaloColor: '#061116',
-              textHaloWidth: 1.6,
-            ),
-          )
-          .toList();
-      await controller.addSymbols(
-        options,
-        located.map((memory) => {'memoryId': memory.id}).toList(),
-      );
+      final options = located.map((memory) => SymbolOptions(
+        geometry: LatLng(memory.latitude!, memory.longitude!),
+        iconImage: 'ben-master-marker',
+        iconSize: _zoom >= 17 ? .20 : .16,
+        iconOpacity: .99,
+        textField: memory.title?.trim().isNotEmpty == true
+            ? memory.title
+            : 'BEN',
+        textSize: 10,
+        textColor: '#FFFFFF',
+        textHaloColor: '#061116',
+        textHaloWidth: 1.8,
+      )).toList();
+
+      await controller.addSymbols(options, data);
       controller.onSymbolTapped.add(_onSymbolTapped);
-      return;
     } catch (_) {
-      final options = located
-          .map(
-            (memory) => CircleOptions(
-              geometry: LatLng(memory.latitude!, memory.longitude!),
-              circleRadius: 10,
-              circleColor: '#19D9D1',
-              circleOpacity: .95,
-              circleStrokeColor: '#061116',
-              circleStrokeWidth: 3,
-              circleStrokeOpacity: 1,
-            ),
-          )
-          .toList();
-      await controller.addCircles(
-        options,
-        located.map((memory) => {'memoryId': memory.id}).toList(),
-      );
-      controller.onCircleTapped.add(_onCircleTapped);
+      // Keep the halo pins as a usable fallback if the bundled logo cannot load.
+      if (!haloReady) {
+        await controller.addCircles(
+          located.map((memory) => CircleOptions(
+            geometry: LatLng(memory.latitude!, memory.longitude!),
+            circleRadius: 12,
+            circleColor: '#19D9D1',
+            circleOpacity: .96,
+            circleStrokeColor: '#061116',
+            circleStrokeWidth: 3,
+            circleStrokeOpacity: 1,
+          )).toList(),
+          data,
+        );
+        controller.onCircleTapped.add(_onCircleTapped);
+      }
     }
   }
 
