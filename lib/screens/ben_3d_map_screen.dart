@@ -152,29 +152,44 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
               child: CircularProgressIndicator(color: BenTokens.cyan),
             )
           else
-            MapLibreMap(
-              initialCameraPosition: CameraPosition(
-                target: center,
-                zoom: _zoom,
-                tilt: _tilt,
-                bearing: _bearing,
-              ),
-              styleString: _style,
-              compassEnabled: false,
-              trackCameraPosition: true,
-              rotateGesturesEnabled: true,
-              tiltGesturesEnabled: true,
-              scrollGesturesEnabled: true,
-              zoomGesturesEnabled: true,
-              myLocationEnabled: false,
-              myLocationTrackingMode: MyLocationTrackingMode.none,
-              onMapCreated: (controller) => _controller = controller,
-              onStyleLoadedCallback: _onStyleLoaded,
-              onCameraMove: (position) {
-                _zoom = position.zoom;
-                _bearing = position.bearing;
-                _tilt = position.tilt;
-                _target = position.target;
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // iOS MapLibre can abort during camera interaction if its
+                // native view is initialized before the first non-zero layout.
+                final width = constraints.maxWidth;
+                final height = constraints.maxHeight;
+                if (!width.isFinite ||
+                    !height.isFinite ||
+                    width < 2 ||
+                    height < 2) {
+                  return const SizedBox.shrink();
+                }
+                return MapLibreMap(
+                  key: const ValueKey('ben-world-maplibre-native'),
+                  initialCameraPosition: CameraPosition(
+                    target: center,
+                    zoom: _zoom,
+                    tilt: _tilt,
+                    bearing: _bearing,
+                  ),
+                  styleString: _style,
+                  compassEnabled: false,
+                  trackCameraPosition: true,
+                  rotateGesturesEnabled: true,
+                  tiltGesturesEnabled: true,
+                  scrollGesturesEnabled: true,
+                  zoomGesturesEnabled: true,
+                  myLocationEnabled: false,
+                  myLocationTrackingMode: MyLocationTrackingMode.none,
+                  onMapCreated: (controller) => _controller = controller,
+                  onStyleLoadedCallback: _onStyleLoaded,
+                  onCameraMove: (position) {
+                    _zoom = position.zoom;
+                    _bearing = position.bearing;
+                    _tilt = position.tilt;
+                    _target = position.target;
+                  },
+                );
               },
             ),
           IgnorePointer(

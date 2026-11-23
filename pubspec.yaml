@@ -1,7 +1,7 @@
 name: benapp
 description: BEN - Anılar, insanlar ve mekanları birleştirir.
 publish_to: 'none'
-version: 1.0.0+196
+version: 1.0.0+197
 
 environment:
   sdk: '>=3.8.0 <4.0.0'
@@ -12,7 +12,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.6.0
   flutter_map: ^8.3.2
-  maplibre_gl: ^0.27.1
+  maplibre_gl: ^0.28.0
   geolocator: ^14.0.3
   latlong2: ^0.9.1
   shared_preferences: ^2.5.3

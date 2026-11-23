@@ -1210,8 +1210,8 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
             Padding(
               padding: const EdgeInsets.fromLTRB(9, 7, 9, 8),
               child: Row(children: [
-                _SocialActionButton(icon: widget.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded, label: '$likeCount', active: widget.liked, onTap: widget.onLike),
-                _SocialActionButton(icon: Icons.chat_bubble_outline_rounded, label: '$commentCount', active: _commentsOpen, onTap: _toggleComments),
+                _SocialActionButton(icon: BENDartIcon(active: widget.liked), label: '$likeCount', active: widget.liked, onTap: widget.onLike),
+                _SocialActionButton(icon: BENFeatherIcon(active: _commentsOpen), label: '$commentCount', active: _commentsOpen, onTap: _toggleComments),
                 _ActionButton(icon: widget.saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, label: '$saveCount', active: widget.saved, activeColor: BenTokens.gold, onTap: widget.onSave),
                 _ActionButton(icon: Icons.ios_share_rounded, label: 'Paylaş', onTap: widget.onShare),
                 const Spacer(),
@@ -1607,7 +1607,7 @@ class _MapMemoryButton extends StatelessWidget {
 }
 
 class _SocialActionButton extends StatelessWidget {
-  final IconData icon;
+  final Widget icon;
   final String label;
   final bool active;
   final VoidCallback onTap;
@@ -1634,7 +1634,11 @@ class _SocialActionButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: color),
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: FittedBox(fit: BoxFit.contain, child: icon),
+              ),
               const SizedBox(width: 4),
               Text(
                 label,
