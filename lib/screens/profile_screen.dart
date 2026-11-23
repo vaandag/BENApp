@@ -467,6 +467,27 @@ class _ProfileExperienceState extends State<_ProfileExperience> {
                   },
                 ),
               ListTile(
+                leading: const Icon(Icons.fingerprint_rounded, color: _teal),
+                title: const Text('Hesap ID', style: TextStyle(color: _white)),
+                subtitle: Text(
+                  widget.currentUserId != null && widget.currentUserId! > 0
+                      ? '${widget.currentUserId}'
+                      : 'Henüz alınamadı',
+                  style: const TextStyle(color: _muted),
+                ),
+                trailing: const Icon(Icons.copy_rounded, color: _teal),
+                onTap: () async {
+                  final id = widget.currentUserId;
+                  if (id == null || id <= 0) {
+                    _snack('Hesap ID bilgisi bulunamadı. Yeniden giriş yapmayı dene.');
+                    return;
+                  }
+                  await Clipboard.setData(ClipboardData(text: id.toString()));
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  _snack('Hesap ID kopyalandı: $id');
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.edit_outlined, color: _teal),
                 title: const Text('Profili düzenle', style: TextStyle(color: _white)),
                 onTap: () {
