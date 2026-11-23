@@ -172,13 +172,11 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
     final local = _localStream;
     if (liveId == null || local == null || _peers.containsKey(viewerPeer)) return;
 
-    RTCPeerConnection? pc;
     try {
       final nextPc = await createPeerConnection({
         'iceServers': _iceServers,
         'sdpSemantics': 'unified-plan',
       });
-      pc = nextPc;
       _peers[viewerPeer] = nextPc;
       _pendingCandidates[viewerPeer] = <RTCIceCandidate>[];
 
