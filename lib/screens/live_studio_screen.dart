@@ -174,22 +174,23 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
 
     RTCPeerConnection? pc;
     try {
-      pc = await createPeerConnection({
+      final nextPc = await createPeerConnection({
         'iceServers': _iceServers,
         'sdpSemantics': 'unified-plan',
       });
-      _peers[viewerPeer] = pc;
+      pc = nextPc;
+      _peers[viewerPeer] = nextPc;
       _pendingCandidates[viewerPeer] = <RTCIceCandidate>[];
 
-      pc.onConnectionState = (state) {
-        if (!mounted || !identical(_peers[viewerPeer], pc)) return;
+      nextPc.onConnectionState = (state) {
+        if (!mounted || !identical(_peers[viewerPeer], nextPc)) return;
         final connection = state.toString().toLowerCase();
-        if (connection.contains('connected')) {
-          _connectedPeers.add(viewerPeer);
-        } else if (connection.contains('disconnected') ||
-            connection.contains('failed') ||
+        if (connection.contains('failed') ||
+            connection.contains('disconnected') ||
             connection.contains('closed')) {
           _connectedPeers.remove(viewerPeer);
+        } else if (connection.contains('connected')) {
+          _connectedPeers.add(viewerPeer);
         }
         if (mounted) {
           setState(() {
@@ -206,24 +207,27 @@ class _LiveStudioScreenState extends State<LiveStudioScreen> {
         }
       };
 
-      pc.onIceCandidate = (candidate) {
+      nextPc.onIceCandidate = (candidate) {
         if (candidate.candidate == null || candidate.candidate!.isEmpty) return;
-        unawaited(_sendSignal(liveId, viewerPeer, 'candidate', candidate.toMap()));
+        unawaited(
+          _sendSignal(liveId, viewerPeer, 'candidate', candidate.toMap())
+              .then((_) {}),
+        );
       };
 
       for (final track in local.getTracks()) {
-        await pc.addTrack(track, local);
+        await nextPc.addTrack(track, local);
       }
-      final offer = await pc.createOffer({
+      final offer = await nextPc.createOffer({
         'offerToReceiveAudio': false,
         'offerToReceiveVideo': false,
       });
-      await pc.setLocalDescription(offer);
+      await nextPc.setLocalDescription(offer);
       final sent = await _sendSignal(
         liveId,
         viewerPeer,
         'offer',
-        (await pc.getLocalDescription())?.toMap() ?? offer.toMap(),
+        (await nextPc.getLocalDescription())?.toMap() ?? offer.toMap(),
       );
       if (!sent) {
         throw const ApiException('Canlı bağlantı teklifi sunucuya gönderilemedi.');

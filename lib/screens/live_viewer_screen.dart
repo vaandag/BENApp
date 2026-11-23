@@ -100,7 +100,7 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
             _hostPeerId == null) {
           return;
         }
-        unawaited(_sendSignal('candidate', candidate.toMap()));
+        unawaited(_sendSignal('candidate', candidate.toMap()).then((_) {}));
       };
       pc.onTrack = (event) {
         if (event.streams.isNotEmpty) {
