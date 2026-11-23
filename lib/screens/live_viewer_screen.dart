@@ -302,7 +302,7 @@ class _LiveViewerScreenState extends State<LiveViewerScreen> {
       unawaited(_api.post(
         'live/${widget.liveId}/leave',
         body: {'peer_id': _peerId},
-      ));
+      ).then((_) {}));
     }
     _renderer.srcObject = null;
     _renderer.dispose();
