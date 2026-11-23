@@ -19,7 +19,7 @@ import '../widgets/ben_brand_header.dart';
 import '../widgets/ben_header_action.dart';
 import 'create_memory_screen.dart';
 import 'home_screen.dart';
-import 'map_screen.dart';
+import 'ben_3d_map_screen.dart';
 import 'profile_screen.dart';
 import 'notifications_screen.dart';
 import 'settings_screen.dart';
@@ -445,15 +445,15 @@ class _MainScreenState
           _selectedIndex = 1;
         }),
       ),
-      // BEN Harita now uses the pure-Flutter map path as the primary world
-      // surface. This removes the native MapLibre platform-view from the
-      // default navigation path and gives us room for deterministic memory
-      // clustering + location-aware exploration.
+      // BEN World uses the MapLibre 3D city experience as its only
+      // primary map surface on both iOS and Android. The 2D map remains
+      // outside the active navigation path.
       _mapInitialized
-          ? MapScreen(
-              key: const PageStorageKey('ben-world-map'),
+          ? Ben3DMapScreen(
+              key: const PageStorageKey('ben-world-map-3d'),
               memories: _memories,
               focusMemory: _mapFocusMemory,
+              embedded: true,
             )
           : const SizedBox.shrink(key: PageStorageKey('ben-world-map-placeholder')),
       const SizedBox.shrink(key: PageStorageKey('ben-create-placeholder')),

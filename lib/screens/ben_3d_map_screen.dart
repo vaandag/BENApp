@@ -2,13 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:io';
 import 'package:maplibre_gl/maplibre_gl.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart' as geo;
 
 import '../core/theme/app_tokens.dart';
-import '../core/config/map_config.dart';
 import '../models/memory.dart';
 import '../services/location_service.dart';
 import 'memory_fullscreen_viewer.dart';
@@ -54,8 +50,9 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
 
   late final AnimationController _pulseController;
 
-  List<Memory> get _locatedMemories =>
-      widget.memories.where((memory) => memory.hasLocation).toList();
+  List<Memory> get _locatedMemories => widget.memories
+      .where((memory) => memory.hasLocation && !memory.isExpired)
+      .toList();
 
   @override
   void initState() {
@@ -135,33 +132,31 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
             const Center(
               child: CircularProgressIndicator(color: BenTokens.cyan),
             )
-          else if (Platform.isIOS)
-            _buildIOSStableWorld(center)
           else
             MapLibreMap(
-            initialCameraPosition: CameraPosition(
-              target: center,
-              zoom: _zoom,
-              tilt: _tilt,
-              bearing: _bearing,
-            ),
-            styleString: _style,
-            compassEnabled: false,
-            trackCameraPosition: true,
-            rotateGesturesEnabled: true,
-            tiltGesturesEnabled: true,
-            scrollGesturesEnabled: true,
-            zoomGesturesEnabled: true,
-            myLocationEnabled: false,
-            myLocationTrackingMode: MyLocationTrackingMode.none,
-            onMapCreated: (controller) => _controller = controller,
-            onStyleLoadedCallback: _onStyleLoaded,
-            onCameraMove: (position) {
-              _zoom = position.zoom;
-              _bearing = position.bearing;
-              _tilt = position.tilt;
-              _target = position.target;
-            },
+              initialCameraPosition: CameraPosition(
+                target: center,
+                zoom: _zoom,
+                tilt: _tilt,
+                bearing: _bearing,
+              ),
+              styleString: _style,
+              compassEnabled: false,
+              trackCameraPosition: true,
+              rotateGesturesEnabled: true,
+              tiltGesturesEnabled: true,
+              scrollGesturesEnabled: true,
+              zoomGesturesEnabled: true,
+              myLocationEnabled: false,
+              myLocationTrackingMode: MyLocationTrackingMode.none,
+              onMapCreated: (controller) => _controller = controller,
+              onStyleLoadedCallback: _onStyleLoaded,
+              onCameraMove: (position) {
+                _zoom = position.zoom;
+                _bearing = position.bearing;
+                _tilt = position.tilt;
+                _target = position.target;
+              },
             ),
           IgnorePointer(
             child: AnimatedOpacity(
@@ -319,130 +314,15 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
     );
   }
 
-  Widget _buildIOSStableWorld(LatLng center) {
-    final mapCenter = geo.LatLng(center.latitude, center.longitude);
-    final memoryMarkers = _locatedMemories.map((memory) {
-      final point = geo.LatLng(memory.latitude!, memory.longitude!);
-      final selected = _selectedMemory?.id == memory.id;
-      return Marker(
-        point: point,
-        width: selected ? 62 : 52,
-        height: selected ? 70 : 60,
-        child: GestureDetector(
-          onTap: () => _selectMemory(memory.id),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedScale(
-                duration: const Duration(milliseconds: 220),
-                scale: selected ? 1.15 : 1,
-                child: Container(
-                  width: selected ? 46 : 40,
-                  height: selected ? 46 : 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: BenTokens.cyan,
-                    border: Border.all(color: const Color(0xFF07110F), width: 2.4),
-                    boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 14, offset: Offset(0, 6))],
-                  ),
-                  child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF07110F), size: 20),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xEE081117),
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(color: BenTokens.cyan.withValues(alpha: .22)),
-                ),
-                child: Text(
-                  (memory.title?.trim().isNotEmpty == true ? memory.title!.trim() : 'BEN'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w900),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }).toList();
-
-    return Stack(
-      children: [
-        FlutterMap(
-          options: MapOptions(
-            initialCenter: mapCenter,
-            initialZoom: 15.2,
-            minZoom: 3.2,
-            maxZoom: 19,
-            interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: BenMapConfig.tileUrlTemplate,
-              userAgentPackageName: 'com.benapp.mobile',
-            ),
-            MarkerLayer(markers: memoryMarkers),
-            RichAttributionWidget(
-              attributions: [
-                TextSourceAttribution(BenMapConfig.attribution),
-              ],
-            ),
-          ],
-        ),
-        IgnorePointer(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xB0000000),
-                  Colors.transparent,
-                  const Color(0xD9000000),
-                ],
-                stops: const [0, .48, 1],
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          left: 18,
-          right: 18,
-          top: 94,
-          child: IgnorePointer(
-            child: Container(
-              height: 78,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: BenTokens.cyan.withValues(alpha: .13)),
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0x1600FFF0), Color(0x0000FFF0)],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Future<void> _onStyleLoaded() async {
     final controller = _controller;
     if (controller == null || !mounted) return;
 
     setState(() => _loading3D = true);
     try {
-      // Android: restore the proven V186 OpenFreeMap planet source for
-      // extrusion/road layers. iOS keeps the provider's native style layers
-      // only; this avoids re-introducing the native MapLibre crash while the
-      // map is now lazily mounted.
-      if (!Platform.isIOS) {
-        try {
+      // Apply the same vector-tile building, road and edge layers on
+      // iOS and Android so both platforms render the real 3D city.
+      try {
           await controller.addSource(
             'ben-openfreemap-buildings',
             const VectorSourceProperties(
@@ -505,8 +385,7 @@ class _Ben3DMapScreenState extends State<Ben3DMapScreen>
             minzoom: 14.8,
             enableInteraction: false,
           );
-        } catch (_) {}
-      }
+      } catch (_) {}
 
       await _addBenMemoryLayer(controller);
       if (!mounted) return;

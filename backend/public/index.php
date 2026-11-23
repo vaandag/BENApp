@@ -104,7 +104,7 @@ try {
     exit;
   }
 
-  if ($path === 'health' || $path === '') { echo json_encode(['ok'=>true,'service'=>'BEN API','version'=>'194']); exit; }
+  if ($path === 'health' || $path === '') { echo json_encode(['ok'=>true,'service'=>'BEN API','version'=>'195']); exit; }
   if ($path === 'account/delete' && $method === 'POST') {
     $uid = ben_require_user_id($pdo);
     $password = (string)($input['password'] ?? '');

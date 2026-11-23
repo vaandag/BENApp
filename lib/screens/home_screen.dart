@@ -600,6 +600,7 @@ class _StoryViewerState extends State<_StoryViewer> with SingleTickerProviderSta
   int? _pendingStoryIndex;
   bool _openingMemory = false;
   double _verticalDragDistance = 0;
+  final Set<String> _settledMediaIds = <String>{};
 
   @override
   void initState() {
@@ -608,9 +609,7 @@ class _StoryViewerState extends State<_StoryViewer> with SingleTickerProviderSta
     _peopleController = PageController(initialPage: _personIndex);
     _progress = AnimationController(vsync: this, duration: const Duration(seconds: 6))
       ..addStatusListener(_onProgressStatus);
-    if (widget.people.isNotEmpty && widget.people[_personIndex].stories.isNotEmpty) {
-      _progress.forward();
-    }
+    _restartProgress();
   }
 
   void _onProgressStatus(AnimationStatus status) {
@@ -632,8 +631,40 @@ class _StoryViewerState extends State<_StoryViewer> with SingleTickerProviderSta
     return person.stories[_storyIndex.clamp(0, person.stories.length - 1)];
   }
 
+  bool get _currentStoryNeedsMedia {
+    final memory = _story?.memory;
+    if (memory == null) return false;
+    if (memory.type == MemoryType.photo) {
+      return (memory.photo?.existsSync() ?? false) ||
+          (memory.mediaUrl?.contains('/media/') ?? false);
+    }
+    if (memory.type == MemoryType.video) {
+      final source = memory.video ?? memory.mediaUrl;
+      return source != null &&
+          source.isNotEmpty &&
+          (File(source).existsSync() || source.contains('/media/'));
+    }
+    return false;
+  }
+
+  void _markMediaSettled(String memoryId) {
+    if (!_settledMediaIds.add(memoryId)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _story?.memory?.id != memoryId || _openingMemory) return;
+      if (!_progress.isAnimating && _progress.value == 0) _progress.forward();
+    });
+  }
+
   void _restartProgress() {
-    if (mounted && !_openingMemory) _progress.forward(from: 0);
+    if (!mounted || _openingMemory) return;
+    _progress
+      ..stop()
+      ..reset();
+    final memoryId = _story?.memory?.id;
+    if (!_currentStoryNeedsMedia ||
+        (memoryId != null && _settledMediaIds.contains(memoryId))) {
+      _progress.forward();
+    }
   }
 
   void _goStory(int direction) {
@@ -757,13 +788,43 @@ class _StoryViewerState extends State<_StoryViewer> with SingleTickerProviderSta
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: story.memory?.photo != null && story.memory!.photo!.existsSync()
-                            ? Image.file(story.memory!.photo!, fit: BoxFit.cover)
+                            ? Image.file(
+                                story.memory!.photo!,
+                                fit: BoxFit.cover,
+                                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                                  if (frame != null || wasSynchronouslyLoaded) {
+                                    _markMediaSettled(story.memory!.id);
+                                  }
+                                  return frame == null && !wasSynchronouslyLoaded
+                                      ? const _MediaLoadingPlaceholder(color: BenTokens.panel)
+                                      : child;
+                                },
+                                errorBuilder: (_, _, _) {
+                                  _markMediaSettled(story.memory!.id);
+                                  return CustomPaint(
+                                    painter: _MemoryVisualPainter(base: BenTokens.panel, icon: story.icon),
+                                  );
+                                },
+                              )
                             : story.memory?.type == MemoryType.photo && story.memory?.mediaUrl?.contains('/media/') == true
                                 ? Image.network(
                                     ApiClient().resolveMediaUri(story.memory!.mediaUrl!).toString(),
                                     headers: ApiClient().authorizationHeaders,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, _, _) => CustomPaint(painter: _MemoryVisualPainter(base: BenTokens.panel, icon: story.icon)),
+                                    frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                                      if (frame != null || wasSynchronouslyLoaded) {
+                                        _markMediaSettled(story.memory!.id);
+                                      }
+                                      return frame == null && !wasSynchronouslyLoaded
+                                          ? const _MediaLoadingPlaceholder(color: BenTokens.panel)
+                                          : child;
+                                    },
+                                    errorBuilder: (_, _, _) {
+                                      _markMediaSettled(story.memory!.id);
+                                      return CustomPaint(
+                                        painter: _MemoryVisualPainter(base: BenTokens.panel, icon: story.icon),
+                                      );
+                                    },
                                   )
                                 : story.memory?.type == MemoryType.video &&
                                         (story.memory!.video != null || story.memory!.mediaUrl?.contains('/media/') == true)
@@ -771,6 +832,7 @@ class _StoryViewerState extends State<_StoryViewer> with SingleTickerProviderSta
                                         path: story.memory!.video ?? story.memory!.mediaUrl!,
                                         fallbackColor: BenTokens.panel,
                                         icon: story.icon,
+                                        onSettled: () => _markMediaSettled(story.memory!.id),
                                       )
                                     : Stack(
                                         alignment: Alignment.center,
@@ -1100,7 +1162,17 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
                   fit: StackFit.expand,
                   children: [
                   if (widget.item.memory?.photo != null && widget.item.memory!.photo!.existsSync())
-                    Image.file(widget.item.memory!.photo!, fit: BoxFit.cover)
+                    Image.file(
+                      widget.item.memory!.photo!,
+                      fit: BoxFit.cover,
+                      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) =>
+                          frame == null && !wasSynchronouslyLoaded
+                              ? _MediaLoadingPlaceholder(color: widget.item.visualColor)
+                              : child,
+                      errorBuilder: (_, __, ___) => CustomPaint(
+                        painter: _MemoryVisualPainter(base: widget.item.visualColor, icon: widget.item.visualIcon),
+                      ),
+                    )
                   else if (widget.item.memory?.mediaUrl?.contains('/media/') == true && widget.item.memory!.type == MemoryType.photo)
                     Image.network(
                       ApiClient()
@@ -1108,6 +1180,17 @@ class _LiveMemoryCardState extends State<_LiveMemoryCard> {
                           .toString(),
                       headers: ApiClient().authorizationHeaders,
                       fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        final total = progress.expectedTotalBytes;
+                        final fraction = total == null
+                            ? null
+                            : progress.cumulativeBytesLoaded / total;
+                        return _MediaLoadingPlaceholder(
+                          color: widget.item.visualColor,
+                          progress: fraction,
+                        );
+                      },
                       errorBuilder: (_, __, ___) => CustomPaint(
                         painter: _MemoryVisualPainter(base: widget.item.visualColor, icon: widget.item.visualIcon),
                       ),
@@ -1222,46 +1305,127 @@ class _LocalVideoPreview extends StatefulWidget {
   final String path;
   final Color fallbackColor;
   final IconData icon;
-  const _LocalVideoPreview({required this.path, required this.fallbackColor, required this.icon});
+  final VoidCallback? onSettled;
+
+  const _LocalVideoPreview({
+    required this.path,
+    required this.fallbackColor,
+    required this.icon,
+    this.onSettled,
+  });
+
   @override
   State<_LocalVideoPreview> createState() => _LocalVideoPreviewState();
 }
 
 class _LocalVideoPreviewState extends State<_LocalVideoPreview> {
   VideoPlayerController? _controller;
+  bool _loading = true;
+
   @override
   void initState() {
     super.initState();
     _init();
   }
+
   Future<void> _init() async {
     final file = File(widget.path);
     final isLocalFile = file.existsSync();
-    if (!isLocalFile && !widget.path.contains('/media/')) return;
+    if (!isLocalFile && !widget.path.contains('/media/')) {
+      if (mounted) setState(() => _loading = false);
+      widget.onSettled?.call();
+      return;
+    }
+
+    VideoPlayerController? controller;
     try {
-      final controller = isLocalFile
+      final nextController = isLocalFile
           ? VideoPlayerController.file(file)
           : VideoPlayerController.networkUrl(
               ApiClient().resolveMediaUri(widget.path),
               httpHeaders: ApiClient().authorizationHeaders,
             );
-      await controller.initialize();
-      await controller.setVolume(0);
-      if (!mounted) { controller.dispose(); return; }
-      setState(() => _controller = controller);
-    } catch (_) {}
+      controller = nextController;
+      await nextController.initialize();
+      await nextController.setVolume(0);
+      if (!mounted) {
+        await nextController.dispose();
+        return;
+      }
+      setState(() {
+        _controller = nextController;
+        _loading = false;
+      });
+      widget.onSettled?.call();
+    } catch (_) {
+      await controller?.dispose();
+      if (mounted) setState(() => _loading = false);
+      widget.onSettled?.call();
+    }
   }
+
   @override
-  void dispose() { _controller?.dispose(); super.dispose(); }
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = _controller;
     if (c == null || !c.value.isInitialized) {
-      return CustomPaint(painter: _MemoryVisualPainter(base: widget.fallbackColor, icon: widget.icon));
+      if (_loading) {
+        return ColoredBox(
+          color: widget.fallbackColor,
+          child: const Center(
+            child: CircularProgressIndicator(color: BenTokens.cyan),
+          ),
+        );
+      }
+      return CustomPaint(
+        painter: _MemoryVisualPainter(
+          base: widget.fallbackColor,
+          icon: widget.icon,
+        ),
+      );
     }
     return FittedBox(
       fit: BoxFit.cover,
-      child: SizedBox(width: c.value.size.width, height: c.value.size.height, child: VideoPlayer(c)),
+      child: SizedBox(
+        width: c.value.size.width,
+        height: c.value.size.height,
+        child: VideoPlayer(c),
+      ),
+    );
+  }
+}
+
+class _MediaLoadingPlaceholder extends StatelessWidget {
+  final Color color;
+  final double? progress;
+
+  const _MediaLoadingPlaceholder({
+    required this.color,
+    this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final value = progress?.clamp(0.0, 1.0).toDouble();
+    return ColoredBox(
+      color: color,
+      child: Center(
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(
+            value: value,
+            strokeWidth: 2.4,
+            color: BenTokens.cyan,
+            backgroundColor: Colors.white24,
+          ),
+        ),
+      ),
     );
   }
 }

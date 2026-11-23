@@ -33,6 +33,8 @@ class _MemoryFullscreenViewerState extends State<MemoryFullscreenViewer> {
   late bool _pinned;
   VideoPlayerController? _video;
   bool _videoReady = false;
+  bool _videoLoading = false;
+  bool _videoFailed = false;
 
   @override
   void initState() {
@@ -43,28 +45,54 @@ class _MemoryFullscreenViewerState extends State<MemoryFullscreenViewer> {
   }
 
   Future<void> _prepareVideo() async {
-    final source = widget.memory.video;
-    if (source == null || source.isEmpty) return;
+    final source = widget.memory.video ?? widget.memory.mediaUrl;
+    if (source == null || source.isEmpty) {
+      if (mounted) setState(() => _videoFailed = true);
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _videoLoading = true;
+        _videoFailed = false;
+      });
+    }
+
+    VideoPlayerController? controller;
     try {
       final file = File(source);
-      final controller = file.existsSync()
+      final nextController = file.existsSync()
           ? VideoPlayerController.file(file)
           : VideoPlayerController.networkUrl(
               _api.resolveMediaUri(source),
               httpHeaders: _api.authorizationHeaders,
             );
-      await controller.initialize();
-      await controller.setLooping(true);
-      await controller.play();
+      controller = nextController;
+      await nextController.initialize();
+      await nextController.setLooping(true);
+      await nextController.play();
       if (!mounted) {
-        controller.dispose();
+        await nextController.dispose();
         return;
       }
+      final previous = _video;
       setState(() {
-        _video = controller;
+        _video = nextController;
         _videoReady = true;
+        _videoLoading = false;
+        _videoFailed = false;
       });
-    } catch (_) {}
+      await previous?.dispose();
+    } catch (_) {
+      await controller?.dispose();
+      if (mounted) {
+        setState(() {
+          _videoReady = false;
+          _videoLoading = false;
+          _videoFailed = true;
+        });
+      }
+    }
   }
 
   @override
@@ -142,16 +170,34 @@ class _MemoryFullscreenViewerState extends State<MemoryFullscreenViewer> {
   Widget _media() {
     final memory = widget.memory;
     if (memory.photo != null && memory.photo!.existsSync()) {
-      return InteractiveViewer(minScale: .75, maxScale: 4, child: Image.file(memory.photo!, fit: BoxFit.contain, filterQuality: FilterQuality.high));
+      return InteractiveViewer(
+        minScale: .75,
+        maxScale: 4,
+        child: Image.file(
+          memory.photo!,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (_, __, ___) => _mediaFailure('Fotoğraf açılamadı.'),
+        ),
+      );
     }
-    if (memory.mediaUrl?.startsWith('http') == true && memory.type == MemoryType.photo) {
-      return InteractiveViewer(minScale: .75, maxScale: 4, child: Image.network(
-        _api.resolveMediaUri(memory.mediaUrl!).toString(),
-        headers: _api.authorizationHeaders,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.high,
-        errorBuilder: (_, __, ___) => _textMemory(),
-      ));
+    if (memory.type == MemoryType.photo &&
+        memory.mediaUrl?.contains('/media/') == true) {
+      return InteractiveViewer(
+        minScale: .75,
+        maxScale: 4,
+        child: Image.network(
+          _api.resolveMediaUri(memory.mediaUrl!).toString(),
+          headers: _api.authorizationHeaders,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            return _mediaLoading();
+          },
+          errorBuilder: (_, __, ___) => _mediaFailure('Fotoğraf yüklenemedi.'),
+        ),
+      );
     }
     if (_videoReady && _video != null) {
       return Center(
@@ -161,10 +207,48 @@ class _MemoryFullscreenViewerState extends State<MemoryFullscreenViewer> {
         ),
       );
     }
-    if (memory.hasVideo) {
-      return const Center(child: CircularProgressIndicator(color: BenTokens.cyan));
+    if (memory.type == MemoryType.video || memory.hasVideo) {
+      if (_videoLoading) return _mediaLoading();
+      if (_videoFailed) {
+        return _mediaFailure('Video yüklenemedi.', onRetry: _prepareVideo);
+      }
+      return _mediaLoading();
     }
     return _textMemory();
+  }
+
+  Widget _mediaLoading() {
+    return const Center(
+      child: CircularProgressIndicator(color: BenTokens.cyan),
+    );
+  }
+
+  Widget _mediaFailure(String message, {VoidCallback? onRetry}) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.broken_image_outlined, color: BenTokens.cyan, size: 42),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w700),
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 14),
+              TextButton.icon(
+                onPressed: _videoLoading ? null : onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Tekrar dene'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _textMemory() {
